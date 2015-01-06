@@ -8,6 +8,9 @@ License:    BSD-2-Clause
 Source0:    %{name}-%{version}.tar.bz2
 BuildRequires: pkgconfig(x11) 
 BuildRequires: pkgconfig(enlightenment)
+%if !%{with x}
+ExclusiveArch:
+%endif
 
 %description
 The Enlightenment WM Policy Module for Tizen
