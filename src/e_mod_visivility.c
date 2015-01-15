@@ -181,7 +181,6 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
    E_Client *ec;
    Eina_Tiler *t;
    Eina_Rectangle r;
-   Eina_Iterator *itr;
    const int edge = 1;
    const int OBSCURED = 1;
    const int UNOBSCURED  = 0;
@@ -323,17 +322,21 @@ e_mod_pol_client_window_opaque_set(E_Client *ec)
      _win_opaque_add(ec, opaque);
 }
 
-void
-e_mod_pol_client_window_opaque_prop_change(E_Client *ec)
+Eina_Bool
+e_mod_pol_visibility_cb_window_property(Ecore_X_Event_Window_Property *ev)
 {
    Ecore_X_Window win;
    int opaque = 0;
    Pol_Win_Opaque *pwo;
+   E_Client *ec;
 
-   if (!ec) return;
+   if (!ev) return EINA_FALSE;
+
+   ec = e_pixmap_find_client(E_PIXMAP_TYPE_X, ev->win);
+   if (!ec) return EINA_FALSE;
 
    pwo = _win_opaque_find(ec);
-   win = e_client_util_win_get(ec);
+   win = ev->win;
 
    if (_win_opaque_prop_get(win, &opaque))
      {
@@ -346,4 +349,6 @@ e_mod_pol_client_window_opaque_prop_change(E_Client *ec)
      }
 
    e_mod_pol_visibility_calc();
+
+   return EINA_TRUE;
 }

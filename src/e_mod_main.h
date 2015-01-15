@@ -101,7 +101,7 @@ extern Eina_Hash *hash_pol_clients;
 EINTERN void             e_mod_pol_conf_init(Mod *mod);
 EINTERN void             e_mod_pol_conf_shutdown(Mod *mod);
 EINTERN Config_Desk     *e_mod_pol_conf_desk_get_by_nums(Config *conf, unsigned int comp_num, unsigned int zone_num, int x, int y);
-EINTERN E_Config_Dialog *e_int_config_pol_mobile(Evas_Object *parent, const char *params EINA_UNUSED);
+EINTERN E_Config_Dialog *e_int_config_pol_mobile(E_Comp *c EINA_UNUSED, const char *params EINA_UNUSED);
 EINTERN void             e_mod_pol_desk_add(E_Desk *desk);
 EINTERN void             e_mod_pol_desk_del(Pol_Desk *pd);
 EINTERN Pol_Client      *e_mod_pol_client_launcher_get(E_Zone *zone);
@@ -119,6 +119,6 @@ EINTERN void             e_mod_pol_zone_visibility_calc(E_Zone *zone);
 EINTERN void             e_mod_pol_visibility_calc(void);
 EINTERN void             e_mod_pol_client_visibility_del(E_Client *ec);
 EINTERN void             e_mod_pol_client_window_opaque_set(E_Client *ec);
-EINTERN void             e_mod_pol_client_window_opaque_prop_change(E_Client *ec);
+EINTERN Eina_Bool        e_mod_pol_visibility_cb_window_property(Ecore_X_Event_Window_Property *ev);
 
 #endif
