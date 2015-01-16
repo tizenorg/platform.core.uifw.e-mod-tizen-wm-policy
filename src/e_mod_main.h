@@ -74,6 +74,7 @@ struct _Config
    Eina_List       *desks;
    int              use_softkey;
    int              softkey_size;
+   unsigned char    wm_win_rotation;
 };
 
 struct _Mod

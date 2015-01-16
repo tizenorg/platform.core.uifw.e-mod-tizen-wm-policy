@@ -20,6 +20,7 @@
 #include "e_mod_rotation.h"
 #include "e_mod_atoms.h"
 #include "e_mod_utils.h"
+#include "e_mod_main.h"
 
 typedef struct _E_Client_Rotation E_Client_Rotation;
 
@@ -1346,6 +1347,31 @@ e_zone_rotation_update_cancel(E_Zone *zone)
 }
 
 /* externally accessible functions */
+EINTERN void
+e_mod_pol_rot_init(void)
+{
+   if (!_pol_mod) return;
+   if (!_pol_mod->conf) return;
+
+   if (_pol_mod->conf->wm_win_rotation)
+     {
+        int n, i;
+        Ecore_X_Window *roots;
+
+        roots = ecore_x_window_root_list(&n);
+
+        if ((roots) && (n > 0))
+          {
+             for (i = 0; i < n; i++)
+               {
+                  ecore_x_e_window_rotation_supported_set(roots[i],
+                                                          _pol_mod->conf->wm_win_rotation);
+               }
+          }
+        free(roots);
+     }
+}
+
 EINTERN Eina_Bool
 e_mod_pol_rot_hook_client_free(E_Client *ec)
 {

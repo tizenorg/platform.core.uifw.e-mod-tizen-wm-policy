@@ -64,6 +64,7 @@ _pol_cfd_data_create(E_Config_Dialog *cfd)
    cfdata->conf->launcher.type = _pol_mod->conf->launcher.type;
    cfdata->conf->use_softkey = _pol_mod->conf->use_softkey;
    cfdata->conf->softkey_size = _pol_mod->conf->softkey_size;
+   cfdata->conf->wm_win_rotation = _pol_mod->conf->wm_win_rotation;
 
    _pol_mod->conf_dialog = cfd;
 
@@ -161,6 +162,12 @@ _pol_cfd_data_basic_apply(E_Config_Dialog *cfd EINA_UNUSED, E_Config_Dialog_Data
                   changed = EINA_TRUE;
                }
           }
+     }
+
+   if (_pol_mod->conf->wm_win_rotation != cfdata->conf->wm_win_rotation)
+     {
+        _pol_mod->conf->wm_win_rotation = cfdata->conf->wm_win_rotation;
+        changed = EINA_TRUE;
      }
 
    if (changed)
@@ -270,6 +277,14 @@ _pol_cfd_data_basic_widgets_create(E_Config_Dialog *cfd EINA_UNUSED, Evas *evas,
    e_widget_framelist_object_append(fl, lo);
    e_widget_list_object_append(base, fl, 1, 1, 0.5);
 
+   /* Window WM Rotation frame list */
+   fl = e_widget_framelist_add(evas, _("Window WM Rotation"), 0);
+   o = e_widget_check_add(evas, _("Use Window WM Rotation"),
+                          &cfdata->conf->wm_win_rotation);
+   e_widget_framelist_object_append(fl, o);
+   e_widget_list_object_append(base, fl, 1, 1, 0.5);
+   /* Window WM Rotation frame list end */
+
    return base;
 }
 
@@ -303,6 +318,7 @@ e_mod_pol_conf_init(Mod *mod)
    E_CONFIG_LIST(D, T, desks, mod->conf_desk_edd);
    E_CONFIG_VAL(D, T, use_softkey, INT);
    E_CONFIG_VAL(D, T, softkey_size, INT);
+   E_CONFIG_VAL(D, T, wm_win_rotation, UCHAR);
 
 #undef T
 #undef D
@@ -317,6 +333,7 @@ e_mod_pol_conf_init(Mod *mod)
         conf->launcher.type = E_WINDOW_TYPE_NORMAL;
         conf->use_softkey = 1;
         conf->softkey_size = 42;
+        conf->wm_win_rotation = 1;
 
         comp = e_comp_get(NULL);
         zone = e_zone_current_get(comp);

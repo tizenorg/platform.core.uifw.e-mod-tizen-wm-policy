@@ -773,6 +773,8 @@ e_modapi_init(E_Module *m)
           //  e_policy_zone_home_add_request(zone);
        }
 
+   e_mod_pol_rot_init();
+
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_ADD,
                          _pol_cb_zone_add, NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_DEL,

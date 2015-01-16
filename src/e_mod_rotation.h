@@ -2,9 +2,10 @@
 #define E_MOD_ROTATION_H
 #include <e.h>
 
+EINTERN void      e_mod_pol_rot_init(void);
 EINTERN Eina_Bool e_mod_pol_rot_hook_client_free(E_Client *ec);
 EINTERN Eina_Bool e_mod_pol_rot_hook_client_del(E_Client *ec);
-EINTERN void e_mod_pol_rot_cb_evas_show(E_Client *ec);
+EINTERN void      e_mod_pol_rot_cb_evas_show(E_Client *ec);
 EINTERN Eina_Bool e_mod_pol_rot_hook_eval_end(E_Client *ec);
 EINTERN Eina_Bool e_mod_pol_rot_cb_idle_enterer(void);
 EINTERN Eina_Bool e_mod_pol_rot_hook_new_client(E_Client *ec);
