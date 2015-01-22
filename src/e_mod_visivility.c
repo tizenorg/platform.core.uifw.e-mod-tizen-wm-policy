@@ -182,7 +182,7 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
    Eina_Tiler *t;
    Eina_Rectangle r;
    const int edge = 1;
-   const int OBSCURED = 1;
+   const int OBSCURED = 2; // 2: Fully Obscured, Currently Ecore_X treats Fully Obscured only.
    const int UNOBSCURED  = 0;
    Pol_Visibility *pv;
 
