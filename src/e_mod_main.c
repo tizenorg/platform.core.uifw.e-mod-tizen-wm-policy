@@ -261,8 +261,6 @@ _pol_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec)
 
    if (e_object_is_del(E_OBJECT(ec))) return;
 
-   e_mod_pol_visibility_calc();
-
    if (!_pol_client_normal_check(ec)) return;
    if (ec->new_client) return;
 
@@ -324,6 +322,10 @@ _pol_hook_client_del(void *d EINA_UNUSED, E_Client *ec)
 static void
 _pol_hook_eval_end(void *d EINA_UNUSED, E_Client *ec)
 {
+   /* calculate e_client visibility */
+   e_mod_pol_visibility_calc();
+
+   /* evaluate rotation */
    e_mod_pol_rot_hook_eval_end(ec);
 }
 
