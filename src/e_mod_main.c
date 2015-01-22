@@ -45,6 +45,7 @@ static void        _pol_hook_new_client_post(void *d EINA_UNUSED, E_Client *ec);
 static void        _pol_hook_client_del(void *d EINA_UNUSED, E_Client *ec);
 static void        _pol_hook_eval_end(void *d EINA_UNUSED, E_Client *ec);
 static void        _pol_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec);
+static void        _pol_hook_eval_post_frame_assign(void *d EINA_UNUSED, E_Client *ec);
 
 static Eina_Bool   _pol_intercept_hook_show_helper(void *d EINA_UNUSED, E_Client *ec);
 static Eina_Bool   _pol_intercept_hook_hide(void *d EINA_UNUSED, E_Client *ec);
@@ -300,6 +301,7 @@ _pol_hook_client_desk_set(void *d EINA_UNUSED, E_Client *ec)
 static void
 _pol_hook_new_client(void *d EINA_UNUSED, E_Client *ec)
 {
+   /* Handle rotation hook for new_client */
    e_mod_pol_rot_hook_new_client(ec);
 }
 
@@ -310,7 +312,6 @@ _pol_hook_new_client_post(void *d EINA_UNUSED, E_Client *ec)
      {
         evas_object_event_callback_add(ec->frame, EVAS_CALLBACK_SHOW, _pol_cb_evas_show, ec);
      }
-   return;
 }
 
 
@@ -331,6 +332,18 @@ static void
 _pol_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec)
 {
    e_mod_pol_rot_hook_eval_fetch(ec);
+}
+
+static void
+_pol_hook_eval_post_frame_assign(void *d EINA_UNUSED, E_Client *ec)
+{
+   Ecore_X_Window pwin;
+
+   /* Set _E_PARENT_BORDER_WINDOW Property */
+   pwin = e_client_util_pwin_get(ec);
+   ecore_x_window_prop_window_set(e_client_util_win_get(ec),
+                                  E_MOD_POL_ATOM_PARENT_BORDER_WINDOW,
+                                  &pwin, 1);
 }
 
 static Eina_Bool
@@ -499,10 +512,21 @@ _pol_cb_desk_show(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 static Eina_Bool
 _pol_cb_client_remove(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 {
-   E_Event_Client *ev;
+   E_Event_Client *ev = event;
    Pol_Client *pc;
+   Ecore_X_Window pwin;
+   int ret = 0;
 
-   ev = event;
+   /* remove _E_PARENT_BORDER_WINDOW Property */
+   ret = ecore_x_window_prop_window_get(e_client_util_win_get(ev->ec),
+                                     E_MOD_POL_ATOM_PARENT_BORDER_WINDOW,
+                                     &pwin, 1);
+   if (ret)
+     {
+        ecore_x_window_prop_property_del(e_client_util_win_get(ev->ec),
+                                         E_MOD_POL_ATOM_PARENT_BORDER_WINDOW);
+     }
+
    pc = eina_hash_find(hash_pol_clients, &ev->ec);
    if (!pc) return ECORE_CALLBACK_PASS_ON;
 
@@ -810,6 +834,8 @@ e_modapi_init(E_Module *m)
                         _pol_hook_eval_end, NULL);
    E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_EVAL_FETCH,
                         _pol_hook_eval_fetch, NULL);
+   E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_EVAL_POST_FRAME_ASSIGN,
+                        _pol_hook_eval_post_frame_assign, NULL);
 
    E_COMP_OBJECT_INTERCEPT_HOOK_APPEND(intercept_hooks,
                                        E_COMP_OBJECT_INTERCEPT_HOOK_SHOW_HELPER,
