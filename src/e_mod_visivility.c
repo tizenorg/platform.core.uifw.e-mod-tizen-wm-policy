@@ -177,7 +177,6 @@ _client_tiler_intersects(E_Client *ec, Eina_Tiler *t)
 void
 e_mod_pol_zone_visibility_calc(E_Zone *zone)
 {
-   Eina_List *l;
    E_Client *ec;
    Eina_Tiler *t;
    Eina_Rectangle r;
@@ -194,8 +193,9 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
    EINA_RECTANGLE_SET(&r, zone->x, zone->y, zone->w, zone->h);
    eina_tiler_rect_add(t, &r);
 
-   EINA_LIST_REVERSE_FOREACH(zone->comp->clients, l, ec)
+   E_CLIENT_REVERSE_FOREACH(zone->comp, ec)
      {
+        if (e_object_is_del(E_OBJECT(ec))) continue;
         if (e_client_util_ignored_get(ec)) continue;
         /* check zone and skip borders not on this zone */
         if (ec->zone != zone) continue;
@@ -204,9 +204,9 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
         /* check e_client and skip e_clinets not intersects with zone */
         if (!E_INTERSECTS(ec->x, ec->y, ec->w, ec->h, zone->x, zone->y, zone->w, zone->h))
           continue;
-      
+
         if (_client_tiler_intersects(ec, t))
-          { 
+          {
              Pol_Win_Opaque *pwo;
              Eina_Bool opaque = EINA_FALSE;
              /* unobscured case */

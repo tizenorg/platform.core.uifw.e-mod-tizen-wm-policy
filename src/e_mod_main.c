@@ -58,6 +58,9 @@ static Eina_Bool   _pol_cb_zone_desk_count_set(void *data EINA_UNUSED, int type 
 static Eina_Bool   _pol_cb_desk_show(void *data EINA_UNUSED, int type EINA_UNUSED, void *event);
 static Eina_Bool   _pol_cb_client_remove(void *data EINA_UNUSED, int type, void *event);
 static Eina_Bool   _pol_cb_client_add(void *data EINA_UNUSED, int type, void *event);
+static Eina_Bool   _pol_cb_client_move(void *data EINA_UNUSED, int type, void *event);
+static Eina_Bool   _pol_cb_client_resize(void *data EINA_UNUSED, int type, void *event);
+static Eina_Bool   _pol_cb_client_stack(void *data EINA_UNUSED, int type, void *event);
 static Eina_Bool   _pol_cb_window_property(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Property *ev);
 
 static Eina_Bool   _pol_cb_window_configure(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Configure *ev);
@@ -530,6 +533,45 @@ _pol_cb_client_add(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 }
 
 static Eina_Bool
+_pol_cb_client_move(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
+{
+   E_Event_Client *ev;
+
+   ev = event;
+   if (!ev) return ECORE_CALLBACK_PASS_ON;
+   /* calculate e_client visibility */
+   e_mod_pol_visibility_calc();
+
+   return ECORE_CALLBACK_PASS_ON;
+}
+
+static Eina_Bool
+_pol_cb_client_resize(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
+{
+   E_Event_Client *ev;
+
+   ev = event;
+   if (!ev) return ECORE_CALLBACK_PASS_ON;
+   /* calculate e_client visibility */
+   e_mod_pol_visibility_calc();
+
+   return ECORE_CALLBACK_PASS_ON;
+}
+
+static Eina_Bool
+_pol_cb_client_stack(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
+{
+   E_Event_Client *ev;
+
+   ev = event;
+   if (!ev) return ECORE_CALLBACK_PASS_ON;
+   /* calculate e_client visibility */
+   e_mod_pol_visibility_calc();
+
+   return ECORE_CALLBACK_PASS_ON;
+}
+
+static Eina_Bool
 _pol_cb_window_property(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Property *ev)
 {
    if (ev->atom == E_MOD_POL_ATOM_WINDOW_OPAQUE)
@@ -789,6 +831,13 @@ e_modapi_init(E_Module *m)
                          _pol_cb_client_remove, NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_ADD,
                          _pol_cb_client_add, NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_MOVE,
+                         _pol_cb_client_move, NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_RESIZE,
+                         _pol_cb_client_resize, NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_STACK,
+                         _pol_cb_client_stack, NULL);
+
    E_LIST_HANDLER_APPEND(handlers, ECORE_X_EVENT_WINDOW_PROPERTY,
                          _pol_cb_window_property, NULL);
    E_LIST_HANDLER_APPEND(handlers, ECORE_X_EVENT_WINDOW_CONFIGURE,
