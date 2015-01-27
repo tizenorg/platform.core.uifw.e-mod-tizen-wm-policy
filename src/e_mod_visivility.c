@@ -200,7 +200,8 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
         /* check zone and skip borders not on this zone */
         if (ec->zone != zone) continue;
         /* check e_client and skip e_clients not visible */
-        if (!ec->visible) continue;
+        if (!ec->frame) continue;
+        if (!evas_object_visible_get(ec->frame)) continue;
         /* check e_client and skip e_clinets not intersects with zone */
         if (!E_INTERSECTS(ec->x, ec->y, ec->w, ec->h, zone->x, zone->y, zone->w, zone->h))
           continue;
