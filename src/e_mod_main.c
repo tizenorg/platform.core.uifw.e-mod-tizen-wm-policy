@@ -515,6 +515,7 @@ _pol_cb_client_remove(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 
    e_mod_pol_client_visibility_del(ev->ec);
    e_mod_pol_visibility_calc();
+   e_mod_pol_client_type_del(ev->ec);
 
    return ECORE_CALLBACK_PASS_ON;
 }
@@ -528,6 +529,7 @@ _pol_cb_client_add(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    if (!ev) return ECORE_CALLBACK_PASS_ON;
 
    e_mod_pol_client_window_opaque_set(ev->ec);
+   e_mod_pol_client_type_setup(ev->ec);
 
    return ECORE_CALLBACK_PASS_ON;
 }
@@ -778,6 +780,7 @@ e_modapi_init(E_Module *m)
 
    e_mod_pol_visibility_init();
    e_mod_pol_atoms_init();
+   e_mod_pol_client_type_init();
 
    /* initialize configure and config data type */
    snprintf(buf, sizeof(buf), "%s/e-module-policy.edj",
@@ -899,6 +902,7 @@ e_modapi_shutdown(E_Module *m)
    E_FREE_FUNC(hash_pol_clients, eina_hash_free);
 
    e_mod_pol_viisibility_shutdown();
+   e_mod_pol_client_type_shutdown();
 
    e_configure_registry_item_del("windows/policy-tizen");
    e_configure_registry_category_del("windows");

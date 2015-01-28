@@ -17,6 +17,42 @@ typedef struct _Config_Match Config_Match;
 typedef struct _Config_Desk  Config_Desk;
 typedef struct _Config       Config;
 typedef struct _Mod          Mod;
+typedef struct _Pol_Client_Type_Match  Pol_Client_Type_Match;
+
+typedef enum _Pol_Client_Type
+{
+   POL_CLIENT_TYPE_UNKNOWN = 0,
+   POL_CLIENT_TYPE_DESKTOP,
+   POL_CLIENT_TYPE_DOCK,
+   POL_CLIENT_TYPE_TOOLBAR,
+   POL_CLIENT_TYPE_MENU,
+   POL_CLIENT_TYPE_UTILITY,
+   POL_CLIENT_TYPE_SPLASH,
+   POL_CLIENT_TYPE_DIALOG,
+   POL_CLIENT_TYPE_NORMAL,
+   POL_CLIENT_TYPE_DROPDOWN_MENU,
+   POL_CLIENT_TYPE_POPUP_MENU,
+   POL_CLIENT_TYPE_TOOLTIP,
+   POL_CLIENT_TYPE_NOTIFICATION,
+   POL_CLIENT_TYPE_COMBO,
+   POL_CLIENT_TYPE_DND,
+   /* added type */
+   POL_CLIENT_TYPE_MENUSCREEN,
+   POL_CLIENT_TYPE_QUICKPANEL,
+   POL_CLIENT_TYPE_VIDEOCALL,
+   POL_CLIENT_TYPE_TASKMANAGER,
+   POL_CLIENT_TYPE_LIVEMAGAZINE,
+   POL_CLIENT_TYPE_LOCKSCREEN,
+   POL_CLIENT_TYPE_INDICATOR,
+   POL_CLIENT_TYPE_TICKERNOTI,
+   POL_CLIENT_TYPE_APPTRAY,
+   POL_CLIENT_TYPE_VOLUME,
+   POL_CLIENT_TYPE_BACKGROUND,
+   POL_CLIENT_TYPE_SETUP_WIZARD,
+   POL_CLIENT_TYPE_ISF_KEYBOARD,
+   POL_CLIENT_TYPE_ISF_SUB,
+   POL_CLIENT_TYPE_APP_POPUP,
+} Pol_Client_Type;
 
 struct _Pol_Desk
 {
@@ -72,6 +108,7 @@ struct _Config
 {
    Config_Match     launcher;
    Eina_List       *desks;
+   Eina_List       *client_types;
    int              use_softkey;
    int              softkey_size;
 };
@@ -81,6 +118,7 @@ struct _Mod
    E_Module        *module;
    E_Config_DD     *conf_edd;
    E_Config_DD     *conf_desk_edd;
+   E_Config_DD     *conf_client_type_edd;
    Config          *conf;
    E_Config_Dialog *conf_dialog;
    Eina_List       *launchers; /* launcher window per zone */
@@ -92,6 +130,14 @@ struct _E_Config_Dialog_Data
    Config          *conf;
    Evas_Object     *o_list;
    Evas_Object     *o_desks;
+};
+
+struct _Pol_Client_Type_Match
+{
+   const char     *name; /* icccm.class_name */
+   const char     *clas; /* icccm.class */
+   E_Window_Type   e_window_type; /* netwm.type: Ecore_X_Window_Type, E_Window_Type */
+   Pol_Client_Type pol_client_type; /* E_Client_Type */
 };
 
 extern Mod *_pol_mod;
@@ -120,5 +166,10 @@ EINTERN void             e_mod_pol_visibility_calc(void);
 EINTERN void             e_mod_pol_client_visibility_del(E_Client *ec);
 EINTERN void             e_mod_pol_client_window_opaque_set(E_Client *ec);
 EINTERN Eina_Bool        e_mod_pol_visibility_cb_window_property(Ecore_X_Event_Window_Property *ev);
+
+EINTERN void             e_mod_pol_client_type_setup(E_Client *ec);
+EINTERN void             e_mod_pol_client_type_init(void);
+EINTERN void             e_mod_pol_client_type_shutdown(void);
+EINTERN void             e_mod_pol_client_type_del(E_Client *ec);
 
 #endif

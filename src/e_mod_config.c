@@ -292,6 +292,16 @@ e_mod_pol_conf_init(Mod *mod)
    E_CONFIG_VAL(D, T, y, INT);
    E_CONFIG_VAL(D, T, enable, INT);
 
+   mod->conf_client_type_edd = E_CONFIG_DD_NEW("Client_Type_Match", Pol_Client_Type_Match);
+#undef T
+#undef D
+#define T Pol_Client_Type_Match
+#define D mod->conf_client_type_edd
+   E_CONFIG_VAL(D, T, name, STR);
+   E_CONFIG_VAL(D, T, clas, STR);
+   E_CONFIG_VAL(D, T, e_window_type, INT);
+   E_CONFIG_VAL(D, T, pol_client_type, INT);
+
    mod->conf_edd = E_CONFIG_DD_NEW("Policy_Mobile_Config", Config);
 #undef T
 #undef D
@@ -301,6 +311,7 @@ e_mod_pol_conf_init(Mod *mod)
    E_CONFIG_VAL(D, T, launcher.clas, STR);
    E_CONFIG_VAL(D, T, launcher.type, UINT);
    E_CONFIG_LIST(D, T, desks, mod->conf_desk_edd);
+   E_CONFIG_LIST(D, T, client_types, mod->conf_client_type_edd);
    E_CONFIG_VAL(D, T, use_softkey, INT);
    E_CONFIG_VAL(D, T, softkey_size, INT);
 
