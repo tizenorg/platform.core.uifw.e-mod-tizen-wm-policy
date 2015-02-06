@@ -15,5 +15,6 @@ EINTERN Eina_Bool e_mod_pol_rot_cb_window_configure(Ecore_X_Event_Window_Configu
 EINTERN Eina_Bool e_mod_pol_rot_cb_window_property(Ecore_X_Event_Window_Property *ev);
 EINTERN Eina_Bool e_mod_pol_rot_cb_window_message(Ecore_X_Event_Client_Message *ev);
 EINTERN Eina_Bool e_mod_pol_rot_hook_eval_fetch(E_Client *ec);
+EINTERN int e_client_rotation_curr_angle_get(const E_Client *ec);
 
 #endif

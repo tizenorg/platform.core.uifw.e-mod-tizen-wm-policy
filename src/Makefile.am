@@ -16,7 +16,9 @@ module_la_SOURCES      = e_mod_config.c \
                          e_mod_atoms.h \
                          e_mod_rotation.c \
                          e_mod_rotation.h \
-                         e_mod_utils.h
+                         e_mod_utils.h \
+                         e_mod_keyboard.c \
+                         e_mod_keyboard.h
 module_la_LIBADD       =
 module_la_CFLAGS       = @ENLIGHTENMENT_CFLAGS@
 module_la_LDFLAGS      = -module -avoid-version @ENLIGHTENMENT_LIBS@

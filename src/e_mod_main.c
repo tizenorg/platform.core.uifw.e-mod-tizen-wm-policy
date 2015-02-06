@@ -20,6 +20,7 @@
 #include "e_mod_main.h"
 #include "e_mod_atoms.h"
 #include "e_mod_rotation.h"
+#include "e_mod_keyboard.h"
 
 EAPI E_Module_Api e_modapi = { E_MODULE_API_VERSION, "Policy-Mobile" };
 
@@ -209,6 +210,15 @@ _pol_client_normal_check(E_Client *ec)
         return EINA_FALSE;
      }
 
+   if (e_mod_pol_client_is_keyboard(ec) ||
+       e_mod_pol_client_is_keyboard_sub(ec))
+     {
+        Pol_Client *pc;
+        pc = eina_hash_find(hash_pol_clients, &ec);
+        if (pc) _pol_client_del(pc);
+        return EINA_FALSE;
+     }
+
    if ((ec->netwm.type == E_WINDOW_TYPE_NORMAL) ||
        (ec->netwm.type == E_WINDOW_TYPE_UNKNOWN))
      {
@@ -264,8 +274,20 @@ _pol_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec)
 
    if (e_object_is_del(E_OBJECT(ec))) return;
 
-   if (!_pol_client_normal_check(ec)) return;
    if (ec->new_client) return;
+
+   if (e_mod_pol_client_is_keyboard(ec) ||
+       e_mod_pol_client_is_keyboard_sub(ec))
+     {
+        Pol_Client *pc;
+        pc = eina_hash_find(hash_pol_clients, &ec);
+        if (pc) _pol_client_del(pc);
+
+        if (e_mod_pol_client_is_keyboard(ec))
+          e_mod_pol_keyboard_layout_apply(ec);
+     }
+
+   if (!_pol_client_normal_check(ec)) return;
 
    pd = eina_hash_find(hash_pol_desks, &ec->desk);
    if (!pd) return;
@@ -278,6 +300,7 @@ _pol_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec)
      }
 
    _pol_client_add(ec);
+
 }
 
 static void

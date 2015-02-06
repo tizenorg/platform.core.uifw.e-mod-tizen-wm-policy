@@ -125,7 +125,6 @@ static void      _e_zone_event_rotation_change_end_free(void *data,
 static Eina_Bool  e_client_rotation_is_progress(const E_Client *ec);
 static Eina_Bool  e_client_rotation_is_available(const E_Client *ec, int ang);
 static Eina_List *e_client_rotation_available_list_get(const E_Client *ec);
-static int        e_client_rotation_curr_angle_get(const E_Client *ec);
 static int        e_client_rotation_next_angle_get(const E_Client *ec);
 static int        e_client_rotation_prev_angle_get(const E_Client *ec);
 static int        e_client_rotation_recommend_angle_get(const E_Client *ec);
@@ -972,7 +971,7 @@ e_client_rotation_available_list_get(const E_Client *ec)
  * @param      ec             e_client
  * @return     int            current angle
  */
-static int
+EINTERN int
 e_client_rotation_curr_angle_get(const E_Client *ec)
 {
    E_OBJECT_CHECK_RETURN(ec, -1);
