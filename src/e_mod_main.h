@@ -121,4 +121,10 @@ EINTERN void             e_mod_pol_client_visibility_del(E_Client *ec);
 EINTERN void             e_mod_pol_client_window_opaque_set(E_Client *ec);
 EINTERN Eina_Bool        e_mod_pol_visibility_cb_window_property(Ecore_X_Event_Window_Property *ev);
 
+EINTERN void             e_mod_pol_stack_init(void);
+EINTERN void             e_mod_pol_stack_shutdonw(void);
+EINTERN void             e_mod_pol_stack_cb_client_remove(E_Client *ec);
+EINTERN void             e_mod_pol_stack_hook_pre_fetch(E_Client *ec);
+EINTERN void             e_mod_pol_stack_hook_pre_post_fetch(E_Client *ec);
+
 #endif

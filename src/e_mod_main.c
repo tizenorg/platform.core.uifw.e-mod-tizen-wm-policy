@@ -39,6 +39,8 @@ static Eina_Bool   _pol_client_normal_check(E_Client *ec);
 static void        _pol_client_update(Pol_Client *pc);
 static void        _pol_client_launcher_set(Pol_Client *pc);
 
+static void        _pol_hook_client_eval_pre_fetch(void *d EINA_UNUSED, E_Client *ec);
+static void        _pol_hook_client_eval_pre_post_fetch(void *d EINA_UNUSED, E_Client *ec);
 static void        _pol_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec);
 static void        _pol_hook_client_desk_set(void *d EINA_UNUSED, E_Client *ec);
 static void        _pol_hook_new_client(void *d EINA_UNUSED, E_Client *ec);
@@ -264,6 +266,22 @@ _pol_client_update(Pol_Client *pc)
    ec->lock_client_shade = 1;
    ec->lock_user_maximize = 1;
    ec->lock_client_maximize = 1;
+}
+
+static void
+_pol_hook_client_eval_pre_fetch(void *d EINA_UNUSED, E_Client *ec)
+{
+   if (e_object_is_del(E_OBJECT(ec))) return;
+
+   e_mod_pol_stack_hook_pre_fetch(ec);
+}
+
+static void
+_pol_hook_client_eval_pre_post_fetch(void *d EINA_UNUSED, E_Client *ec)
+{
+   if (e_object_is_del(E_OBJECT(ec))) return;
+
+   e_mod_pol_stack_hook_pre_post_fetch(ec);
 }
 
 static void
@@ -536,6 +554,7 @@ _pol_cb_client_remove(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 
    eina_hash_del_by_key(hash_pol_clients, &ev->ec);
 
+   e_mod_pol_stack_cb_client_remove(ev->ec);
    e_mod_pol_client_visibility_del(ev->ec);
    e_mod_pol_visibility_calc();
 
@@ -799,6 +818,7 @@ e_modapi_init(E_Module *m)
    hash_pol_clients = eina_hash_pointer_new(_pol_cb_client_data_free);
    hash_pol_desks = eina_hash_pointer_new(_pol_cb_desk_data_free);
 
+   e_mod_pol_stack_init();
    e_mod_pol_visibility_init();
    e_mod_pol_atoms_init();
 
@@ -870,6 +890,10 @@ e_modapi_init(E_Module *m)
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_ROTATION_CHANGE_BEGIN,
                          _pol_cb_zone_rotation_change_begin, NULL);
 
+   E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_EVAL_PRE_FETCH,
+                        _pol_hook_client_eval_pre_fetch, NULL);
+   E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_EVAL_PRE_POST_FETCH,
+                        _pol_hook_client_eval_pre_post_fetch, NULL);
    E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_EVAL_POST_FETCH,
                         _pol_hook_client_eval_post_fetch, NULL);
    E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_DESK_SET,
@@ -921,6 +945,7 @@ e_modapi_shutdown(E_Module *m)
    E_FREE_FUNC(hash_pol_desks, eina_hash_free);
    E_FREE_FUNC(hash_pol_clients, eina_hash_free);
 
+   e_mod_pol_stack_shutdonw();
    e_mod_pol_viisibility_shutdown();
 
    e_configure_registry_item_del("windows/policy-tizen");
