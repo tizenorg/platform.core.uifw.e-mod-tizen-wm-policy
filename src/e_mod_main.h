@@ -105,6 +105,8 @@ EINTERN E_Config_Dialog *e_int_config_pol_mobile(E_Comp *c EINA_UNUSED, const ch
 EINTERN void             e_mod_pol_desk_add(E_Desk *desk);
 EINTERN void             e_mod_pol_desk_del(Pol_Desk *pd);
 EINTERN Pol_Client      *e_mod_pol_client_launcher_get(E_Zone *zone);
+EINTERN Eina_Bool        e_mod_pol_client_is_lock_screen(E_Client *ec);
+EINTERN Eina_Bool        e_mod_pol_client_is_home_screen(E_Client *ec);
 
 EINTERN Pol_Softkey     *e_mod_pol_softkey_add(E_Zone *zone);
 EINTERN void             e_mod_pol_softkey_del(Pol_Softkey *softkey);
