@@ -11,6 +11,7 @@ module_la_SOURCES      = e_mod_config.c \
                          e_mod_main.c \
                          e_mod_main.h \
                          e_mod_softkey.c \
+                         e_mod_notification.c \
                          e_mod_visivility.c \
                          e_mod_atoms.c \
                          e_mod_atoms.h \
