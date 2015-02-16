@@ -21,6 +21,7 @@
 #include "e_mod_atoms.h"
 #include "e_mod_rotation.h"
 #include "e_mod_keyboard.h"
+#include "e_mod_notification.h"
 
 EAPI E_Module_Api e_modapi = { E_MODULE_API_VERSION, "Policy-Mobile" };
 
@@ -321,6 +322,7 @@ _pol_hook_client_eval_pre_fetch(void *d EINA_UNUSED, E_Client *ec)
    if (e_object_is_del(E_OBJECT(ec))) return;
 
    e_mod_pol_stack_hook_pre_fetch(ec);
+   e_mod_pol_notification_hook_pre_fetch(ec);
 }
 
 static void
@@ -329,6 +331,7 @@ _pol_hook_client_eval_pre_post_fetch(void *d EINA_UNUSED, E_Client *ec)
    if (e_object_is_del(E_OBJECT(ec))) return;
 
    e_mod_pol_stack_hook_pre_post_fetch(ec);
+   e_mod_pol_notification_hook_pre_post_fetch(ec);
 }
 
 static void
@@ -394,10 +397,16 @@ _pol_hook_new_client(void *d EINA_UNUSED, E_Client *ec)
 static void
 _pol_hook_new_client_post(void *d EINA_UNUSED, E_Client *ec)
 {
-   if (ec->frame)
-     {
-        evas_object_event_callback_add(ec->frame, EVAS_CALLBACK_SHOW, _pol_cb_evas_show, ec);
-     }
+   if (!ec->frame)
+      return;
+
+   evas_object_event_callback_add(ec->frame, EVAS_CALLBACK_SHOW, _pol_cb_evas_show, ec);
+
+   /* How does this work? ec doesn't have netwm during creating it
+    * netwom will be set in first idle time.
+    */
+//   e_mod_pol_notification_level_update(ec);
+
    return;
 }
 
@@ -601,6 +610,7 @@ _pol_cb_client_remove(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    eina_hash_del_by_key(hash_pol_clients, &ev->ec);
 
    e_mod_pol_stack_cb_client_remove(ev->ec);
+   e_mod_pol_notification_client_del(ev->ec);
    e_mod_pol_client_visibility_del(ev->ec);
    e_mod_pol_visibility_calc();
 
@@ -686,6 +696,15 @@ _pol_cb_window_property(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Ev
    if (ev->atom == E_MOD_POL_ATOM_WINDOW_OPAQUE)
      {
         e_mod_pol_visibility_cb_window_property(ev);
+     }
+   else if (ev->atom == E_MOD_POL_ATOM_NOTIFICATION_LEVEL)
+     {
+        E_Client *ec = e_pixmap_find_client(E_PIXMAP_TYPE_X, ev->win);
+
+        /* Before maprequet, ec is NULL. notification level will be updated in
+         * _pol_cb_remember_update which is called after e_hints setting. */
+        if (ec)
+           e_mod_pol_notification_level_update(ec);
      }
    else if ((ev->atom == ECORE_X_ATOM_E_WINDOW_ROTATION_SUPPORTED) ||
             (ev->atom == ECORE_X_ATOM_E_WINDOW_ROTATION_0_GEOMETRY) ||
@@ -913,6 +932,7 @@ e_modapi_init(E_Module *m)
    e_mod_pol_stack_init();
    e_mod_pol_visibility_init();
    e_mod_pol_atoms_init();
+   e_mod_pol_notification_init();
 
    /* initialize configure and config data type */
    snprintf(buf, sizeof(buf), "%s/e-module-policy.edj",
@@ -1042,6 +1062,7 @@ e_modapi_shutdown(E_Module *m)
    E_FREE_FUNC(hash_pol_clients, eina_hash_free);
 
    e_mod_pol_stack_shutdonw();
+   e_mod_pol_notification_shutdown();
    e_mod_pol_viisibility_shutdown();
 
    e_configure_registry_item_del("windows/policy-tizen");
