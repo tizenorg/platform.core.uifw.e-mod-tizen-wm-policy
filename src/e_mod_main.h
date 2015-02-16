@@ -121,4 +121,7 @@ EINTERN void             e_mod_pol_client_visibility_del(E_Client *ec);
 EINTERN void             e_mod_pol_client_window_opaque_set(E_Client *ec);
 EINTERN Eina_Bool        e_mod_pol_visibility_cb_window_property(Ecore_X_Event_Window_Property *ev);
 
+EINTERN Eina_Bool        e_mod_pol_client_is_lock_screen(E_Client *ec);
+EINTERN Eina_Bool        e_mod_pol_client_is_home_screen(E_Client *ec);
+
 #endif
