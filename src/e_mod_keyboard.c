@@ -34,7 +34,9 @@ e_mod_pol_keyboard_layout_apply(E_Client *ec)
    int angle_id = 0;
    int kbd_x, kbd_y, kbd_w, kbd_h;
 
-   if (!e_mod_pol_client_is_keyboard(ec)) return;
+   if (!e_mod_pol_client_is_keyboard(ec) &&
+       !e_mod_pol_client_is_keyboard_sub(ec))
+      return;
 
    angle = e_client_rotation_curr_angle_get(ec);
 
@@ -80,9 +82,10 @@ e_mod_pol_keyboard_layout_apply(E_Client *ec)
 
    if ((ec->frame) &&
        ((ec->w != kbd_w) || (ec->h != kbd_h)))
-     evas_object_resize(ec->frame, kbd_w, kbd_h);
+     e_client_util_resize_without_frame(ec, kbd_w, kbd_h);
 
-   if ((ec->frame) &&
+   if ((e_mod_pol_client_is_keyboard(ec)) &&
+       (ec->frame) &&
        ((ec->x != kbd_x) || (ec->y != kbd_y)))
-     evas_object_move(ec->frame, kbd_x, kbd_y);
+     e_client_util_move_without_frame(ec, kbd_x, kbd_y);
 }

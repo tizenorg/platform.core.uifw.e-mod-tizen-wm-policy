@@ -174,7 +174,8 @@ _pol_client_del(Pol_Client *pc)
         if (pc->orig.maximized)
           ec->changes.need_maximize = 1;
         else
-          ec->changes.need_unmaximize = 1;
+          e_client_unmaximize(ec, ec->maximized);
+
         changed = EINA_TRUE;
      }
 
@@ -218,6 +219,8 @@ _pol_client_normal_check(E_Client *ec)
         Pol_Client *pc;
         pc = eina_hash_find(hash_pol_clients, &ec);
         if (pc) _pol_client_del(pc);
+
+        e_mod_pol_keyboard_layout_apply(ec);
         return EINA_FALSE;
      }
 
@@ -301,8 +304,7 @@ _pol_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec)
         pc = eina_hash_find(hash_pol_clients, &ec);
         if (pc) _pol_client_del(pc);
 
-        if (e_mod_pol_client_is_keyboard(ec))
-          e_mod_pol_keyboard_layout_apply(ec);
+        e_mod_pol_keyboard_layout_apply(ec);
      }
 
    if (!_pol_client_normal_check(ec)) return;
