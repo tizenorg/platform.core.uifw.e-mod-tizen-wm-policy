@@ -1349,12 +1349,13 @@ EINTERN Eina_Bool
 e_mod_pol_rot_hook_client_free(E_Client *ec)
 {
    Eina_Bool rm_vkbd_parent = EINA_FALSE;
+   int unref_count = 0;
 
    ec->e.fetch.rot.app_set = 0;
    ec->e.state.rot.preferred_rot = -1;
 
    if (ec->e.state.rot.available_rots)
-      E_FREE(ec->e.state.rot.available_rots);
+     E_FREE(ec->e.state.rot.available_rots);
 
    _e_client_rotation_list_remove(ec);
    if ((rot.vkbd) && (rot.vkbd == ec))
@@ -1368,10 +1369,16 @@ e_mod_pol_rot_hook_client_free(E_Client *ec)
 
         rot.vkbd_hide_prepare_done = EINA_FALSE;
         if (rot.vkbd_hide_prepare_timer)
-           ecore_timer_del(rot.vkbd_hide_prepare_timer);
+          {
+             ecore_timer_del(rot.vkbd_hide_prepare_timer);
+             unref_count++;
+          }
         rot.vkbd_hide_prepare_timer = NULL;
         if (rot.vkbd_hide_timer)
-           ecore_timer_del(rot.vkbd_hide_timer);
+          {
+             ecore_timer_del(rot.vkbd_hide_timer);
+             unref_count++;
+          }
         rot.vkbd_hide_timer = NULL;
 
         rot.vkbd_show_prepare_done = EINA_FALSE;
@@ -1398,6 +1405,12 @@ e_mod_pol_rot_hook_client_free(E_Client *ec)
    if (rm_vkbd_parent)
      {
         rot.vkbd_parent = NULL;
+     }
+
+   while (unref_count)
+     {
+        e_object_unref(E_OBJECT(ec));
+        unref_count--;
      }
 
    return EINA_TRUE;
