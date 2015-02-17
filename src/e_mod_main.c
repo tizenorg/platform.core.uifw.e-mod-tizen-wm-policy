@@ -64,6 +64,7 @@ static Eina_Bool   _pol_cb_client_add(void *data EINA_UNUSED, int type, void *ev
 static Eina_Bool   _pol_cb_client_move(void *data EINA_UNUSED, int type, void *event);
 static Eina_Bool   _pol_cb_client_resize(void *data EINA_UNUSED, int type, void *event);
 static Eina_Bool   _pol_cb_client_stack(void *data EINA_UNUSED, int type, void *event);
+static Eina_Bool   _pol_cb_client_property(void *data EINA_UNUSED, int type EINA_UNUSED, void *event);
 static Eina_Bool   _pol_cb_window_property(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Property *ev);
 
 static Eina_Bool   _pol_cb_window_configure(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Configure *ev);
@@ -616,6 +617,24 @@ _pol_cb_client_stack(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 }
 
 static Eina_Bool
+_pol_cb_client_property(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
+{
+   E_Event_Client_Property *ev;
+
+   ev = event;
+   if (!ev || (!ev->ec)) return 0;
+   if (ev->property & E_CLIENT_PROPERTY_CLIENT_TYPE)
+     {
+        if (e_mod_pol_client_is_home_screen(ev->ec))
+          return EINA_TRUE;
+        else if (e_mod_pol_client_is_lock_screen(ev->ec))
+          return EINA_TRUE;
+     }
+
+   return EINA_FALSE;
+}
+
+static Eina_Bool
 _pol_cb_window_property(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Property *ev)
 {
    if (ev->atom == E_MOD_POL_ATOM_WINDOW_OPAQUE)
@@ -780,6 +799,31 @@ e_mod_pol_client_launcher_get(E_Zone *zone)
    return NULL;
 }
 
+Eina_Bool
+e_mod_pol_client_is_lock_screen(E_Client *ec)
+{
+   E_OBJECT_CHECK_RETURN(ec, EINA_FALSE);
+   E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, EINA_FALSE);
+
+   if (ec->client_type == 2)
+     return EINA_TRUE;
+
+   return EINA_FALSE;
+}
+
+Eina_Bool
+e_mod_pol_client_is_home_screen(E_Client *ec)
+{
+   E_OBJECT_CHECK_RETURN(ec, EINA_FALSE);
+   E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, EINA_FALSE);
+
+   if (ec->client_type == 1)
+     return EINA_TRUE;
+
+
+   return EINA_FALSE;
+}
+
 #undef E_CLIENT_HOOK_APPEND
 #define E_CLIENT_HOOK_APPEND(l, t, cb, d) \
   do                                      \
@@ -882,6 +926,8 @@ e_modapi_init(E_Module *m)
                          _pol_cb_client_resize, NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_STACK,
                          _pol_cb_client_stack, NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_PROPERTY,
+                         _pol_cb_client_property, NULL);
 
    E_LIST_HANDLER_APPEND(handlers, ECORE_X_EVENT_WINDOW_PROPERTY,
                          _pol_cb_window_property, NULL);
