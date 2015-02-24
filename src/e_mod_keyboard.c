@@ -43,7 +43,7 @@ e_mod_pol_client_is_keyboard_sub(E_Client *ec)
        char *nname = NULL, *nclass = NULL;
        Eina_Bool ret = EINA_FALSE;
        ecore_x_icccm_name_class_get(e_client_util_win_get(ec), &nname, &nclass);
-       if ((nname) && (!strcmp(nname,"Key Magnifier")) &&
+       if ((nname) && (!strcmp(nname,"Key Magnifier") || !strcmp(nname,"ISF Popup")) &&
            (nclass) && (!strcmp(nclass, "ISF")))
          ret = EINA_TRUE;
 
