@@ -39,6 +39,7 @@ static Eina_Bool   _pol_client_normal_check(E_Client *ec);
 static void        _pol_client_update(Pol_Client *pc);
 static void        _pol_client_launcher_set(Pol_Client *pc);
 
+static void        _pol_hook_client_eval_pre_new_client(void *d EINA_UNUSED, E_Client *ec);
 static void        _pol_hook_client_eval_pre_fetch(void *d EINA_UNUSED, E_Client *ec);
 static void        _pol_hook_client_eval_pre_post_fetch(void *d EINA_UNUSED, E_Client *ec);
 static void        _pol_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec);
@@ -270,6 +271,15 @@ _pol_client_update(Pol_Client *pc)
    ec->lock_client_shade = 1;
    ec->lock_user_maximize = 1;
    ec->lock_client_maximize = 1;
+}
+
+static void
+_pol_hook_client_eval_pre_new_client(void *d EINA_UNUSED, E_Client *ec)
+{
+   if (e_object_is_del(E_OBJECT(ec))) return;
+
+   if (e_mod_pol_client_is_keyboard_sub(ec))
+     ec->placed = 1;
 }
 
 static void
@@ -938,6 +948,8 @@ e_modapi_init(E_Module *m)
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_ROTATION_CHANGE_BEGIN,
                          _pol_cb_zone_rotation_change_begin, NULL);
 
+   E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_EVAL_PRE_NEW_CLIENT,
+                        _pol_hook_client_eval_pre_new_client, NULL);
    E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_EVAL_PRE_FETCH,
                         _pol_hook_client_eval_pre_fetch, NULL);
    E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_EVAL_PRE_POST_FETCH,

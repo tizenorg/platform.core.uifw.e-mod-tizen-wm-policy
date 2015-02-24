@@ -8,6 +8,20 @@ e_mod_pol_client_is_keyboard(E_Client *ec)
    E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, EINA_FALSE);
 
    if (ec->vkbd.vkbd) return EINA_TRUE;
+   else
+     {
+       char *nname = NULL, *nclass = NULL;
+       Eina_Bool ret = EINA_FALSE;
+       ecore_x_icccm_name_class_get(e_client_util_win_get(ec), &nname, &nclass);
+       if ((nname) && (!strcmp(nname,"Virtual Keyboard")) &&
+           (nclass) && (!strcmp(nclass, "ISF")))
+         ret = EINA_TRUE;
+
+       if (nname) free(nname);
+       if (nclass) free(nclass);
+
+       if (ret) return ret;
+     }
 
    return EINA_FALSE;
 }
@@ -23,6 +37,21 @@ e_mod_pol_client_is_keyboard_sub(E_Client *ec)
    if ((ec->icccm.class) &&
        (!strcmp(ec->icccm.class, "ISF")))
      return EINA_TRUE;
+
+   if (!ec->icccm.class)
+     {
+       char *nname = NULL, *nclass = NULL;
+       Eina_Bool ret = EINA_FALSE;
+       ecore_x_icccm_name_class_get(e_client_util_win_get(ec), &nname, &nclass);
+       if ((nname) && (!strcmp(nname,"Key Magnifier")) &&
+           (nclass) && (!strcmp(nclass, "ISF")))
+         ret = EINA_TRUE;
+
+       if (nname) free(nname);
+       if (nclass) free(nclass);
+
+       if (ret) return ret;
+     }
 
    return EINA_FALSE;
 }
