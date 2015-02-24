@@ -21,7 +21,7 @@ e_mod_pol_atoms_init(void)
 
    ecore_x_atoms_get(atom_names, n, atoms);
 
-   E_MOD_POL_ATOM_WINDOW_OPAQUE                        = atoms[i++];
+   E_MOD_POL_ATOM_WINDOW_OPAQUE = atoms[i++];
 
    res = EINA_TRUE;
 
