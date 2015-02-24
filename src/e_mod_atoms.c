@@ -17,7 +17,7 @@ e_mod_pol_atoms_init(void)
    n = (sizeof(atom_names) / sizeof(char *));
 
    atoms = E_NEW(Ecore_X_Atom, n);
-   E_CHECK_GOTO(atoms, cleanup);
+   EINA_SAFETY_ON_NULL_GOTO(atoms, cleanup);
 
    ecore_x_atoms_get(atom_names, n, atoms);
 
