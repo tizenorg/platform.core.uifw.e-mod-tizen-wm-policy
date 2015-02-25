@@ -266,11 +266,13 @@ _pol_client_update(Pol_Client *pc)
    ec->lock_client_location = 1;
    ec->lock_user_size = 1;
    ec->lock_client_size = 1;
-   ec->lock_client_stacking = 1;
    ec->lock_user_shade = 1;
    ec->lock_client_shade = 1;
    ec->lock_user_maximize = 1;
    ec->lock_client_maximize = 1;
+
+   if (!e_mod_pol_client_is_home_screen(ec))
+     ec->lock_client_stacking = 1;
 }
 
 static void
@@ -636,7 +638,10 @@ _pol_cb_client_property(void *data EINA_UNUSED, int type EINA_UNUSED, void *even
    if (ev->property & E_CLIENT_PROPERTY_CLIENT_TYPE)
      {
         if (e_mod_pol_client_is_home_screen(ev->ec))
-          return EINA_TRUE;
+          {
+             ev->ec->lock_client_stacking = 0;
+             return EINA_TRUE;
+          }
         else if (e_mod_pol_client_is_lock_screen(ev->ec))
           return EINA_TRUE;
      }
