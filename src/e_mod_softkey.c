@@ -42,9 +42,16 @@ _pol_softkey_iconify(E_Zone *zone, Eina_Bool all)
         if ((launcher) && (launcher->ec == ec))
           return;
 
-        e_client_iconify(ec);
-
-        if (!all) return;
+        if (e_mod_pol_client_is_home_screen(ec))
+          {
+             evas_object_raise(ec->frame);
+             return;
+          }
+        if (!all)
+          {
+             evas_object_lower(ec->frame);
+             return;
+          }
      }
 }
 
