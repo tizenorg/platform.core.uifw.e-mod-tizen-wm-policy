@@ -1,7 +1,7 @@
 %bcond_with x
 Name:       e-mod-tizen-wm-policy 
 Summary:    The Enlightenment WM Policy Module for Tizen
-Version:    0.1.8
+Version:    0.1.9
 Release:    1
 Group:      Graphics & UI Framework/Other
 License:    BSD-2-Clause
