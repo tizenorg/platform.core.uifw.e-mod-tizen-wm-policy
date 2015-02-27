@@ -236,6 +236,32 @@ _pol_client_normal_check(E_Client *ec)
 }
 
 static void
+_pol_client_maximize_pre(Pol_Client *pc)
+{
+   E_Client *ec;
+   int zx, zy, zw, zh;
+
+   ec = pc->ec;
+
+   if (ec->desk->visible)
+     e_zone_useful_geometry_get(ec->zone, &zx, &zy, &zw, &zh);
+   else
+     {
+        zx = ec->zone->x;
+        zy = ec->zone->y;
+        zw = ec->zone->w;
+        zh = ec->zone->h;
+     }
+
+   ec->x = ec->client.x = zx;
+   ec->y = ec->client.y = zy;
+   ec->w = ec->client.w = zw;
+   ec->h = ec->client.h = zh;
+
+   EC_CHANGED(ec);
+}
+
+static void
 _pol_client_update(Pol_Client *pc)
 {
    E_Client *ec;
@@ -259,7 +285,12 @@ _pol_client_update(Pol_Client *pc)
      }
 
    if (!ec->maximized)
-     e_client_maximize(ec, E_MAXIMIZE_EXPAND | E_MAXIMIZE_BOTH);
+     {
+        e_client_maximize(ec, E_MAXIMIZE_EXPAND | E_MAXIMIZE_BOTH);
+
+        if (ec->changes.need_maximize)
+          _pol_client_maximize_pre(pc);
+     }
 
    /* do not allow client to change these properties */
    ec->lock_user_location = 1;
