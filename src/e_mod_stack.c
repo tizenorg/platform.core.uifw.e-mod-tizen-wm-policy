@@ -80,13 +80,13 @@ _pol_stack_transient_for_apply(E_Client *ec)
    top = e_client_top_get(ec->comp);
    while (top)
      {
-        if (eina_list_data_find(ec->parent->transients, top))
+        if ((top != ec) && (eina_list_data_find(ec->parent->transients, top)))
           break;
 
         top = e_client_below_get(top);
      }
 
-   if ((top) && (top != ec))
+   if (top)
      evas_object_stack_above(ec->frame, top->frame);
    else
      evas_object_stack_above(ec->frame, ec->parent->frame);

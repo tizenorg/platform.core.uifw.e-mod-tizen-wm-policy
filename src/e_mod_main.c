@@ -712,6 +712,14 @@ _pol_cb_window_configure(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_E
 }
 
 static Eina_Bool
+_pol_cb_window_configure_request(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Configure_Request *ev)
+{
+   e_mod_pol_keyboard_configure(ev);
+
+   return ECORE_CALLBACK_PASS_ON;
+}
+
+static Eina_Bool
 _pol_cb_zone_rotation_change_begin(void *data EINA_UNUSED, int ev_type EINA_UNUSED, E_Event_Zone_Rotation_Change_Begin *ev)
 {
    if ((!ev) || (!ev->zone)) return ECORE_CALLBACK_PASS_ON;
@@ -979,6 +987,8 @@ e_modapi_init(E_Module *m)
                          _pol_cb_window_property, NULL);
    E_LIST_HANDLER_APPEND(handlers, ECORE_X_EVENT_WINDOW_CONFIGURE,
                          _pol_cb_window_configure, NULL);
+   E_LIST_HANDLER_APPEND(handlers, ECORE_X_EVENT_WINDOW_CONFIGURE_REQUEST,
+                         _pol_cb_window_configure_request, NULL);
    E_LIST_HANDLER_APPEND(handlers, ECORE_X_EVENT_CLIENT_MESSAGE,
                          _pol_cb_window_message, NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_ROTATION_CHANGE_BEGIN,
