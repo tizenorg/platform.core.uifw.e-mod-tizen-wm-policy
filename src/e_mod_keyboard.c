@@ -118,3 +118,24 @@ e_mod_pol_keyboard_layout_apply(E_Client *ec)
        ((ec->x != kbd_x) || (ec->y != kbd_y)))
      e_client_util_move_without_frame(ec, kbd_x, kbd_y);
 }
+
+EINTERN void
+e_mod_pol_keyboard_configure(Ecore_X_Event_Window_Configure_Request *ev)
+{
+   E_Client *ec;
+
+   ec = e_pixmap_find_client(E_PIXMAP_TYPE_X, ev->win);
+   if (!ec)
+     {
+        char *name = NULL, *class = NULL;
+
+        ecore_x_icccm_name_class_get(ev->win, &name, &class);
+        if ((class) && (!strcmp(class, "ISF")))
+          {
+             /* pass through configure requests if it is a request for keyboard */
+             ecore_x_window_configure(ev->win, ev->value_mask,
+                                      ev->x, ev->y, ev->w, ev->h,
+                                      ev->border, ev->abovewin, ev->detail);
+          }
+     }
+}
