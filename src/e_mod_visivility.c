@@ -278,18 +278,12 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
 void
 e_mod_pol_visibility_calc(void)
 {
-   E_Comp *comp;
-   Eina_List *cl;
+   E_Zone *zone;
+   Eina_List *zl;
 
-   EINA_LIST_FOREACH(e_comp_list(), cl, comp)
+   EINA_LIST_FOREACH(e_comp->zones, zl, zone)
      {
-        E_Zone *zone;
-        Eina_List *zl;
-
-        EINA_LIST_FOREACH(comp->zones, zl, zone)
-          {
-               e_mod_pol_zone_visibility_calc(zone);
-          }
+          e_mod_pol_zone_visibility_calc(zone);
      }
 }
 

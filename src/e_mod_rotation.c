@@ -395,51 +395,45 @@ _e_client_rotation_is_dependent_parent(const E_Client *ec)
 static Eina_Bool
 _e_client_rotation_zone_set(E_Zone *zone)
 {
-   E_Comp *comp;
-   Eina_List *cl;
    E_Client *ec = NULL;
    Eina_Bool res = EINA_FALSE;
    Eina_Bool ret = EINA_FALSE;
+   E_Zone *ez;
+   Eina_List *zl;
 
    /* step 1. make the list needs to be rotated. */
-   EINA_LIST_FOREACH(e_comp_list(), cl, comp)
+   EINA_LIST_FOREACH(e_comp->zones, zl, ez)
      {
-        E_Zone *ez;
-        Eina_List *zl;
+        Eina_List *l;
 
-        EINA_LIST_FOREACH(comp->zones, zl, ez)
+        if (ez != zone) continue;
+
+        EINA_LIST_REVERSE_FOREACH(zone->comp->clients, l, ec)
           {
-             Eina_List *l;
+             if(ec->zone != zone) continue;
 
-             if (ez != zone) continue;
+             // if this window has parent and window type isn't "ECORE_X_WINDOW_TYPE_NORMAL",
+             // it will be rotated when parent do rotate itself.
+             // so skip here.
+             if ((ec->parent) &&
+                 (ec->netwm.type != E_WINDOW_TYPE_NORMAL)) continue;
 
-             EINA_LIST_REVERSE_FOREACH(zone->comp->clients, l, ec)
+             // default type is "E_CLIENT_ROTATION_TYPE_NORMAL",
+             // but it can be changed to "E_CLIENT_ROTATION_TYPE_DEPENDENT" by illume according to its policy.
+             // if it's not normal type window, will be rotated by illume.
+             // so skip here.
+             if (ec->e.state.rot.type != E_CLIENT_ROTATION_TYPE_NORMAL) continue;
+
+             if ((!evas_object_visible_get(ec->frame)) ||
+                 (!E_INTERSECTS(ec->zone->x, ec->zone->y, ec->zone->w, ec->zone->h,
+                                ec->x, ec->y, ec->w, ec->h))) continue;
+
+             res = e_client_rotation_set(ec, zone->rot.curr);
+             if (!res)
                {
-                  if(ec->zone != zone) continue;
-
-                  // if this window has parent and window type isn't "ECORE_X_WINDOW_TYPE_NORMAL",
-                  // it will be rotated when parent do rotate itself.
-                  // so skip here.
-                  if ((ec->parent) &&
-                      (ec->netwm.type != E_WINDOW_TYPE_NORMAL)) continue;
-
-                  // default type is "E_CLIENT_ROTATION_TYPE_NORMAL",
-                  // but it can be changed to "E_CLIENT_ROTATION_TYPE_DEPENDENT" by illume according to its policy.
-                  // if it's not normal type window, will be rotated by illume.
-                  // so skip here.
-                  if (ec->e.state.rot.type != E_CLIENT_ROTATION_TYPE_NORMAL) continue;
-
-                  if ((!evas_object_visible_get(ec->frame)) ||
-                      (!E_INTERSECTS(ec->zone->x, ec->zone->y, ec->zone->w, ec->zone->h,
-                                     ec->x, ec->y, ec->w, ec->h))) continue;
-
-                  res = e_client_rotation_set(ec, zone->rot.curr);
-                  if (!res)
-                    {
-                       ;
-                    }
-                  else ret = EINA_TRUE;
+                  ;
                }
+             else ret = EINA_TRUE;
           }
      }
 
