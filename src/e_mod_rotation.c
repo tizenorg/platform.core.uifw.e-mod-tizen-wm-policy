@@ -83,6 +83,11 @@ static E_Client_Rotation rot =
    }
 };
 
+static Eina_List *rot_handlers = NULL;
+static Eina_List *rot_hooks = NULL;
+static Eina_List *rot_intercept_hooks = NULL;
+static Ecore_Idle_Enterer *rot_idle_enterer = NULL;
+
 /* local subsystem e_client_rotation related functions */
 static Eina_Bool _e_client_rotation_change_prepare_timeout(void *data);
 static void      _e_client_rotation_list_send(void);
@@ -138,6 +143,36 @@ static int       e_zone_rotation_get(E_Zone *zone);
 static Eina_Bool e_zone_rotation_block_set(E_Zone *zone, const char *name_hint, Eina_Bool set);
 static void      e_zone_rotation_update_done(E_Zone *zone);
 static void      e_zone_rotation_update_cancel(E_Zone *zone);
+
+/* e_client rotation internal callbacks */
+static Eina_Bool _rot_hook_client_free_intern(E_Client *ec);
+static Eina_Bool _rot_hook_client_del_intern(E_Client *ec);
+static void      _rot_cb_evas_show_intern(E_Client *ec);
+static Eina_Bool _rot_hook_eval_end_intern(E_Client *ec);
+static Eina_Bool _rot_cb_idle_enterer_intern(void);
+static Eina_Bool _rot_hook_new_client_intern(E_Client *ec);
+static Eina_Bool _rot_cb_zone_rotation_change_begin_intern(E_Event_Zone_Rotation_Change_Begin *ev);
+static Eina_Bool _rot_intercept_hook_show_helper_intern(E_Client *ec);
+static Eina_Bool _rot_intercept_hook_hide_intern(E_Client *ec);
+static Eina_Bool _rot_cb_window_configure_intern(Ecore_X_Event_Window_Configure *ev);
+static Eina_Bool _rot_cb_window_property_intern(Ecore_X_Event_Window_Property *ev);
+static Eina_Bool _rot_cb_window_message_intern(Ecore_X_Event_Client_Message *ev);
+static Eina_Bool _rot_hook_eval_fetch_intern(E_Client *ec);
+
+/* e_client event, hook, intercept callbacks */
+static void      _rot_hook_new_client(void *d EINA_UNUSED, E_Client *ec);
+static void      _rot_hook_new_client_post(void *d EINA_UNUSED, E_Client *ec);
+static void      _rot_hook_client_del(void *d EINA_UNUSED, E_Client *ec);
+static void      _rot_hook_eval_end(void *d EINA_UNUSED, E_Client *ec);
+static void      _rot_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec);
+static Eina_Bool _rot_intercept_hook_show_helper(void *d EINA_UNUSED, E_Client *ec);
+static Eina_Bool _rot_intercept_hook_hide(void *d EINA_UNUSED, E_Client *ec);
+static Eina_Bool _rot_cb_window_property(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Property *ev);
+static Eina_Bool _rot_cb_window_configure(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Configure *ev);
+static Eina_Bool _rot_cb_zone_rotation_change_begin(void *data EINA_UNUSED, int ev_type EINA_UNUSED, E_Event_Zone_Rotation_Change_Begin *ev);
+static Eina_Bool _rot_cb_window_message(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Client_Message *ev);
+static Eina_Bool _rot_cb_idle_enterer(void *data EINA_UNUSED);
+static void      _rot_cb_evas_show(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event_info EINA_UNUSED);
 
 /* local subsystem e_client_rotation related functions */
 static Eina_Bool
@@ -965,20 +1000,6 @@ e_client_rotation_available_list_get(const E_Client *ec)
    return list;
 }
 
-/**
- * @describe
- *  Get current rotation angle.
- * @param      ec             e_client
- * @return     int            current angle
- */
-EINTERN int
-e_client_rotation_curr_angle_get(const E_Client *ec)
-{
-   E_OBJECT_CHECK_RETURN(ec, -1);
-   E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, -1);
-
-   return ec->e.state.rot.ang.curr;
-}
 
 /**
  * @describe
@@ -1344,9 +1365,9 @@ e_zone_rotation_update_cancel(E_Zone *zone)
      }
 }
 
-/* externally accessible functions */
-EINTERN Eina_Bool
-e_mod_pol_rot_hook_client_free(E_Client *ec)
+/* e_client rotation internal callbacks */
+static Eina_Bool
+_rot_hook_client_free_intern(E_Client *ec)
 {
    Eina_Bool rm_vkbd_parent = EINA_FALSE;
    int unref_count = 0;
@@ -1416,8 +1437,8 @@ e_mod_pol_rot_hook_client_free(E_Client *ec)
    return EINA_TRUE;
 }
 
-EINTERN Eina_Bool
-e_mod_pol_rot_hook_client_del(E_Client *ec)
+static Eina_Bool
+_rot_hook_client_del_intern(E_Client *ec)
 {
    _e_client_rotation_list_remove(ec);
    if (rot.async_list) rot.async_list = eina_list_remove(rot.async_list, ec);
@@ -1425,8 +1446,8 @@ e_mod_pol_rot_hook_client_del(E_Client *ec)
    return EINA_TRUE;
 }
 
-EINTERN void
-e_mod_pol_rot_cb_evas_show(E_Client *ec)
+static void
+_rot_cb_evas_show_intern(E_Client *ec)
 {
    if (!ec->hidden)
      {
@@ -1447,8 +1468,8 @@ e_mod_pol_rot_cb_evas_show(E_Client *ec)
      }
 }
 
-EINTERN Eina_Bool
-e_mod_pol_rot_hook_eval_end(E_Client *ec)
+static Eina_Bool
+_rot_hook_eval_end_intern(E_Client *ec)
 {
    if (ec->changes.rotation)
      {
@@ -1476,8 +1497,8 @@ e_mod_pol_rot_hook_eval_end(E_Client *ec)
    return EINA_TRUE;
 }
 
-EINTERN Eina_Bool
-e_mod_pol_rot_cb_idle_enterer(void)
+static Eina_Bool
+_rot_cb_idle_enterer_intern(void)
 {
    if (rot.cancel.state)
      {
@@ -1600,8 +1621,8 @@ e_mod_pol_rot_cb_idle_enterer(void)
    return EINA_TRUE;
 }
 
-EINTERN Eina_Bool
-e_mod_pol_rot_hook_new_client(E_Client *ec)
+static Eina_Bool
+_rot_hook_new_client_intern(E_Client *ec)
 {
    Ecore_X_Window win = e_client_util_win_get(ec);
    int at_num = 0, i;
@@ -1651,8 +1672,8 @@ e_mod_pol_rot_hook_new_client(E_Client *ec)
    return EINA_TRUE;
 }
 
-EINTERN Eina_Bool
-e_mod_pol_rot_cb_zone_rotation_change_begin(E_Event_Zone_Rotation_Change_Begin *ev)
+static Eina_Bool
+_rot_cb_zone_rotation_change_begin_intern(E_Event_Zone_Rotation_Change_Begin *ev)
 {
    if ((!ev) || (!ev->zone)) return EINA_FALSE;
 
@@ -1667,8 +1688,8 @@ e_mod_pol_rot_cb_zone_rotation_change_begin(E_Event_Zone_Rotation_Change_Begin *
    return EINA_TRUE;
 }
 
-EINTERN Eina_Bool
-e_mod_pol_rot_intercept_hook_hide(E_Client *ec)
+static Eina_Bool
+_rot_intercept_hook_hide_intern(E_Client *ec)
 {
    if ((rot.vkbd_ctrl_win) && (rot.vkbd) &&
        (ec == rot.vkbd) &&
@@ -1767,8 +1788,8 @@ e_mod_pol_rot_intercept_hook_hide(E_Client *ec)
    return EINA_TRUE;
 }
 
-EINTERN Eina_Bool
-e_mod_pol_rot_intercept_hook_show_helper(E_Client *ec)
+static Eina_Bool
+_rot_intercept_hook_show_helper_intern(E_Client *ec)
 {
    // newly created window that has to be rotated will be shown after rotation done.
    // so, skip at this time. it will be called again after GETTING ROT_DONE.
@@ -1795,8 +1816,8 @@ e_mod_pol_rot_intercept_hook_show_helper(E_Client *ec)
     return EINA_TRUE;
 }
 
-EINTERN Eina_Bool
-e_mod_pol_rot_cb_window_configure(Ecore_X_Event_Window_Configure *ev)
+static Eina_Bool
+_rot_cb_window_configure_intern(Ecore_X_Event_Window_Configure *ev)
 {
    E_Client *ec;
 
@@ -1817,8 +1838,8 @@ e_mod_pol_rot_cb_window_configure(Ecore_X_Event_Window_Configure *ev)
    return EINA_TRUE;
 }
 
-EINTERN Eina_Bool
-e_mod_pol_rot_cb_window_property(Ecore_X_Event_Window_Property *ev)
+static Eina_Bool
+_rot_cb_window_property_intern(Ecore_X_Event_Window_Property *ev)
 {
    E_Client *ec;
 
@@ -1857,8 +1878,8 @@ e_mod_pol_rot_cb_window_property(Ecore_X_Event_Window_Property *ev)
    return ECORE_CALLBACK_RENEW;
 }
 
-EINTERN Eina_Bool
-e_mod_pol_rot_cb_window_message(Ecore_X_Event_Client_Message *ev)
+static Eina_Bool
+_rot_cb_window_message_intern(Ecore_X_Event_Client_Message *ev)
 {
    E_Client *ec;
 
@@ -1922,8 +1943,8 @@ e_mod_pol_rot_cb_window_message(Ecore_X_Event_Client_Message *ev)
    return ECORE_CALLBACK_PASS_ON;
 }
 
-EINTERN Eina_Bool
-e_mod_pol_rot_hook_eval_fetch(E_Client *ec)
+static Eina_Bool
+_rot_hook_eval_fetch_intern(E_Client *ec)
 {
 #if 0
    //TODO: add vkbd fetch_transient_for flag
@@ -2181,3 +2202,196 @@ e_mod_pol_rot_hook_eval_fetch(E_Client *ec)
    return EINA_TRUE;
 }
 
+static void
+_rot_hook_new_client(void *d EINA_UNUSED, E_Client *ec)
+{
+   _rot_hook_new_client_intern(ec);
+}
+
+static void
+_rot_hook_client_del(void *d EINA_UNUSED, E_Client *ec)
+{
+   _rot_hook_client_del_intern(ec);
+   _rot_hook_client_free_intern(ec);
+}
+
+static void
+_rot_hook_eval_end(void *d EINA_UNUSED, E_Client *ec)
+{
+   _rot_hook_eval_end_intern(ec);
+}
+
+static void
+_rot_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec)
+{
+   _rot_hook_eval_fetch_intern(ec);
+}
+
+static Eina_Bool
+_rot_intercept_hook_show_helper(void *d EINA_UNUSED, E_Client *ec)
+{
+   return _rot_intercept_hook_show_helper_intern(ec);
+}
+
+static Eina_Bool
+_rot_intercept_hook_hide(void *d EINA_UNUSED, E_Client *ec)
+{
+   return _rot_intercept_hook_hide_intern(ec);
+}
+
+static Eina_Bool
+_rot_cb_window_property(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Property *ev)
+{
+   if ((ev->atom == ECORE_X_ATOM_E_WINDOW_ROTATION_SUPPORTED) ||
+            (ev->atom == ECORE_X_ATOM_E_WINDOW_ROTATION_0_GEOMETRY) ||
+            (ev->atom == ECORE_X_ATOM_E_WINDOW_ROTATION_90_GEOMETRY) ||
+            (ev->atom == ECORE_X_ATOM_E_WINDOW_ROTATION_180_GEOMETRY) ||
+            (ev->atom == ECORE_X_ATOM_E_WINDOW_ROTATION_270_GEOMETRY) ||
+            (ev->atom == ECORE_X_ATOM_E_WINDOW_ROTATION_APP_SUPPORTED) ||
+            (ev->atom == ECORE_X_ATOM_E_WINDOW_ROTATION_PREFERRED_ROTATION) ||
+            (ev->atom == ECORE_X_ATOM_E_WINDOW_ROTATION_AVAILABLE_LIST))
+     {
+
+        _rot_cb_window_property_intern(ev);
+     }
+
+   return ECORE_CALLBACK_PASS_ON;
+}
+
+static Eina_Bool
+_rot_cb_window_configure(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Configure *ev)
+{
+   _rot_cb_window_configure_intern(ev);
+
+   return ECORE_CALLBACK_RENEW;
+}
+
+static Eina_Bool
+_rot_cb_zone_rotation_change_begin(void *data EINA_UNUSED, int ev_type EINA_UNUSED, E_Event_Zone_Rotation_Change_Begin *ev)
+{
+   if ((!ev) || (!ev->zone)) return ECORE_CALLBACK_PASS_ON;
+
+   _rot_cb_zone_rotation_change_begin_intern(ev);
+   return ECORE_CALLBACK_RENEW;
+}
+
+static Eina_Bool
+_rot_cb_window_message(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Client_Message *ev)
+{
+   _rot_cb_window_message_intern(ev);
+
+   return ECORE_CALLBACK_RENEW;
+}
+
+static Eina_Bool
+_rot_cb_idle_enterer(void *data EINA_UNUSED)
+{
+   _rot_cb_idle_enterer_intern();
+
+   return ECORE_CALLBACK_RENEW;
+}
+
+static void
+_rot_cb_evas_show(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event_info EINA_UNUSED)
+{
+   E_Client *ec = data;
+   _rot_cb_evas_show_intern(ec);
+   return;
+}
+
+static void
+_rot_hook_new_client_post(void *d EINA_UNUSED, E_Client *ec)
+{
+   if (!ec->frame)
+      return;
+
+   evas_object_event_callback_add(ec->frame, EVAS_CALLBACK_SHOW, _rot_cb_evas_show, ec);
+
+   return;
+}
+
+/* externally accessible functions */
+/**
+ * @describe
+ *  Get current rotation angle.
+ * @param      ec             e_client
+ * @return     int            current angle
+ */
+EINTERN int
+e_client_rotation_curr_angle_get(const E_Client *ec)
+{
+   E_OBJECT_CHECK_RETURN(ec, -1);
+   E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, -1);
+
+   return ec->e.state.rot.ang.curr;
+}
+
+#undef E_CLIENT_HOOK_APPEND
+#define E_CLIENT_HOOK_APPEND(l, t, cb, d) \
+  do                                      \
+    {                                     \
+       E_Client_Hook *_h;                 \
+       _h = e_client_hook_add(t, cb, d);  \
+       assert(_h);                        \
+       l = eina_list_append(l, _h);       \
+    }                                     \
+  while (0)
+
+#undef E_COMP_OBJECT_INTERCEPT_HOOK_APPEND
+#define E_COMP_OBJECT_INTERCEPT_HOOK_APPEND(l, t, cb, d) \
+  do                                                     \
+    {                                                    \
+       E_Comp_Object_Intercept_Hook *_h;                 \
+       _h = e_comp_object_intercept_hook_add(t, cb, d);  \
+       assert(_h);                                       \
+       l = eina_list_append(l, _h);                      \
+    }                                                    \
+  while (0)
+
+EINTERN void
+e_mod_pol_rotation_init(void)
+{
+   E_LIST_HANDLER_APPEND(rot_handlers, ECORE_X_EVENT_WINDOW_PROPERTY,
+                         _rot_cb_window_property, NULL);
+   E_LIST_HANDLER_APPEND(rot_handlers, ECORE_X_EVENT_WINDOW_CONFIGURE,
+                         _rot_cb_window_configure, NULL);
+   E_LIST_HANDLER_APPEND(rot_handlers, ECORE_X_EVENT_CLIENT_MESSAGE,
+                         _rot_cb_window_message, NULL);
+   E_LIST_HANDLER_APPEND(rot_handlers, E_EVENT_ZONE_ROTATION_CHANGE_BEGIN,
+                         _rot_cb_zone_rotation_change_begin, NULL);
+
+   E_CLIENT_HOOK_APPEND(rot_hooks, E_CLIENT_HOOK_NEW_CLIENT,
+                        _rot_hook_new_client, NULL);
+   E_CLIENT_HOOK_APPEND(rot_hooks, E_CLIENT_HOOK_NEW_CLIENT_POST,
+                        _rot_hook_new_client_post, NULL);
+   E_CLIENT_HOOK_APPEND(rot_hooks, E_CLIENT_HOOK_DEL,
+                        _rot_hook_client_del, NULL);
+   E_CLIENT_HOOK_APPEND(rot_hooks, E_CLIENT_HOOK_EVAL_END,
+                        _rot_hook_eval_end, NULL);
+   E_CLIENT_HOOK_APPEND(rot_hooks, E_CLIENT_HOOK_EVAL_FETCH,
+                        _rot_hook_eval_fetch, NULL);
+
+   E_COMP_OBJECT_INTERCEPT_HOOK_APPEND(rot_intercept_hooks,
+                                       E_COMP_OBJECT_INTERCEPT_HOOK_SHOW_HELPER,
+                                       _rot_intercept_hook_show_helper, NULL);
+   E_COMP_OBJECT_INTERCEPT_HOOK_APPEND(rot_intercept_hooks,
+                                       E_COMP_OBJECT_INTERCEPT_HOOK_HIDE,
+                                       _rot_intercept_hook_hide, NULL);
+
+
+   rot_idle_enterer = ecore_idle_enterer_add(_rot_cb_idle_enterer, NULL);
+}
+
+EINTERN void
+e_mod_pol_rotation_shutdown(void)
+{
+   E_FREE_LIST(rot_hooks, e_client_hook_del);
+   E_FREE_LIST(rot_handlers, ecore_event_handler_del);
+   E_FREE_LIST(rot_intercept_hooks, e_comp_object_intercept_hook_del);
+
+   if (rot_idle_enterer)
+     {
+         ecore_idle_enterer_del(rot_idle_enterer);
+         rot_idle_enterer = NULL;
+     }
+}
