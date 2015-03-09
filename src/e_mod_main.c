@@ -1,22 +1,3 @@
-/*
- * Copyright (c) 2013 Samsung Electronics Co., Ltd. All rights reserved.
- *
- * This file is a modified version of BSD licensed file and
- * licensed under the Flora License, Version 1.1 (the License);
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://floralicense.org/license/
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an AS IS BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * Please, see the COPYING file for the original copyright owner and
- * license.
- */
 #include "e_mod_main.h"
 #include "e_mod_atoms.h"
 #include "e_mod_rotation.h"
@@ -31,8 +12,6 @@ Eina_Hash *hash_pol_clients = NULL;
 
 static Eina_List *handlers = NULL;
 static Eina_List *hooks = NULL;
-static Eina_List *intercept_hooks = NULL;
-static Ecore_Idle_Enterer *_idle_enterer = NULL;
 
 static Pol_Client *_pol_client_add(E_Client *ec);
 static void        _pol_client_del(Pol_Client *pc);
@@ -45,14 +24,7 @@ static void        _pol_hook_client_eval_pre_fetch(void *d EINA_UNUSED, E_Client
 static void        _pol_hook_client_eval_pre_post_fetch(void *d EINA_UNUSED, E_Client *ec);
 static void        _pol_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec);
 static void        _pol_hook_client_desk_set(void *d EINA_UNUSED, E_Client *ec);
-static void        _pol_hook_new_client(void *d EINA_UNUSED, E_Client *ec);
-static void        _pol_hook_new_client_post(void *d EINA_UNUSED, E_Client *ec);
-static void        _pol_hook_client_del(void *d EINA_UNUSED, E_Client *ec);
 static void        _pol_hook_eval_end(void *d EINA_UNUSED, E_Client *ec);
-static void        _pol_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec);
-
-static Eina_Bool   _pol_intercept_hook_show_helper(void *d EINA_UNUSED, E_Client *ec);
-static Eina_Bool   _pol_intercept_hook_hide(void *d EINA_UNUSED, E_Client *ec);
 
 static void        _pol_cb_desk_data_free(void *data);
 static void        _pol_cb_client_data_free(void *data);
@@ -68,14 +40,6 @@ static Eina_Bool   _pol_cb_client_resize(void *data EINA_UNUSED, int type, void 
 static Eina_Bool   _pol_cb_client_stack(void *data EINA_UNUSED, int type, void *event);
 static Eina_Bool   _pol_cb_client_property(void *data EINA_UNUSED, int type EINA_UNUSED, void *event);
 static Eina_Bool   _pol_cb_window_property(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Property *ev);
-
-static Eina_Bool   _pol_cb_window_configure(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Configure *ev);
-static Eina_Bool   _pol_cb_window_message(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Client_Message *ev);
-static Eina_Bool   _pol_cb_zone_rotation_change_begin(void *data EINA_UNUSED, int ev_type EINA_UNUSED, E_Event_Zone_Rotation_Change_Begin *ev);
-
-static Eina_Bool   _pol_cb_idle_enterer(void *data EINA_UNUSED);
-
-static void        _pol_cb_evas_show(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event_info EINA_UNUSED);
 
 static void
 _pol_client_launcher_set(Pol_Client *pc)
@@ -389,61 +353,10 @@ _pol_hook_client_desk_set(void *d EINA_UNUSED, E_Client *ec)
 }
 
 static void
-_pol_hook_new_client(void *d EINA_UNUSED, E_Client *ec)
-{
-   e_mod_pol_rot_hook_new_client(ec);
-}
-
-static void
-_pol_hook_new_client_post(void *d EINA_UNUSED, E_Client *ec)
-{
-   if (!ec->frame)
-      return;
-
-   evas_object_event_callback_add(ec->frame, EVAS_CALLBACK_SHOW, _pol_cb_evas_show, ec);
-
-   /* How does this work? ec doesn't have netwm during creating it
-    * netwm will be set in first idle time.
-    */
-//   e_mod_pol_notification_level_update(ec);
-
-   return;
-}
-
-
-static void
-_pol_hook_client_del(void *d EINA_UNUSED, E_Client *ec)
-{
-   e_mod_pol_rot_hook_client_del(ec);
-   e_mod_pol_rot_hook_client_free(ec);
-}
-
-static void
 _pol_hook_eval_end(void *d EINA_UNUSED, E_Client *ec)
 {
    /* calculate e_client visibility */
    e_mod_pol_visibility_calc();
-
-   /* evaluate rotation */
-   e_mod_pol_rot_hook_eval_end(ec);
-}
-
-static void
-_pol_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec)
-{
-   e_mod_pol_rot_hook_eval_fetch(ec);
-}
-
-static Eina_Bool
-_pol_intercept_hook_show_helper(void *d EINA_UNUSED, E_Client *ec)
-{
-   return e_mod_pol_rot_intercept_hook_show_helper(ec);
-}
-
-static Eina_Bool
-_pol_intercept_hook_hide(void *d EINA_UNUSED, E_Client *ec)
-{
-   return e_mod_pol_rot_intercept_hook_hide(ec);
 }
 
 static void
@@ -706,28 +619,8 @@ _pol_cb_window_property(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Ev
         if (ec)
            e_mod_pol_notification_level_update(ec);
      }
-   else if ((ev->atom == ECORE_X_ATOM_E_WINDOW_ROTATION_SUPPORTED) ||
-            (ev->atom == ECORE_X_ATOM_E_WINDOW_ROTATION_0_GEOMETRY) ||
-            (ev->atom == ECORE_X_ATOM_E_WINDOW_ROTATION_90_GEOMETRY) ||
-            (ev->atom == ECORE_X_ATOM_E_WINDOW_ROTATION_180_GEOMETRY) ||
-            (ev->atom == ECORE_X_ATOM_E_WINDOW_ROTATION_270_GEOMETRY) ||
-            (ev->atom == ECORE_X_ATOM_E_WINDOW_ROTATION_APP_SUPPORTED) ||
-            (ev->atom == ECORE_X_ATOM_E_WINDOW_ROTATION_PREFERRED_ROTATION) ||
-            (ev->atom == ECORE_X_ATOM_E_WINDOW_ROTATION_AVAILABLE_LIST))
-     {
-
-        e_mod_pol_rot_cb_window_property(ev);
-     }
 
    return ECORE_CALLBACK_PASS_ON;
-}
-
-static Eina_Bool
-_pol_cb_window_configure(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Configure *ev)
-{
-   e_mod_pol_rot_cb_window_configure(ev);
-
-   return ECORE_CALLBACK_RENEW;
 }
 
 static Eina_Bool
@@ -736,39 +629,6 @@ _pol_cb_window_configure_request(void *data EINA_UNUSED, int type EINA_UNUSED, E
    e_mod_pol_keyboard_configure(ev);
 
    return ECORE_CALLBACK_PASS_ON;
-}
-
-static Eina_Bool
-_pol_cb_zone_rotation_change_begin(void *data EINA_UNUSED, int ev_type EINA_UNUSED, E_Event_Zone_Rotation_Change_Begin *ev)
-{
-   if ((!ev) || (!ev->zone)) return ECORE_CALLBACK_PASS_ON;
-
-   e_mod_pol_rot_cb_zone_rotation_change_begin(ev);
-   return ECORE_CALLBACK_RENEW;
-}
-
-static Eina_Bool
-_pol_cb_window_message(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Client_Message *ev)
-{
-   e_mod_pol_rot_cb_window_message(ev);
-
-   return ECORE_CALLBACK_RENEW;
-}
-
-static Eina_Bool
-_pol_cb_idle_enterer(void *data EINA_UNUSED)
-{
-   e_mod_pol_rot_cb_idle_enterer();
-
-   return ECORE_CALLBACK_RENEW;
-}
-
-static void
-_pol_cb_evas_show(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event_info EINA_UNUSED)
-{
-   E_Client *ec = data;
-   e_mod_pol_rot_cb_evas_show(ec);
-   return;
 }
 
 void
@@ -1005,14 +865,8 @@ e_modapi_init(E_Module *m)
 
    E_LIST_HANDLER_APPEND(handlers, ECORE_X_EVENT_WINDOW_PROPERTY,
                          _pol_cb_window_property, NULL);
-   E_LIST_HANDLER_APPEND(handlers, ECORE_X_EVENT_WINDOW_CONFIGURE,
-                         _pol_cb_window_configure, NULL);
    E_LIST_HANDLER_APPEND(handlers, ECORE_X_EVENT_WINDOW_CONFIGURE_REQUEST,
                          _pol_cb_window_configure_request, NULL);
-   E_LIST_HANDLER_APPEND(handlers, ECORE_X_EVENT_CLIENT_MESSAGE,
-                         _pol_cb_window_message, NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_ROTATION_CHANGE_BEGIN,
-                         _pol_cb_zone_rotation_change_begin, NULL);
 
    E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_EVAL_PRE_NEW_CLIENT,
                         _pol_hook_client_eval_pre_new_client, NULL);
@@ -1024,26 +878,10 @@ e_modapi_init(E_Module *m)
                         _pol_hook_client_eval_post_fetch, NULL);
    E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_DESK_SET,
                         _pol_hook_client_desk_set, NULL);
-   E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_NEW_CLIENT,
-                        _pol_hook_new_client, NULL);
-   E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_NEW_CLIENT_POST,
-                        _pol_hook_new_client_post, NULL);
-   E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_DEL,
-                        _pol_hook_client_del, NULL);
    E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_EVAL_END,
                         _pol_hook_eval_end, NULL);
-   E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_EVAL_FETCH,
-                        _pol_hook_eval_fetch, NULL);
 
-   E_COMP_OBJECT_INTERCEPT_HOOK_APPEND(intercept_hooks,
-                                       E_COMP_OBJECT_INTERCEPT_HOOK_SHOW_HELPER,
-                                       _pol_intercept_hook_show_helper, NULL);
-   E_COMP_OBJECT_INTERCEPT_HOOK_APPEND(intercept_hooks,
-                                       E_COMP_OBJECT_INTERCEPT_HOOK_HIDE,
-                                       _pol_intercept_hook_hide, NULL);
-
-   _idle_enterer = ecore_idle_enterer_add(_pol_cb_idle_enterer, NULL);
-   // change to ecore_idle_enterer_before_add()?
+   e_mod_pol_rotation_init();
 
    return mod;
 }
@@ -1060,13 +898,6 @@ e_modapi_shutdown(E_Module *m)
      e_mod_pol_softkey_del(softkey);
    E_FREE_LIST(hooks, e_client_hook_del);
    E_FREE_LIST(handlers, ecore_event_handler_del);
-   E_FREE_LIST(intercept_hooks, e_comp_object_intercept_hook_del);
-
-   if (_idle_enterer)
-     {
-         ecore_idle_enterer_del(_idle_enterer);
-         _idle_enterer = NULL;
-     }
 
    E_FREE_FUNC(hash_pol_desks, eina_hash_free);
    E_FREE_FUNC(hash_pol_clients, eina_hash_free);
@@ -1074,6 +905,7 @@ e_modapi_shutdown(E_Module *m)
    e_mod_pol_stack_shutdonw();
    e_mod_pol_notification_shutdown();
    e_mod_pol_viisibility_shutdown();
+   e_mod_pol_rotation_shutdown();
 
    e_configure_registry_item_del("windows/policy-tizen");
    e_configure_registry_category_del("windows");
