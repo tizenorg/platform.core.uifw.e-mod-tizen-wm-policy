@@ -38,8 +38,10 @@ static Eina_Bool   _pol_cb_client_add(void *data EINA_UNUSED, int type, void *ev
 static Eina_Bool   _pol_cb_client_move(void *data EINA_UNUSED, int type, void *event);
 static Eina_Bool   _pol_cb_client_resize(void *data EINA_UNUSED, int type, void *event);
 static Eina_Bool   _pol_cb_client_stack(void *data EINA_UNUSED, int type, void *event);
+#ifndef HAVE_WAYLAND_ONLY
 static Eina_Bool   _pol_cb_client_property(void *data EINA_UNUSED, int type EINA_UNUSED, void *event);
 static Eina_Bool   _pol_cb_window_property(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Property *ev);
+#endif
 
 static void
 _pol_client_launcher_set(Pol_Client *pc)
@@ -603,6 +605,7 @@ _pol_cb_client_property(void *data EINA_UNUSED, int type EINA_UNUSED, void *even
    return EINA_FALSE;
 }
 
+#ifndef HAVE_WAYLAND_ONLY
 static Eina_Bool
 _pol_cb_window_property(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Property *ev)
 {
@@ -630,6 +633,7 @@ _pol_cb_window_configure_request(void *data EINA_UNUSED, int type EINA_UNUSED, E
 
    return ECORE_CALLBACK_PASS_ON;
 }
+#endif
 
 void
 e_mod_pol_desk_add(E_Desk *desk)
@@ -859,10 +863,12 @@ e_modapi_init(E_Module *m)
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_PROPERTY,
                          _pol_cb_client_property, NULL);
 
+#ifndef HAVE_WAYLAND_ONLY
    E_LIST_HANDLER_APPEND(handlers, ECORE_X_EVENT_WINDOW_PROPERTY,
                          _pol_cb_window_property, NULL);
    E_LIST_HANDLER_APPEND(handlers, ECORE_X_EVENT_WINDOW_CONFIGURE_REQUEST,
                          _pol_cb_window_configure_request, NULL);
+#endif
 
    E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_EVAL_PRE_NEW_CLIENT,
                         _pol_hook_client_eval_pre_new_client, NULL);

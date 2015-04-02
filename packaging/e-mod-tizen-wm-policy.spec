@@ -1,4 +1,6 @@
 %bcond_with x
+%bcond_with wayland
+
 Name:       e-mod-tizen-wm-policy 
 Summary:    The Enlightenment WM Policy Module for Tizen
 Version:    0.1.9
@@ -6,10 +8,14 @@ Release:    1
 Group:      Graphics & UI Framework/Other
 License:    BSD-2-Clause
 Source0:    %{name}-%{version}.tar.bz2
-BuildRequires: pkgconfig(x11) 
 BuildRequires: pkgconfig(enlightenment)
-%if !%{with x}
-ExclusiveArch:
+%if %{with x}
+BuildRequires: pkgconfig(x11) 
+%endif
+%if %{with wayland}
+BuildRequires: pkgconfig(eina)
+BuildRequires: pkgconfig(ecore)
+BuildRequires: pkgconfig(edje)
 %endif
 
 %description
@@ -20,7 +26,12 @@ The Enlightenment WM Policy Module for Tizen
 
 %build
 %autogen
+%if %{with wayland}
+%configure \
+      --enable-wayland-only
+%else
 %configure
+%endif
 make %{?_smp_mflags}
 
 %install

@@ -1,6 +1,8 @@
 #include "e_mod_main.h"
 #include "e_mod_atoms.h"
+#ifndef HAVE_WAYLAND_ONLY
 #include <X11/Xlib.h>
+#endif
 
 typedef struct _Pol_Visibility Pol_Visibility;
 typedef struct _Pol_Win_Opaque Pol_Win_Opaque;
@@ -27,7 +29,9 @@ static void            _pol_cb_visibility_data_free(void *data);
 static Pol_Win_Opaque *_win_opaque_add(E_Client *ec, int opaque);
 static Pol_Win_Opaque *_win_opaque_find(E_Client *ec);
 static void            _pol_cb_win_opaque_data_free(void *data);
+#ifndef HAVE_WAYLAND_ONLY
 static Eina_Bool       _win_opaque_prop_get(Ecore_X_Window win, int *opaque);
+#endif
 
 static Pol_Visibility *
 _visibility_add(E_Client *ec, int visibility)
@@ -61,6 +65,7 @@ _visibility_find(E_Client *ec)
 static void
 _visibility_notify_send(E_Client *ec, int visibility)
 {
+#ifndef HAVE_WAYLAND_ONLY
    XEvent event;
 
    if (!ec) return;
@@ -76,6 +81,7 @@ _visibility_notify_send(E_Client *ec, int visibility)
               event.xvisibility.window,
               False,
               VisibilityChangeMask, &event);
+#endif
 }
 
 static void
@@ -119,6 +125,7 @@ _pol_cb_win_opaque_data_free(void *data)
    free(data);
 }
 
+#ifndef HAVE_WAYLAND_ONLY
 static Eina_Bool
 _win_opaque_prop_get(Ecore_X_Window win, int *opaque)
 {
@@ -132,6 +139,7 @@ _win_opaque_prop_get(Ecore_X_Window win, int *opaque)
    *opaque = (int)val;
    return EINA_TRUE;
 }
+#endif
 
 void
 e_mod_pol_visibility_init(void)
@@ -307,6 +315,7 @@ e_mod_pol_client_visibility_del(E_Client *ec)
 void
 e_mod_pol_client_window_opaque_set(E_Client *ec)
 {
+#ifndef HAVE_WAYLAND_ONLY
    Ecore_X_Window win;
    int opaque = 0;
 
@@ -315,8 +324,10 @@ e_mod_pol_client_window_opaque_set(E_Client *ec)
 
    if (_win_opaque_prop_get(win, &opaque))
      _win_opaque_add(ec, opaque);
+#endif
 }
 
+#ifndef HAVE_WAYLAND_ONLY
 Eina_Bool
 e_mod_pol_visibility_cb_window_property(Ecore_X_Event_Window_Property *ev)
 {
@@ -347,3 +358,4 @@ e_mod_pol_visibility_cb_window_property(Ecore_X_Event_Window_Property *ev)
 
    return EINA_TRUE;
 }
+#endif

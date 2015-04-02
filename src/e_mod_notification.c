@@ -52,12 +52,17 @@ _pol_notification_is_notification (E_Client *ec)
 }
 
 static int
-_pol_notification_get_level(Ecore_X_Window win)
+_pol_notification_get_level(E_Client *ec)
 {
+#ifndef HAVE_WAYLAND_ONLY
    int level = 0;
    int ret;
    int num;
    unsigned char* prop_data = NULL;
+   Ecore_Window win = 0;
+
+   win = e_pixmap_window_get(ec->pixmap);
+   if (!win) return level;
 
    ret = ecore_x_window_prop_property_get (win, E_MOD_POL_ATOM_NOTIFICATION_LEVEL,
                                            ECORE_X_ATOM_CARDINAL, 32, &prop_data,
@@ -68,6 +73,9 @@ _pol_notification_get_level(Ecore_X_Window win)
    if (prop_data) free (prop_data);
 
    return level;
+#else
+   return 0;
+#endif
 }
 
 static short
@@ -149,7 +157,6 @@ e_mod_pol_notification_level_update(E_Client *ec)
    Pol_Notification *pn;
    short layer;
    int level;
-   uint64_t win;
 
    EINA_SAFETY_ON_NULL_RETURN_VAL(ec, EINA_FALSE);
    EINA_SAFETY_ON_NULL_RETURN_VAL(ec->frame, EINA_FALSE);
@@ -158,14 +165,12 @@ e_mod_pol_notification_level_update(E_Client *ec)
    pn = _pol_notification_get_info(ec);
    EINA_SAFETY_ON_NULL_RETURN_VAL(pn, EINA_FALSE);
 
-   win = e_pixmap_window_get(ec->pixmap);
-
    /* 1. Check if a window is notification or not */
    if (!_pol_notification_is_notification(ec))
       return EINA_FALSE;
 
    /* 2. Get and Set level */
-   level = _pol_notification_get_level(win);
+   level = _pol_notification_get_level(ec);
    layer = _pol_notification_level_to_layer(level);
 
    if (level == pn->level &&

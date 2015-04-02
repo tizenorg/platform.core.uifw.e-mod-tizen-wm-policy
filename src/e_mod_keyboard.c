@@ -8,6 +8,7 @@ e_mod_pol_client_is_keyboard(E_Client *ec)
    E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, EINA_FALSE);
 
    if (ec->vkbd.vkbd) return EINA_TRUE;
+#ifndef HAVE_WAYLAND_ONLY
    else
      {
        char *nname = NULL, *nclass = NULL;
@@ -22,6 +23,7 @@ e_mod_pol_client_is_keyboard(E_Client *ec)
 
        if (ret) return ret;
      }
+#endif
 
    return EINA_FALSE;
 }
@@ -38,6 +40,7 @@ e_mod_pol_client_is_keyboard_sub(E_Client *ec)
        (!strcmp(ec->icccm.class, "ISF")))
      return EINA_TRUE;
 
+#ifndef HAVE_WAYLAND_ONLY
    if (!ec->icccm.class)
      {
        char *nname = NULL, *nclass = NULL;
@@ -52,6 +55,7 @@ e_mod_pol_client_is_keyboard_sub(E_Client *ec)
 
        if (ret) return ret;
      }
+#endif
 
    return EINA_FALSE;
 }
@@ -119,6 +123,7 @@ e_mod_pol_keyboard_layout_apply(E_Client *ec)
      e_client_util_move_without_frame(ec, kbd_x, kbd_y);
 }
 
+#ifndef HAVE_WAYLAND_ONLY
 EINTERN void
 e_mod_pol_keyboard_configure(Ecore_X_Event_Window_Configure_Request *ev)
 {
@@ -139,3 +144,4 @@ e_mod_pol_keyboard_configure(Ecore_X_Event_Window_Configure_Request *ev)
           }
      }
 }
+#endif

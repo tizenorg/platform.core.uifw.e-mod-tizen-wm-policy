@@ -55,7 +55,9 @@ _pol_stack_transient_for_apply(E_Client *ec)
    E_Client *child, *top;
    Eina_List *l;
 
+#ifndef HAVE_WAYLAND_ONLY
    ecore_x_window_shadow_tree_flush();
+#endif
 
    if (ec->parent->layer != ec->layer)
      {
@@ -135,6 +137,7 @@ e_mod_pol_stack_hook_pre_post_fetch(E_Client *ec)
 void
 e_mod_pol_stack_hook_pre_fetch(E_Client *ec)
 {
+#ifndef HAVE_WAYLAND_ONLY
    Pol_Stack *ps;
 
    if (e_pixmap_type_get(ec->pixmap) != E_PIXMAP_TYPE_X) return;
@@ -182,6 +185,7 @@ e_mod_pol_stack_hook_pre_fetch(E_Client *ec)
                }
           }
      }
+#endif
 }
 
 void

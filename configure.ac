@@ -32,6 +32,16 @@ PKG_CHECK_MODULES(ENLIGHTENMENT, [enlightenment])
 AC_SUBST(ENLIGHTENMENT_CFLAGS)
 AC_SUBST(ENLIGHTENMENT_LIBS)
 
+have_wayland_only=no
+AC_ARG_ENABLE([wayland-only],
+  AS_HELP_STRING([--enable-wayland-only],[enable wayland-only version of enlightenment @<:@default=disabled@:>@]),
+  [have_wayland_only=$enableval],
+  [have_wayland_only=no])
+AC_MSG_CHECKING([whether wayland-only version is enabled])
+if test "x${have_wayland_only}" != "xno"; then
+  AC_DEFINE_UNQUOTED([HAVE_WAYLAND_ONLY],[1],[enable wayland-only version of enlightenment])
+fi
+
 AC_CHECK_LIB(dl, dlopen, dlopen_libs=-ldl)
 AC_SUBST(dlopen_libs)
 

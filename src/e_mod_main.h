@@ -121,7 +121,9 @@ EINTERN void             e_mod_pol_zone_visibility_calc(E_Zone *zone);
 EINTERN void             e_mod_pol_visibility_calc(void);
 EINTERN void             e_mod_pol_client_visibility_del(E_Client *ec);
 EINTERN void             e_mod_pol_client_window_opaque_set(E_Client *ec);
+#ifndef HAVE_WAYLAND_ONLY
 EINTERN Eina_Bool        e_mod_pol_visibility_cb_window_property(Ecore_X_Event_Window_Property *ev);
+#endif
 
 EINTERN void             e_mod_pol_stack_init(void);
 EINTERN void             e_mod_pol_stack_shutdonw(void);
