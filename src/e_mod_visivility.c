@@ -149,7 +149,7 @@ e_mod_pol_visibility_init(void)
 }
 
 void
-e_mod_pol_viisibility_shutdown(void)
+e_mod_pol_visibility_shutdown(void)
 {
    E_FREE_FUNC(hash_pol_visibilities, eina_hash_free);
    E_FREE_FUNC(hash_pol_win_opaques, eina_hash_free);

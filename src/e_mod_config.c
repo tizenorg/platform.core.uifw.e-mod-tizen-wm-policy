@@ -356,7 +356,7 @@ e_mod_pol_conf_desk_get_by_nums(Config *conf, unsigned int comp_num, unsigned in
 }
 
 E_Config_Dialog *
-e_int_config_pol_mobile(E_Comp *c EINA_UNUSED, const char *params EINA_UNUSED)
+e_int_config_pol_mobile(Evas_Object *o EINA_UNUSED, const char *params EINA_UNUSED)
 {
    E_Config_Dialog *cfd;
    E_Config_Dialog_View *v;

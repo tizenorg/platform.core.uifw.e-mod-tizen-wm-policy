@@ -906,7 +906,7 @@ e_modapi_shutdown(E_Module *m)
 
    e_mod_pol_stack_shutdonw();
    e_mod_pol_notification_shutdown();
-   e_mod_pol_viisibility_shutdown();
+   e_mod_pol_visibility_shutdown();
    e_mod_pol_rotation_shutdown();
 
    e_configure_registry_item_del("windows/policy-tizen");
