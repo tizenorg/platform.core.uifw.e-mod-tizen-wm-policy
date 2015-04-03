@@ -2073,7 +2073,7 @@ _rot_cb_window_message_intern(Ecore_X_Event_Client_Message *ev)
 static Eina_Bool
 _rot_hook_eval_fetch_intern(E_Client *ec)
 {
-#if HAVE_X
+#ifndef HAVE_WAYLAND_ONLY
 #if 0
    //TODO: add vkbd fetch_transient_for flag
    /* workaround: since transient_for is fetched by illume in hook,
