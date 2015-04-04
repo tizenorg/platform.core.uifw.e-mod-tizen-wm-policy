@@ -320,6 +320,18 @@ _pol_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec)
         e_mod_pol_keyboard_layout_apply(ec);
      }
 
+   if (!e_util_strcmp("wl_pointer-cursor", ec->icccm.window_role))
+     {
+        Pol_Client *pc;
+        pc = eina_hash_find(hash_pol_clients, &ec);
+        if (pc)
+          {
+             _pol_client_del(pc);
+             e_client_unmaximize(ec, E_MAXIMIZE_BOTH);
+          }
+        return;
+     }
+
    if (!_pol_client_normal_check(ec)) return;
 
    pd = eina_hash_find(hash_pol_desks, &ec->desk);
@@ -344,6 +356,7 @@ _pol_hook_client_desk_set(void *d EINA_UNUSED, E_Client *ec)
 
    if (e_object_is_del(E_OBJECT(ec))) return;
    if (!_pol_client_normal_check(ec)) return;
+   if (ec->internal) return;
 
    pc = eina_hash_find(hash_pol_clients, &ec);
    pd = eina_hash_find(hash_pol_desks, &ec->desk);
