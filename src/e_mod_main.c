@@ -106,6 +106,8 @@ _pol_client_add(E_Client *ec)
    _SET(lock_client_shade);
    _SET(lock_user_maximize);
    _SET(lock_client_maximize);
+   _SET(lock_user_fullscreen);
+   _SET(lock_client_fullscreen);
 #undef _SET
 
    _pol_client_launcher_set(pc);
@@ -268,6 +270,8 @@ _pol_client_update(Pol_Client *pc)
    ec->lock_client_shade = 1;
    ec->lock_user_maximize = 1;
    ec->lock_client_maximize = 1;
+   ec->lock_user_fullscreen = 1;
+   ec->lock_client_fullscreen = 1;
 
    if (!e_mod_pol_client_is_home_screen(ec))
      ec->lock_client_stacking = 1;

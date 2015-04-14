@@ -41,6 +41,8 @@ struct _Pol_Client
       unsigned int  lock_client_shade : 1;
       unsigned int  lock_user_maximize : 1;
       unsigned int  lock_client_maximize : 1;
+      unsigned int  lock_user_fullscreen : 1;
+      unsigned int  lock_client_fullscreen : 1;
    } orig;
 };
 
