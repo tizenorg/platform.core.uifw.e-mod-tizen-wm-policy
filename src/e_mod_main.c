@@ -3,6 +3,9 @@
 #include "e_mod_rotation.h"
 #include "e_mod_keyboard.h"
 #include "e_mod_notification.h"
+#ifdef HAVE_WAYLAND_ONLY
+#include "e_mod_wl.h"
+#endif
 
 EAPI E_Module_Api e_modapi = { E_MODULE_API_VERSION, "Policy-Mobile" };
 
@@ -545,6 +548,7 @@ _pol_cb_client_remove(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    e_mod_pol_notification_client_del(ev->ec);
    e_mod_pol_client_visibility_del(ev->ec);
    e_mod_pol_visibility_calc();
+   e_mod_pol_wl_client_del(ev->ec);
 
    return ECORE_CALLBACK_PASS_ON;
 }
@@ -819,6 +823,9 @@ e_modapi_init(E_Module *m)
    e_mod_pol_visibility_init();
    e_mod_pol_atoms_init();
    e_mod_pol_notification_init();
+#ifdef HAVE_WAYLAND_ONLY
+   e_mod_pol_wl_init();
+#endif
 
    /* initialize configure and config data type */
    snprintf(buf, sizeof(buf), "%s/e-module-policy.edj",
@@ -925,6 +932,9 @@ e_modapi_shutdown(E_Module *m)
    e_mod_pol_notification_shutdown();
    e_mod_pol_visibility_shutdown();
    e_mod_pol_rotation_shutdown();
+#ifdef HAVE_WAYLAND_ONLY
+   e_mod_pol_wl_shutdown();
+#endif
 
    e_configure_registry_item_del("windows/policy-tizen");
    e_configure_registry_category_del("windows");

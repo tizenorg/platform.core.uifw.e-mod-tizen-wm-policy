@@ -41,6 +41,7 @@ AC_MSG_CHECKING([whether wayland-only version is enabled])
 if test "x${have_wayland_only}" != "xno"; then
   AC_DEFINE_UNQUOTED([HAVE_WAYLAND_ONLY],[1],[enable wayland-only version of enlightenment])
 fi
+AM_CONDITIONAL(HAVE_WAYLAND_ONLY, [test "x${have_wayland_only}" = xyes])
 
 AC_CHECK_LIB(dl, dlopen, dlopen_libs=-ldl)
 AC_SUBST(dlopen_libs)
