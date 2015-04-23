@@ -1,6 +1,8 @@
 #include "e_mod_main.h"
 #include "e_mod_atoms.h"
-#ifndef HAVE_WAYLAND_ONLY
+#ifdef HAVE_WAYLAND_ONLY
+#include "e_mod_wl.h"
+#else
 #include <X11/Xlib.h>
 #endif
 
@@ -65,7 +67,9 @@ _visibility_find(E_Client *ec)
 static void
 _visibility_notify_send(E_Client *ec, int visibility)
 {
-#ifndef HAVE_WAYLAND_ONLY
+#ifdef HAVE_WAYLAND_ONLY
+   e_mod_pol_wl_visibility_send(ec, visibility);
+#else
    XEvent event;
 
    if (!ec) return;
