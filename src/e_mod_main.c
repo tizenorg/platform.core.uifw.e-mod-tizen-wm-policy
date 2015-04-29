@@ -167,6 +167,8 @@ _pol_client_del(Pol_Client *pc)
    _SET(lock_client_shade);
    _SET(lock_user_maximize);
    _SET(lock_client_maximize);
+   _SET(lock_user_fullscreen);
+   _SET(lock_client_fullscreen);
 #undef _SET
 
    /* only set it if the border is changed or fullscreen/maximize has changed */
