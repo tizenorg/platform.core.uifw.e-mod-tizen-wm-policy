@@ -548,7 +548,9 @@ _pol_cb_client_remove(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    e_mod_pol_notification_client_del(ev->ec);
    e_mod_pol_client_visibility_del(ev->ec);
    e_mod_pol_visibility_calc();
+#ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_client_del(ev->ec);
+#endif
 
    return ECORE_CALLBACK_PASS_ON;
 }
