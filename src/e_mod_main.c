@@ -189,6 +189,12 @@ _pol_client_normal_check(E_Client *ec)
         return EINA_FALSE;
      }
 
+   if (e_mod_pol_client_is_quickpanel(ec))
+     {
+        evas_object_move(ec->frame, -10000, -10000);
+        return EINA_FALSE;
+     }
+
    if (e_mod_pol_client_is_keyboard(ec) ||
        e_mod_pol_client_is_keyboard_sub(ec))
      {
@@ -366,6 +372,7 @@ _pol_hook_client_desk_set(void *d EINA_UNUSED, E_Client *ec)
    if (e_object_is_del(E_OBJECT(ec))) return;
    if (!_pol_client_normal_check(ec)) return;
    if (ec->internal) return;
+   if (ec->new_client) return;
 
    pc = eina_hash_find(hash_pol_clients, &ec);
    pd = eina_hash_find(hash_pol_desks, &ec->desk);
@@ -780,6 +787,18 @@ e_mod_pol_client_is_home_screen(E_Client *ec)
    if (ec->client_type == 1)
      return EINA_TRUE;
 
+
+   return EINA_FALSE;
+}
+
+Eina_Bool
+e_mod_pol_client_is_quickpanel(E_Client *ec)
+{
+   E_OBJECT_CHECK_RETURN(ec, EINA_FALSE);
+   E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, EINA_FALSE);
+
+   if (!e_util_strcmp(ec->icccm.title, "QUICKPANEL"))
+     return EINA_TRUE;
 
    return EINA_FALSE;
 }
