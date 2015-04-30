@@ -28,6 +28,13 @@ struct tizen_policy_interface {
 			       struct wl_resource *resource,
 			       uint32_t id,
 			       struct wl_resource *surface);
+	/**
+	 * activate - (none)
+	 * @surface: surface object
+	 */
+	void (*activate)(struct wl_client *client,
+			 struct wl_resource *resource,
+			 struct wl_resource *surface);
 };
 
 
