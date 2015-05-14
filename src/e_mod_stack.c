@@ -115,16 +115,18 @@ void
 e_mod_pol_stack_hook_pre_post_fetch(E_Client *ec)
 {
    Pol_Stack *ps;
-
-   if (e_pixmap_type_get(ec->pixmap) != E_PIXMAP_TYPE_X) return;
    ps = eina_hash_find(hash_pol_stack, &ec);
 
    if (ps)
      {
         if ((ps->transient.win) && (ps->transient.fetched))
           {
+#ifndef HAVE_WAYLAND_ONLY
              if ((ec->icccm.transient_for == ps->transient.win) &&
                  (ec->parent))
+#else
+             if (ec->parent && ps->transient.win)
+#endif
                _pol_stack_transient_for_apply(ec);
              else
                ps->transient.win = ec->icccm.transient_for;
@@ -137,10 +139,7 @@ e_mod_pol_stack_hook_pre_post_fetch(E_Client *ec)
 void
 e_mod_pol_stack_hook_pre_fetch(E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
    Pol_Stack *ps;
-
-   if (e_pixmap_type_get(ec->pixmap) != E_PIXMAP_TYPE_X) return;
    ps = eina_hash_find(hash_pol_stack, &ec);
 
    if (ec->icccm.fetch.transient_for)
@@ -149,15 +148,24 @@ e_mod_pol_stack_hook_pre_fetch(E_Client *ec)
         E_Client *parent = NULL;
         Eina_Bool transient_each_other = EINA_FALSE;
 
+#ifndef HAVE_WAYLAND_ONLY
         transient_for_win = ecore_x_icccm_transient_for_get(e_client_util_win_get(ec));
         if (transient_for_win)
           parent = e_pixmap_find_client(E_PIXMAP_TYPE_X, transient_for_win);
+#else
+        transient_for_win = NULL;
+        parent = e_pixmap_find_client(E_PIXMAP_TYPE_WL, ec->icccm.transient_for);
+#endif
 
         if (parent)
           {
              if (!ps) ps = _pol_stack_data_add(ec);
 
+#ifndef HAVE_WAYLAND_ONLY
              ps->transient.win = transient_for_win;
+#else
+             ps->transient.win = e_client_util_win_get(parent);
+#endif
              ps->transient.fetched = 1;
 
              /* clients transient for each other */
@@ -170,6 +178,7 @@ e_mod_pol_stack_hook_pre_fetch(E_Client *ec)
                   parent = NULL;
                }
 
+#ifndef HAVE_WAYLAND_ONLY
              /* already set by requested window */
              if ((parent) && (ec->icccm.transient_for == transient_for_win))
                {
@@ -183,9 +192,9 @@ e_mod_pol_stack_hook_pre_fetch(E_Client *ec)
                   ps->transient.fetched = 0;
                   parent = NULL;
                }
+#endif
           }
      }
-#endif
 }
 
 void
