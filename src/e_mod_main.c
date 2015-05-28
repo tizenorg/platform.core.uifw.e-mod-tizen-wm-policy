@@ -322,6 +322,14 @@ _pol_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec)
    Pol_Desk *pd;
 
    if (e_object_is_del(E_OBJECT(ec))) return;
+   /* Following E_Clients will be added to module hash and will be managed.
+    *
+    *  - Not new client: Updating internal info of E_Client has been finished
+    *    by e main evaluation, thus module can classify E_Client and manage it.
+    *
+    *  - New client that has valid buffer: This E_Client has been passed e main
+    *    evaluation, and it has handled first wl_surface::commit request.
+    */
    if ((ec->new_client) && (!e_pixmap_usable_get(ec->pixmap))) return;
 
    if (e_mod_pol_client_is_keyboard(ec) ||
