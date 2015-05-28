@@ -322,8 +322,7 @@ _pol_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec)
    Pol_Desk *pd;
 
    if (e_object_is_del(E_OBJECT(ec))) return;
-
-   if (ec->new_client) return;
+   if ((ec->new_client) && (!e_pixmap_usable_get(ec->pixmap))) return;
 
    if (e_mod_pol_client_is_keyboard(ec) ||
        e_mod_pol_client_is_keyboard_sub(ec))
