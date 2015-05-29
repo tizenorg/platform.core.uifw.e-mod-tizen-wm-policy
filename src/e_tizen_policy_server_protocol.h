@@ -14,9 +14,11 @@ struct wl_resource;
 
 struct tizen_policy;
 struct tizen_visibility;
+struct wl_surface;
 
 extern const struct wl_interface tizen_policy_interface;
 extern const struct wl_interface tizen_visibility_interface;
+extern const struct wl_interface wl_surface_interface;
 
 struct tizen_policy_interface {
 	/**
@@ -35,6 +37,17 @@ struct tizen_policy_interface {
 	void (*activate)(struct wl_client *client,
 			 struct wl_resource *resource,
 			 struct wl_resource *surface);
+	/**
+	 * position_set - (none)
+	 * @surface: surface object
+	 * @x: (none)
+	 * @y: (none)
+	 */
+	void (*position_set)(struct wl_client *client,
+			     struct wl_resource *resource,
+			     struct wl_resource *surface,
+			     int32_t x,
+			     int32_t y);
 };
 
 

@@ -39,6 +39,9 @@ e_mod_pol_client_is_keyboard_sub(E_Client *ec)
    if ((ec->icccm.class) &&
        (!strcmp(ec->icccm.class, "ISF")))
      return EINA_TRUE;
+   if ((ec->icccm.title) &&
+       (!strcmp(ec->icccm.title, "ISF Popup")))
+     return EINA_TRUE;
 
 #ifndef HAVE_WAYLAND_ONLY
    if (!ec->icccm.class)
