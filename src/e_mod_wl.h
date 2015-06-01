@@ -14,5 +14,7 @@ void e_mod_pol_wl_client_del(E_Client *ec);
 /* visibility */
 void e_mod_pol_wl_visibility_send(E_Client *ec, int visibility);
 
+/* notification */
+void e_mod_pol_wl_notification_level_fetch(E_Client *ec);
 #endif /* HAVE_WAYLAND_ONLY */
 #endif /* E_MOD_WL_H */

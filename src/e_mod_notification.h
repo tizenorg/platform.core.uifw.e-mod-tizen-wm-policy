@@ -19,5 +19,6 @@ EINTERN void      e_mod_pol_notification_hook_pre_fetch(E_Client *ec);
 EINTERN void      e_mod_pol_notification_hook_pre_post_fetch(E_Client *ec);
 
 EINTERN Eina_Bool e_mod_pol_notification_level_update(E_Client *ec);
+EINTERN Eina_Bool e_mod_pol_notification_level_apply(E_Client *ec, int level);
 
 #endif
