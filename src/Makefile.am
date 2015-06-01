@@ -25,7 +25,9 @@ if HAVE_WAYLAND_ONLY
 module_la_SOURCES += e_mod_wl.c \
 					 e_mod_wl.h \
 					 e_tizen_policy_server_protocol.c \
-					 e_tizen_policy_server_protocol.h
+					 e_tizen_policy_server_protocol.h \
+					 tizen_notification-server-protocol.h \
+					 tizen_notification-protocol.c
 endif
 
 module_la_LIBADD       =
