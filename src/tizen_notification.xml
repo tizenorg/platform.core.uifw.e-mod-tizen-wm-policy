@@ -1,0 +1,31 @@
+<protocol name="tizen_notification">
+  <interface name="tizen_notification" version="1">
+     <enum name="level">
+       <entry name="1" value="0"/>
+       <entry name="2" value="1"/>
+       <entry name="3" value="2"/>
+       <entry name="NONE" value="-1"/>
+       <entry name="DEFAULT" value="10"/>
+       <entry name="MEDIUM" value="20"/>
+       <entry name="HIGH" value="30"/>
+       <entry name="TOP" value="40"/>
+     </enum>
+
+     <request name="set_level">
+       <arg name="surface" type="object" interface="wl_surface"/>
+       <arg name="level" type="int"/>
+     </request>
+
+     <enum name="error_state">
+       <entry name="none" value="0"/>
+       <entry name="permission_denied" value="1"/>
+     </enum>
+
+     <event name="done">
+       <arg name="surface" type="object" interface="wl_surface"/>
+       <arg name="level" type="int"/>
+       <arg name="error_state" type="uint"/>
+     </event>
+
+  </interface>
+</protocol>
