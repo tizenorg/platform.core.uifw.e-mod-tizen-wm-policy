@@ -123,6 +123,7 @@ e_mod_pol_notification_client_del(E_Client *ec)
 void
 e_mod_pol_notification_hook_pre_fetch(E_Client *ec)
 {
+#ifndef HAVE_WAYLAND_ONLY
    Pol_Notification *pn;
 
    EINA_SAFETY_ON_NULL_RETURN(ec);
@@ -132,11 +133,15 @@ e_mod_pol_notification_hook_pre_fetch(E_Client *ec)
 
    pn->prev_ec_prop = ec->changes.prop;
    pn->prev_ec_fetch_type = ec->netwm.fetch.type;
+#else
+   return;
+#endif
 }
 
 void
 e_mod_pol_notification_hook_pre_post_fetch(E_Client *ec)
 {
+#ifndef HAVE_WAYLAND_ONLY
    Pol_Notification *pn;
 
    EINA_SAFETY_ON_NULL_RETURN(ec);
@@ -149,6 +154,9 @@ e_mod_pol_notification_hook_pre_post_fetch(E_Client *ec)
       return;
 
    e_mod_pol_notification_level_update (ec);
+#else
+   return;
+#endif
 }
 
 Eina_Bool
@@ -169,6 +177,38 @@ e_mod_pol_notification_level_update(E_Client *ec)
    if (!_pol_notification_is_notification(ec))
       return EINA_FALSE;
 
+   /* 2. Get and Set level */
+   level = _pol_notification_get_level(ec);
+   layer = _pol_notification_level_to_layer(level);
+
+   if (level == pn->level &&
+       layer == evas_object_layer_get(ec->frame))
+      return EINA_TRUE;
+
+   /* 3. Change Stack */
+   pn->level = level;
+   evas_object_layer_set (ec->frame, layer);
+
+   return EINA_TRUE;
+}
+
+Eina_Bool
+e_mod_pol_notification_level_apply(E_Client *ec, int level)
+{
+   Pol_Notification *pn;
+   short layer;
+
+   EINA_SAFETY_ON_NULL_RETURN_VAL(ec, EINA_FALSE);
+   EINA_SAFETY_ON_NULL_RETURN_VAL(ec->frame, EINA_FALSE);
+   EINA_SAFETY_ON_NULL_RETURN_VAL(ec->pixmap, EINA_FALSE);
+
+   pn = _pol_notification_get_info(ec);
+   EINA_SAFETY_ON_NULL_RETURN_VAL(pn, EINA_FALSE);
+#if 0
+   /* 1. Check if a window is notification or not */
+   if (!_pol_notification_is_notification(ec))
+      return EINA_FALSE;
+#endif
    /* 2. Get and Set level */
    level = _pol_notification_get_level(ec);
    layer = _pol_notification_level_to_layer(level);

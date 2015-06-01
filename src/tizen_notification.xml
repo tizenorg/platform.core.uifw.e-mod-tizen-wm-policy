@@ -1,0 +1,29 @@
+<protocol name="tizen_notification">
+  <interface name="tizen_notification" version="1">
+     <enum name="level">
+       <entry name="1" value="0"/>
+       <entry name="2" value="1"/>
+       <entry name="3" value="2"/>
+     </enum>
+
+     <request name="set_level">
+       <arg name="surface" type="object" interface="wl_surface"/>
+       <arg name="level" type="uint"/>
+     </request>
+
+     <enum name="error_state">
+       <entry name="none" value="0"/>
+       <entry name="invalid_parameter" value="1"/>
+       <entry name="out_of_memory" value="2"/>
+       <entry name="permission_denied" value="3"/>
+       <entry name="not_supported_window_type" value="4"/>
+     </enum>
+
+     <event name="done">
+       <arg name="surface" type="object" interface="wl_surface"/>
+       <arg name="level" type="uint"/>
+       <arg name="error_state" type="uint"/>
+     </event>
+
+  </interface>
+</protocol>
