@@ -133,11 +133,30 @@ _e_tizen_policy_cb_position_set(struct wl_client *client,
      }
    //e_client_util_move_without_frame(ec, x, y);
 }
+
+static void
+_e_tizen_policy_cb_focus_skip_set(struct wl_client *client,
+                                struct wl_resource *policy,
+                                struct wl_resource *surface_resource)
+{
+   E_Pixmap *ep;
+   E_Comp_Wl_Client_Data *cdata;
+
+   ep = wl_resource_get_user_data(surface_resource);
+   EINA_SAFETY_ON_NULL_RETURN(ep);
+
+   cdata = e_pixmap_cdata_get(ep);
+   EINA_SAFETY_ON_NULL_RETURN(cdata);
+
+   cdata->accepts_focus = 0;
+}
+
 static const struct tizen_policy_interface _e_tizen_policy_interface =
 {
    _e_tizen_policy_cb_visibility_get,
    _e_tizen_policy_cb_activate,
    _e_tizen_policy_cb_position_set,
+   _e_tizen_policy_cb_focus_skip_set,
 };
 
 static void
