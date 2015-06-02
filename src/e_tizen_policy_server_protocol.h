@@ -48,6 +48,20 @@ struct tizen_policy_interface {
 			     struct wl_resource *surface,
 			     int32_t x,
 			     int32_t y);
+	/**
+	 * focus_skip_set - (none)
+	 * @surface: surface object
+	 */
+	void (*focus_skip_set)(struct wl_client *client,
+			       struct wl_resource *resource,
+			       struct wl_resource *surface);
+	/**
+	 * focus_skip_unset - (none)
+	 * @surface: surface object
+	 */
+	void (*focus_skip_unset)(struct wl_client *client,
+				 struct wl_resource *resource,
+				 struct wl_resource *surface);
 };
 
 
