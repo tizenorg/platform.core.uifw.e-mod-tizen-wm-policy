@@ -148,7 +148,13 @@ _e_tizen_policy_cb_focus_skip_set(struct wl_client *client,
 
    ec = e_pixmap_client_get(ep);
    if (ec)
-      ec->icccm.accepts_focus = ec->icccm.take_focus = 0;
+     {
+        if (ec->icccm.accepts_focus)
+          {
+             ec->icccm.accepts_focus = ec->icccm.take_focus = 0;
+             EC_CHANGED(ec);
+          }
+     }
    else
      {
         cdata = e_pixmap_cdata_get(ep);
@@ -171,7 +177,13 @@ _e_tizen_policy_cb_focus_skip_unset(struct wl_client *client,
 
    ec = e_pixmap_client_get(ep);
    if (ec)
-      ec->icccm.accepts_focus = ec->icccm.take_focus = 1;
+     {
+        if (!ec->icccm.accepts_focus)
+          {
+             ec->icccm.accepts_focus = ec->icccm.take_focus = 1;
+             EC_CHANGED(ec);
+          }
+     }
    else
      {
         cdata = e_pixmap_cdata_get(ep);
