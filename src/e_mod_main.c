@@ -171,6 +171,8 @@ _pol_client_del(Pol_Client *pc)
    _SET(lock_client_fullscreen);
 #undef _SET
 
+   ec->skip_fullscreen = 0;
+
    /* only set it if the border is changed or fullscreen/maximize has changed */
    if (changed)
      EC_CHANGED(pc->ec);
@@ -283,6 +285,7 @@ _pol_client_update(Pol_Client *pc)
    ec->lock_client_maximize = 1;
    ec->lock_user_fullscreen = 1;
    ec->lock_client_fullscreen = 1;
+   ec->skip_fullscreen = 1;
 
    if (!e_mod_pol_client_is_home_screen(ec))
      ec->lock_client_stacking = 1;
@@ -395,6 +398,17 @@ _pol_hook_eval_end(void *d EINA_UNUSED, E_Client *ec)
 {
    /* calculate e_client visibility */
    e_mod_pol_visibility_calc();
+}
+
+static void
+_pol_hook_client_fullscreen_pre(void* data EINA_UNUSED, E_Client *ec)
+{
+
+   if (e_object_is_del(E_OBJECT(ec))) return;
+   if (!_pol_client_normal_check(ec)) return;
+   if (ec->internal) return;
+
+   ec->skip_fullscreen = 1;
 }
 
 static void
@@ -936,6 +950,8 @@ e_modapi_init(E_Module *m)
                         _pol_hook_client_desk_set, NULL);
    E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_EVAL_END,
                         _pol_hook_eval_end, NULL);
+   E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_FULLSCREEN_PRE,
+                        _pol_hook_client_fullscreen_pre, NULL);
 
    e_mod_pol_rotation_init();
 
