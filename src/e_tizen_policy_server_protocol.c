@@ -15,6 +15,11 @@ static const struct wl_interface *types[] = {
 	NULL,
 	&wl_surface_interface,
 	&wl_surface_interface,
+	&wl_surface_interface,
+	&wl_surface_interface,
+	&wl_surface_interface,
+	&wl_surface_interface,
+	NULL,
 };
 
 static const struct wl_message tizen_policy_requests[] = {
@@ -23,12 +28,19 @@ static const struct wl_message tizen_policy_requests[] = {
 	{ "position_set", "oii", types + 4 },
 	{ "focus_skip_set", "o", types + 7 },
 	{ "focus_skip_unset", "o", types + 8 },
+	{ "conformant_set", "o", types + 9 },
+	{ "conformant_unset", "o", types + 10 },
+	{ "conformant_get", "o", types + 11 },
+};
+
+static const struct wl_message tizen_policy_events[] = {
+	{ "conformant", "ou", types + 12 },
 };
 
 WL_EXPORT const struct wl_interface tizen_policy_interface = {
 	"tizen_policy", 1,
-	5, tizen_policy_requests,
-	0, NULL,
+	8, tizen_policy_requests,
+	1, tizen_policy_events,
 };
 
 static const struct wl_message tizen_visibility_requests[] = {
