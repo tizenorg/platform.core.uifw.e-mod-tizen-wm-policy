@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="tizen_policy">
+
+	<interface name="tizen_policy" version="1">
+		<request name="get_visibility">
+			<arg name="id" type="new_id" interface="tizen_visibility" summary="new visibility object"/>
+			<arg name="surface" type="object" interface="wl_surface" summary="surface object"/>
+		</request>
+		<request name="activate">
+			<arg name="surface" type="object" interface="wl_surface" summary="surface object"/>
+		</request>
+		<request name="position_set">
+			<arg name="surface" type="object" interface="wl_surface" summary="surface object"/>
+                        <arg name="x" type="int"/>
+                        <arg name="y" type="int"/>
+		</request>
+		<request name="focus_skip_set">
+			<arg name="surface" type="object" interface="wl_surface" summary="surface object"/>
+      </request>
+		<request name="focus_skip_unset">
+			<arg name="surface" type="object" interface="wl_surface" summary="surface object"/>
+      </request>
+		<request name="conformant_set">
+			<arg name="surface" type="object" interface="wl_surface" summary="surface object"/>
+		</request>
+		<request name="conformant_unset">
+			<arg name="surface" type="object" interface="wl_surface" summary="surface object"/>
+      </request>
+		<request name="conformant_get">
+			<arg name="surface" type="object" interface="wl_surface" summary="surface object"/>
+      </request>
+
+		<event name="conformant">
+			<arg name="surface" type="object" interface="wl_surface" summary="surface object"/>
+			<arg name="is_conformant" type="uint"/>
+		</event>		
+	</interface>
+
+	<interface name="tizen_visibility" version="1">
+		<request name="destroy" type="destructor">
+		</request>
+
+		<enum name="visibility">
+			<entry name="unobscured" value="0"/>
+			<entry name="partially_obscured" value="1"/>
+			<entry name="fully_obscured" value="2"/>
+		</enum>
+
+		<event name="notify">
+			<arg name="visibility" type="uint"/>
+		</event>
+	</interface>
+
+</protocol>

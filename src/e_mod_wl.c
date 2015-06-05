@@ -203,6 +203,90 @@ _e_tizen_policy_cb_focus_skip_unset(struct wl_client *client,
      }
 }
 
+static void
+_e_tizen_policy_cb_conformant_set(struct wl_client *client,
+                                struct wl_resource *policy,
+                                struct wl_resource *surface_resource)
+{
+   E_Pixmap *ep;
+   E_Client *ec;
+   E_Comp_Wl_Client_Data *cdata;
+
+   ep = wl_resource_get_user_data(surface_resource);
+   EINA_SAFETY_ON_NULL_RETURN(ep);
+
+   ec = e_pixmap_client_get(ep);
+   if (ec)
+     {
+        if (!ec->comp_data->conformant)
+          {
+             ec->comp_data->conformant = 1;
+             EC_CHANGED(ec);
+          }
+     }
+   else
+     {
+        cdata = e_pixmap_cdata_get(ep);
+        EINA_SAFETY_ON_NULL_RETURN(cdata);
+        cdata->conformant = 1;
+     }
+}
+
+static void
+_e_tizen_policy_cb_conformant_unset(struct wl_client *client,
+                                struct wl_resource *policy,
+                                struct wl_resource *surface_resource)
+{
+   E_Pixmap *ep;
+   E_Client *ec;
+   E_Comp_Wl_Client_Data *cdata;
+
+   ep = wl_resource_get_user_data(surface_resource);
+   EINA_SAFETY_ON_NULL_RETURN(ep);
+
+   ec = e_pixmap_client_get(ep);
+   if (ec)
+     {
+        if (ec->comp_data->conformant)
+          {
+             ec->comp_data->conformant = 0;
+             EC_CHANGED(ec);
+          }
+     }
+   else
+     {
+        cdata = e_pixmap_cdata_get(ep);
+        EINA_SAFETY_ON_NULL_RETURN(cdata);
+        cdata->conformant = 0;
+     }
+}
+
+static void
+_e_tizen_policy_cb_conformant_get(struct wl_client *client,
+                                struct wl_resource *policy,
+                                struct wl_resource *surface_resource)
+{
+   E_Pixmap *ep;
+   E_Client *ec;
+   E_Comp_Wl_Client_Data *cdata;
+
+   ep = wl_resource_get_user_data(surface_resource);
+   EINA_SAFETY_ON_NULL_RETURN(ep);
+
+   ec = e_pixmap_client_get(ep);
+   if (ec)
+     {
+        tizen_policy_send_conformant(policy, surface_resource, ec->comp_data->conformant);
+     }
+   else
+     {
+        cdata = e_pixmap_cdata_get(ep);
+        EINA_SAFETY_ON_NULL_RETURN(cdata);
+        tizen_policy_send_conformant(policy, surface_resource, cdata->conformant);
+     }
+}
+
+
 static const struct tizen_policy_interface _e_tizen_policy_interface =
 {
    _e_tizen_policy_cb_visibility_get,
@@ -210,6 +294,9 @@ static const struct tizen_policy_interface _e_tizen_policy_interface =
    _e_tizen_policy_cb_position_set,
    _e_tizen_policy_cb_focus_skip_set,
    _e_tizen_policy_cb_focus_skip_unset,
+   _e_tizen_policy_cb_conformant_set,
+   _e_tizen_policy_cb_conformant_unset,
+   _e_tizen_policy_cb_conformant_get,
 };
 
 static void

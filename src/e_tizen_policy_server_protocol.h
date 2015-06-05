@@ -62,8 +62,38 @@ struct tizen_policy_interface {
 	void (*focus_skip_unset)(struct wl_client *client,
 				 struct wl_resource *resource,
 				 struct wl_resource *surface);
+	/**
+	 * conformant_set - (none)
+	 * @surface: surface object
+	 */
+	void (*conformant_set)(struct wl_client *client,
+			       struct wl_resource *resource,
+			       struct wl_resource *surface);
+	/**
+	 * conformant_unset - (none)
+	 * @surface: surface object
+	 */
+	void (*conformant_unset)(struct wl_client *client,
+				 struct wl_resource *resource,
+				 struct wl_resource *surface);
+	/**
+	 * conformant_get - (none)
+	 * @surface: surface object
+	 */
+	void (*conformant_get)(struct wl_client *client,
+			       struct wl_resource *resource,
+			       struct wl_resource *surface);
 };
 
+#define TIZEN_POLICY_CONFORMANT	0
+
+#define TIZEN_POLICY_CONFORMANT_SINCE_VERSION	1
+
+static inline void
+tizen_policy_send_conformant(struct wl_resource *resource_, struct wl_resource *surface, uint32_t is_conformant)
+{
+	wl_resource_post_event(resource_, TIZEN_POLICY_CONFORMANT, surface, is_conformant);
+}
 
 #ifndef TIZEN_VISIBILITY_VISIBILITY_ENUM
 #define TIZEN_VISIBILITY_VISIBILITY_ENUM
