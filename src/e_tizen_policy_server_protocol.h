@@ -38,6 +38,13 @@ struct tizen_policy_interface {
 			 struct wl_resource *resource,
 			 struct wl_resource *surface);
 	/**
+	 * lower - (none)
+	 * @surface: surface object
+	 */
+	void (*lower)(struct wl_client *client,
+			 struct wl_resource *resource,
+			 struct wl_resource *surface);
+	/**
 	 * position_set - (none)
 	 * @surface: surface object
 	 * @x: (none)

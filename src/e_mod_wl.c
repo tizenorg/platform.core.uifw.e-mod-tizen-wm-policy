@@ -122,6 +122,36 @@ _e_tizen_policy_cb_activate(struct wl_client *client,
 }
 
 static void
+_e_tizen_policy_cb_lower(struct wl_client *client,
+                         struct wl_resource *policy,
+                         struct wl_resource *surface_resource)
+{
+   E_Pixmap *ep;
+   E_Client *ec, *below = NULL;
+
+   ep = wl_resource_get_user_data(surface_resource);
+   EINA_SAFETY_ON_NULL_RETURN(ep);
+
+   ec = e_pixmap_client_get(ep);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
+   EINA_SAFETY_ON_NULL_RETURN(ec->frame);
+
+   below = ec;
+   while ((below = e_client_below_get(below)))
+     {
+        if ((e_client_util_ignored_get(below)) ||
+            (below->iconic)) continue;
+
+        break;
+     }
+
+   evas_object_lower(ec->frame);
+
+   if ((!below) || (!ec->focused)) return;
+   evas_object_focus_set(below->frame, 1);
+}
+
+static void
 _e_tizen_policy_cb_position_set(struct wl_client *client,
                                 struct wl_resource *policy,
                                 struct wl_resource *surface_resource,
@@ -207,6 +237,7 @@ static const struct tizen_policy_interface _e_tizen_policy_interface =
 {
    _e_tizen_policy_cb_visibility_get,
    _e_tizen_policy_cb_activate,
+   _e_tizen_policy_cb_lower,
    _e_tizen_policy_cb_position_set,
    _e_tizen_policy_cb_focus_skip_set,
    _e_tizen_policy_cb_focus_skip_unset,
