@@ -21,6 +21,11 @@
 #include "e_mod_atoms.h"
 #include "e_mod_utils.h"
 
+
+#ifdef HAVE_WAYLAND_ONLY
+#include "e_mod_rotation_wl.h"
+#endif
+
 typedef struct _E_Client_Rotation E_Client_Rotation;
 
 struct _E_Client_Rotation
@@ -1314,7 +1319,8 @@ finish:
      }
    return EINA_TRUE;
 #else
-   return EINA_FALSE;
+   e_mod_rot_wl_angle_change_send(ec, rotation);
+   return EINA_TRUE;
 #endif
 }
 
@@ -2433,12 +2439,10 @@ _rot_cb_evas_show(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED,
 static void
 _rot_hook_new_client_post(void *d EINA_UNUSED, E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
    if (!ec->frame)
       return;
 
    evas_object_event_callback_add(ec->frame, EVAS_CALLBACK_SHOW, _rot_cb_evas_show, ec);
-#endif
 }
 
 /* externally accessible functions */
@@ -2493,6 +2497,7 @@ e_mod_pol_rotation_init(void)
                          _rot_cb_window_configure, NULL);
    E_LIST_HANDLER_APPEND(rot_handlers, ECORE_X_EVENT_CLIENT_MESSAGE,
                          _rot_cb_window_message, NULL);
+#endif
    E_LIST_HANDLER_APPEND(rot_handlers, E_EVENT_ZONE_ROTATION_CHANGE_BEGIN,
                          _rot_cb_zone_rotation_change_begin, NULL);
 
@@ -2516,13 +2521,14 @@ e_mod_pol_rotation_init(void)
 
 
    rot_idle_enterer = ecore_idle_enterer_add(_rot_cb_idle_enterer, NULL);
+#ifdef HAVE_WAYLAND_ONLY
+   e_mod_rot_wl_init();
 #endif
 }
 
 EINTERN void
 e_mod_pol_rotation_shutdown(void)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_FREE_LIST(rot_hooks, e_client_hook_del);
    E_FREE_LIST(rot_handlers, ecore_event_handler_del);
    E_FREE_LIST(rot_intercept_hooks, e_comp_object_intercept_hook_del);
@@ -2532,5 +2538,7 @@ e_mod_pol_rotation_shutdown(void)
          ecore_idle_enterer_del(rot_idle_enterer);
          rot_idle_enterer = NULL;
      }
+#ifdef HAVE_WAYLAND_ONLY
+  e_mod_rot_wl_shutdown();
 #endif
 }
