@@ -1,0 +1,37 @@
+<protocol name="tizen_policy_ext">
+     <interface name="tizen_policy_ext" version="1">
+        <request name="get_rotation">
+            <arg name="id" type="new_id" interface="tizen_rotation" summary="new rotation object"/>
+            <arg name="surface" type="object" interface="wl_surface" summary="surface object"/>
+        </request>
+     </interface>
+     <interface name="tizen_rotation" version="1">
+        <enum name="angle">
+          <entry name="0" value = "1"/>
+          <entry name="90" value = "2"/>
+          <entry name="180" value = "4"/>
+          <entry name="270" value = "8"/>
+        </enum>
+        <request name="set_available_angles">
+            <arg name="angles" type="uint"/>
+        </request>
+        <event name="available_angles_done">
+            <arg name="angles" type="uint"/>
+        </event>
+        <request name="set_preferred_angles">
+            <arg name="angles" type="uint"/>
+        </request>
+        <event name="preferred_angles_done">
+            <arg name="angles" type="uint"/>
+        </event>
+        <event name="angle_change">
+            <description summary="suggest a angle_change"/>
+            <arg name="angle" type="uint"/>
+            <arg name="serial" type="uint"/>
+        </event>
+        <request name="ack_angle_change">
+            <description summary="ack a  angle_change"/>
+            <arg name="serial" type="uint" summary="a serial to angle_change for"/>
+        </request>
+     </interface>
+</protocol>

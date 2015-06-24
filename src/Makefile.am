@@ -27,7 +27,11 @@ module_la_SOURCES += e_mod_wl.c \
 					 e_tizen_policy_server_protocol.c \
 					 e_tizen_policy_server_protocol.h \
 					 tizen_notification-server-protocol.h \
-					 tizen_notification-protocol.c
+					 tizen_notification-protocol.c \
+					 e_mod_rotation_wl.c \
+					 e_mod_rotation_wl.h \
+					 tizen_policy_ext-protocol.c \
+					 tizen_policy_ext-server-protocol.h
 endif
 
 module_la_LIBADD       =
