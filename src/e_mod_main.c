@@ -605,6 +605,10 @@ _pol_cb_client_move(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 
    ev = event;
    if (!ev) return ECORE_CALLBACK_PASS_ON;
+
+   /* send changed position */
+   e_mod_pol_wl_position_send(ev->ec);
+
    /* calculate e_client visibility */
    e_mod_pol_visibility_calc();
 

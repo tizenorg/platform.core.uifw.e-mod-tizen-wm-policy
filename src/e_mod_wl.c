@@ -9,6 +9,7 @@ typedef struct _Pol_Wayland
 {
    E_Pixmap *ep;
    Eina_List *visibility_list;
+   Eina_List *position_list;
 } Pol_Wayland;
 
 typedef struct _Notification_Level
@@ -69,6 +70,56 @@ static const struct tizen_visibility_interface _e_tizen_visibility_interface =
 };
 
 static void
+_e_tizen_position_destroy(struct wl_resource *resource)
+{
+   E_Pixmap *ep;
+   Pol_Wayland *pn;
+
+   ep = wl_resource_get_user_data(resource);
+   EINA_SAFETY_ON_NULL_RETURN(ep);
+
+   pn = _pol_wayland_get_info(ep);
+   EINA_SAFETY_ON_NULL_RETURN(pn);
+
+   pn->position_list = eina_list_remove(pn->position_list, resource);
+}
+
+static void
+_e_tizen_position_cb_destroy(struct wl_client *client, struct wl_resource *resource)
+{
+   wl_resource_destroy(resource);
+}
+
+static void
+_e_tizen_position_cb_set(struct wl_client *client,
+                         struct wl_resource *tizen_position,
+                         int32_t x, int32_t y)
+{
+   E_Pixmap *ep;
+   E_Client *ec;
+
+   ep = wl_resource_get_user_data(tizen_position);
+   EINA_SAFETY_ON_NULL_RETURN(ep);
+
+   ec = e_pixmap_client_get(ep);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
+   EINA_SAFETY_ON_NULL_RETURN(ec->frame);
+   
+   if (!ec->lock_client_location)
+     {
+        ec->x = ec->client.x = x;
+        ec->y = ec->client.y = y;
+     }
+   //e_client_util_move_without_frame(ec, x, y);
+}
+
+static const struct tizen_position_interface _e_tizen_position_interface =
+{
+   _e_tizen_position_cb_destroy,
+   _e_tizen_position_cb_set,
+};
+
+static void
 _e_tizen_policy_cb_visibility_get(struct wl_client *client,
                                   struct wl_resource *policy,
                                   uint32_t id,
@@ -96,6 +147,36 @@ _e_tizen_policy_cb_visibility_get(struct wl_client *client,
 
    wl_resource_set_implementation(res, &_e_tizen_visibility_interface,
                                   ep, _e_tizen_visibility_destroy);
+}
+
+static void
+_e_tizen_policy_cb_position_get(struct wl_client *client,
+                                struct wl_resource *tizen_policy,
+                                uint32_t id,
+                                struct wl_resource *surface_resource)
+{
+   int version = wl_resource_get_version(tizen_policy);
+   struct wl_resource *res;
+   E_Pixmap *ep;
+   Pol_Wayland *pn;
+
+   ep = wl_resource_get_user_data(surface_resource);
+   EINA_SAFETY_ON_NULL_RETURN(ep);
+
+   pn = _pol_wayland_get_info(ep);
+   EINA_SAFETY_ON_NULL_RETURN(pn);
+
+   res = wl_resource_create(client, &tizen_position_interface, version, id);
+   if (!res)
+     {
+        wl_client_post_no_memory(client);
+        return;
+     }
+
+   pn->position_list = eina_list_append(pn->position_list, res);
+   wl_resource_set_implementation(res, &_e_tizen_position_interface,
+                                  ep, _e_tizen_position_destroy);
+
 }
 
 static void
@@ -149,30 +230,6 @@ _e_tizen_policy_cb_lower(struct wl_client *client,
 
    if ((!below) || (!ec->focused)) return;
    evas_object_focus_set(below->frame, 1);
-}
-
-static void
-_e_tizen_policy_cb_position_set(struct wl_client *client,
-                                struct wl_resource *policy,
-                                struct wl_resource *surface_resource,
-                                int32_t x, int32_t y)
-{
-   E_Pixmap *ep;
-   E_Client *ec;
-
-   ep = wl_resource_get_user_data(surface_resource);
-   EINA_SAFETY_ON_NULL_RETURN(ep);
-
-   ec = e_pixmap_client_get(ep);
-   EINA_SAFETY_ON_NULL_RETURN(ec);
-   EINA_SAFETY_ON_NULL_RETURN(ec->frame);
-
-   if (!ec->lock_client_location)
-     {
-        ec->x = ec->client.x = x;
-        ec->y = ec->client.y = y;
-     }
-   //e_client_util_move_without_frame(ec, x, y);
 }
 
 static void
@@ -236,9 +293,9 @@ _e_tizen_policy_cb_focus_skip_unset(struct wl_client *client,
 static const struct tizen_policy_interface _e_tizen_policy_interface =
 {
    _e_tizen_policy_cb_visibility_get,
+   _e_tizen_policy_cb_position_get,
    _e_tizen_policy_cb_activate,
    _e_tizen_policy_cb_lower,
-   _e_tizen_policy_cb_position_set,
    _e_tizen_policy_cb_focus_skip_set,
    _e_tizen_policy_cb_focus_skip_unset,
 };
@@ -433,6 +490,26 @@ e_mod_pol_wl_visibility_send(E_Client *ec, int visibility)
    EINA_LIST_FOREACH(pn->visibility_list, l, resource)
      {
         tizen_visibility_send_notify(resource, visibility);
+     }
+}
+
+void
+e_mod_pol_wl_position_send(E_Client *ec)
+{
+   Pol_Wayland *pn;
+   Eina_List *l;
+   struct wl_resource *resource;
+
+   EINA_SAFETY_ON_NULL_RETURN(ec);
+   EINA_SAFETY_ON_NULL_RETURN(ec->pixmap);
+   EINA_SAFETY_ON_NULL_RETURN(hash_pol_wayland);
+
+   pn = eina_hash_find(hash_pol_wayland, &ec->pixmap);
+   if (!pn) return;
+
+   EINA_LIST_FOREACH(pn->position_list, l, resource)
+     {
+        tizen_position_send_changed(resource, ec->x, ec->y);
      }
 }
 
