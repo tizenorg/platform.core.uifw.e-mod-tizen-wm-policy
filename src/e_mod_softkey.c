@@ -45,11 +45,13 @@ _pol_softkey_iconify(E_Zone *zone, Eina_Bool all)
         if (e_mod_pol_client_is_home_screen(ec))
           {
              evas_object_raise(ec->frame);
+             EC_CHANGED(ec);
              return;
           }
         if (!all)
           {
              evas_object_lower(ec->frame);
+             EC_CHANGED(ec);
              return;
           }
      }
