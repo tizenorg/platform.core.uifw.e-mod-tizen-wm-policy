@@ -68,6 +68,15 @@ struct tizen_policy_interface {
 	void (*focus_skip_unset)(struct wl_client *client,
 				 struct wl_resource *resource,
 				 struct wl_resource *surface);
+	/**
+	 * role_set - (none)
+	 * @surface: surface object
+	 * @role: (none)
+	 */
+	void (*role_set)(struct wl_client *client,
+			 struct wl_resource *resource,
+			 struct wl_resource *surface,
+			 const char *role);
 };
 
 

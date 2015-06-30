@@ -290,6 +290,24 @@ _e_tizen_policy_cb_focus_skip_unset(struct wl_client *client,
      }
 }
 
+static void
+_e_tizen_policy_cb_role_set(struct wl_client *client EINA_UNUSED,
+                            struct wl_resource *tizen_policy EINA_UNUSED,
+                            struct wl_resource *surface_resource,
+                            const char *role)
+{
+   E_Pixmap *ep;
+   E_Client *ec;
+
+   ep = wl_resource_get_user_data(surface_resource);
+   EINA_SAFETY_ON_NULL_RETURN(ep);
+
+   ec = e_pixmap_client_get(ep);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
+
+   eina_stringshare_replace(&ec->icccm.window_role, role);
+}
+
 static const struct tizen_policy_interface _e_tizen_policy_interface =
 {
    _e_tizen_policy_cb_visibility_get,
@@ -298,6 +316,7 @@ static const struct tizen_policy_interface _e_tizen_policy_interface =
    _e_tizen_policy_cb_lower,
    _e_tizen_policy_cb_focus_skip_set,
    _e_tizen_policy_cb_focus_skip_unset,
+   _e_tizen_policy_cb_role_set,
 };
 
 static void
