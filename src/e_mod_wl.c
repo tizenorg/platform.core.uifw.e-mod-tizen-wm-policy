@@ -306,6 +306,11 @@ _e_tizen_policy_cb_role_set(struct wl_client *client EINA_UNUSED,
    EINA_SAFETY_ON_NULL_RETURN(ec);
 
    eina_stringshare_replace(&ec->icccm.window_role, role);
+
+   if (!e_util_strcmp("wl-warning-popup", role))
+     {
+        evas_object_layer_set(ec->frame, E_LAYER_CLIENT_POPUP);
+     }
 }
 
 static const struct tizen_policy_interface _e_tizen_policy_interface =
