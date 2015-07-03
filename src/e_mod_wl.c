@@ -19,9 +19,16 @@ typedef struct _Notification_Level
    struct wl_resource *surface;
 } Notification_Level;
 
+typedef struct _Policy_Conformant
+{
+   struct wl_resource *interface;
+   struct wl_resource *surface;
+} Policy_Conformant;
+
 static Eina_Hash *hash_pol_wayland = NULL;
 static Eina_Hash *hash_notification_levels = NULL;
 static Eina_Hash *hash_notification_interfaces = NULL;
+static Eina_Hash *hash_policy_conformants = NULL;
 
 static Pol_Wayland*
 _pol_wayland_get_info (E_Pixmap *ep)
@@ -313,6 +320,103 @@ _e_tizen_policy_cb_role_set(struct wl_client *client EINA_UNUSED,
      }
 }
 
+static void
+_e_tizen_policy_cb_conformant_set(struct wl_client *client,
+                                struct wl_resource *policy,
+                                struct wl_resource *surface_resource)
+{
+   E_Pixmap *ep;
+   E_Client *ec;
+   E_Comp_Wl_Client_Data *cdata;
+   Policy_Conformant *pn;
+
+   ep = wl_resource_get_user_data(surface_resource);
+   EINA_SAFETY_ON_NULL_RETURN(ep);
+
+   ec = e_pixmap_client_get(ep);
+   if (ec)
+     {
+        if (!ec->comp_data->conformant)
+          {
+             ec->comp_data->conformant = 1;
+             EC_CHANGED(ec);
+          }
+     }
+   else
+     {
+        cdata = e_pixmap_cdata_get(ep);
+        EINA_SAFETY_ON_NULL_RETURN(cdata);
+        cdata->conformant = 1;
+     }
+   pn = eina_hash_find(hash_policy_conformants, &surface_resource);
+   if (!pn)
+     {
+        pn = E_NEW(Policy_Conformant, 1);
+        EINA_SAFETY_ON_NULL_RETURN(pn);
+        eina_hash_add(hash_policy_conformants, &surface_resource, pn);
+     }
+
+   pn->interface = policy;
+   pn->surface = surface_resource;
+}
+
+static void
+_e_tizen_policy_cb_conformant_unset(struct wl_client *client,
+                                struct wl_resource *policy,
+                                struct wl_resource *surface_resource)
+{
+   E_Pixmap *ep;
+   E_Client *ec;
+   E_Comp_Wl_Client_Data *cdata;
+
+   ep = wl_resource_get_user_data(surface_resource);
+   EINA_SAFETY_ON_NULL_RETURN(ep);
+
+   ec = e_pixmap_client_get(ep);
+   if (ec)
+     {
+        if (ec->comp_data->conformant)
+          {
+             ec->comp_data->conformant = 0;
+             EC_CHANGED(ec);
+          }
+     }
+   else
+     {
+        cdata = e_pixmap_cdata_get(ep);
+        EINA_SAFETY_ON_NULL_RETURN(cdata);
+        cdata->conformant = 0;
+     }
+}
+
+static void
+_e_tizen_policy_cb_conformant_get(struct wl_client *client,
+                                struct wl_resource *policy,
+                                struct wl_resource *surface_resource)
+{
+   E_Pixmap *ep;
+   E_Client *ec;
+   E_Comp_Wl_Client_Data *cdata;
+   Policy_Conformant *pn;
+
+   ep = wl_resource_get_user_data(surface_resource);
+   EINA_SAFETY_ON_NULL_RETURN(ep);
+
+   pn = eina_hash_find(hash_policy_conformants, &surface_resource);
+   if (pn)
+     {
+        ec = e_pixmap_client_get(ep);
+        if (ec)
+          tizen_policy_send_conformant(pn->interface, surface_resource, ec->comp_data->conformant);
+        else
+          {
+             cdata = e_pixmap_cdata_get(ep);
+             EINA_SAFETY_ON_NULL_RETURN(cdata);
+             tizen_policy_send_conformant(pn->interface, surface_resource, cdata->conformant);
+          }
+     }
+}
+
 static const struct tizen_policy_interface _e_tizen_policy_interface =
 {
    _e_tizen_policy_cb_visibility_get,
@@ -322,6 +426,9 @@ static const struct tizen_policy_interface _e_tizen_policy_interface =
    _e_tizen_policy_cb_focus_skip_set,
    _e_tizen_policy_cb_focus_skip_unset,
    _e_tizen_policy_cb_role_set,
+   _e_tizen_policy_cb_conformant_set,
+   _e_tizen_policy_cb_conformant_unset,
+   _e_tizen_policy_cb_conformant_get,
 };
 
 static void
@@ -469,6 +576,7 @@ e_mod_pol_wl_init(void)
    hash_pol_wayland = eina_hash_pointer_new(free);
    hash_notification_levels = eina_hash_pointer_new(free);
    hash_notification_interfaces = eina_hash_pointer_new(NULL); // do not free by hash_del by key.
+   hash_policy_conformants = eina_hash_pointer_new(free);
 
    return EINA_TRUE;
 }
@@ -479,6 +587,7 @@ e_mod_pol_wl_shutdown(void)
    E_FREE_FUNC(hash_pol_wayland, eina_hash_free);
    E_FREE_FUNC(hash_notification_levels, eina_hash_free);
    E_FREE_FUNC(hash_notification_interfaces, eina_hash_free);
+   E_FREE_FUNC(hash_policy_conformants, eina_hash_free);
 }
 
 void
@@ -567,5 +676,26 @@ e_mod_pol_wl_notification_level_fetch(E_Client *ec)
           }
 
         eina_hash_del_by_key(hash_notification_levels, &surface);
+     }
+}
+
+void
+e_mod_pol_wl_keyboard_send(E_Client *ec, Eina_Bool state, int x, int y, int w, int h)
+{
+   E_Comp_Client_Data *cdata;
+   struct wl_resource *surface;
+   Policy_Conformant *pn;
+   struct wl_resource *policy_interface;
+
+   EINA_SAFETY_ON_NULL_RETURN(ec);
+   cdata = e_pixmap_cdata_get(ec->pixmap);
+   EINA_SAFETY_ON_NULL_RETURN(cdata);
+   surface = cdata->wl_surface;
+   EINA_SAFETY_ON_NULL_RETURN(surface);
+
+   pn = eina_hash_find(hash_policy_conformants, &surface);
+   if (pn)
+     {
+        tizen_policy_send_conformant_area(pn->interface, pn->surface, TIZEN_POLICY_CONFORMANT_PART_KEYBOARD, state, x, y, w, h);
      }
 }

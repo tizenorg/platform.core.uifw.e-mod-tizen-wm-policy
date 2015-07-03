@@ -619,9 +619,28 @@ static Eina_Bool
 _pol_cb_client_resize(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 {
    E_Event_Client *ev;
+   E_Client *ec;
 
    ev = event;
+   ec = ev->ec;
    if (!ev) return ECORE_CALLBACK_PASS_ON;
+      if (e_mod_pol_client_is_keyboard(ec) ||
+       e_mod_pol_client_is_keyboard_sub(ec))
+     {
+#ifdef HAVE_WAYLAND_ONLY
+        E_Client *comp_ec;
+        E_CLIENT_REVERSE_FOREACH(e_comp, comp_ec)
+          {
+             if (e_client_util_ignored_get(comp_ec)) continue;
+             if (!e_mod_pol_client_is_conformant(comp_ec)) continue;
+             if (ec->visible)
+               e_mod_pol_wl_keyboard_send(comp_ec, EINA_TRUE, ec->x, ec->y, ec->client.w, ec->client.h);
+             else
+               e_mod_pol_wl_keyboard_send(comp_ec, EINA_FALSE, ec->x, ec->y, ec->client.w, ec->client.h);
+          }
+#endif
+     }
+
    /* calculate e_client visibility */
    e_mod_pol_visibility_calc();
 
@@ -824,6 +843,23 @@ e_mod_pol_client_is_quickpanel(E_Client *ec)
 
    if (!e_util_strcmp(ec->icccm.title, "QUICKPANEL"))
      return EINA_TRUE;
+
+   return EINA_FALSE;
+}
+
+Eina_Bool
+e_mod_pol_client_is_conformant(E_Client *ec)
+{
+   E_OBJECT_CHECK_RETURN(ec, EINA_FALSE);
+   EINA_SAFETY_ON_NULL_RETURN_VAL(ec->comp_data, EINA_FALSE);
+
+#ifdef HAVE_WAYLAND_ONLY
+   E_Comp_Wl_Client_Data * cdata = ec->comp_data;
+   if (cdata->conformant == 1)
+     {
+        return EINA_TRUE;
+     }
+#endif
 
    return EINA_FALSE;
 }

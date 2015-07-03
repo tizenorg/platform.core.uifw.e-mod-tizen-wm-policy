@@ -19,5 +19,6 @@ void e_mod_pol_wl_position_send(E_Client *ec);
 
 /* notification */
 void e_mod_pol_wl_notification_level_fetch(E_Client *ec);
+void e_mod_pol_wl_keyboard_send(E_Client *ec, Eina_Bool state, int x, int y, int w, int h);
 #endif /* HAVE_WAYLAND_ONLY */
 #endif /* E_MOD_WL_H */
