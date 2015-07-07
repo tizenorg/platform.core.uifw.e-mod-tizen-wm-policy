@@ -33,6 +33,9 @@ typedef struct _Policy_Ext_Rototation
   Eina_Bool angle_change_done;
 } Policy_Ext_Rototation;
 
+/* local subsystem functions */
+static void _e_tizen_rotation_send_angle_change(E_Client *ec, enum tizen_rotation_angle angle);
+
 static Policy_Ext_Rototation*
 _policy_ext_rotation_get(E_Pixmap *ep)
 {
@@ -79,6 +82,8 @@ _e_tizen_rotation_set_preferred_angles_cb(struct wl_client *client,
    // implementation;
    E_Pixmap *ep;
    Policy_Ext_Rototation *rot;
+   E_Client *ec;
+   Eina_Bool rotation_change = EINA_FALSE;
 
    ep = wl_resource_get_user_data(resource);
    EINA_SAFETY_ON_NULL_RETURN(ep);
@@ -87,6 +92,30 @@ _e_tizen_rotation_set_preferred_angles_cb(struct wl_client *client,
    EINA_SAFETY_ON_NULL_RETURN(rot);
 
    rot->preferred_angles = angles;
+
+   //FIXME: move processing preferred angle logic to e-mod-rotation
+   ec = e_pixmap_client_get(ep);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
+
+   switch ((angles & rot->available_angles))
+     {
+        case TIZEN_ROTATION_ANGLE_0:
+          rotation_change = EINA_TRUE;
+          break;
+        case TIZEN_ROTATION_ANGLE_90:
+          rotation_change = EINA_TRUE;
+          break;
+        case TIZEN_ROTATION_ANGLE_180:
+          rotation_change = EINA_TRUE;
+          break;
+        case TIZEN_ROTATION_ANGLE_270:
+          rotation_change = EINA_TRUE;
+          break;
+        default:
+          break;
+     }
+
+   if (rotation_change) _e_tizen_rotation_send_angle_change(ec, angles);
 }
 
 static void
