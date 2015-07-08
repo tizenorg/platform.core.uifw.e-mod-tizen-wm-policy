@@ -208,6 +208,9 @@ _pol_client_normal_check(E_Client *ec)
         return EINA_FALSE;
      }
 
+   if (e_mod_pol_client_is_volume(ec))
+     return EINA_FALSE;
+
    if ((ec->netwm.type == E_WINDOW_TYPE_NORMAL) ||
        (ec->netwm.type == E_WINDOW_TYPE_UNKNOWN))
      {
@@ -624,7 +627,7 @@ _pol_cb_client_resize(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    ev = event;
    ec = ev->ec;
    if (!ev) return ECORE_CALLBACK_PASS_ON;
-      if (e_mod_pol_client_is_keyboard(ec) ||
+   if (e_mod_pol_client_is_keyboard(ec) ||
        e_mod_pol_client_is_keyboard_sub(ec))
      {
 #ifdef HAVE_WAYLAND_ONLY
@@ -639,6 +642,14 @@ _pol_cb_client_resize(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
                e_mod_pol_wl_keyboard_send(comp_ec, EINA_FALSE, ec->x, ec->y, ec->client.w, ec->client.h);
           }
 #endif
+     }
+
+   /* re-calculate volume popup's position with changed size */
+   if (e_mod_pol_client_is_volume(ec))
+     {
+        int zh = 0;
+        e_zone_useful_geometry_get(ec->zone, NULL, NULL, NULL, &zh);
+        evas_object_move(ec->frame, 0, zh/2 - ec->h/2);
      }
 
    /* calculate e_client visibility */
@@ -860,6 +871,18 @@ e_mod_pol_client_is_conformant(E_Client *ec)
         return EINA_TRUE;
      }
 #endif
+
+   return EINA_FALSE;
+}
+
+Eina_Bool
+e_mod_pol_client_is_volume(E_Client *ec)
+{
+   E_OBJECT_CHECK_RETURN(ec, EINA_FALSE);
+   E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, EINA_FALSE);
+
+   if (!e_util_strcmp(ec->icccm.window_role, "volume-popup"))
+     return EINA_TRUE;
 
    return EINA_FALSE;
 }

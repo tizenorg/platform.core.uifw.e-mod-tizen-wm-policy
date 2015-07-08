@@ -316,7 +316,13 @@ _e_tizen_policy_cb_role_set(struct wl_client *client EINA_UNUSED,
 
    if (!e_util_strcmp("wl-warning-popup", role))
      {
-        evas_object_layer_set(ec->frame, E_LAYER_CLIENT_POPUP);
+        evas_object_layer_set(ec->frame, E_LAYER_CLIENT_NOTIFICATION_LOW);
+     }
+
+   if (!e_util_strcmp("volume-popup", role))
+     {
+        evas_object_layer_set(ec->frame, E_LAYER_CLIENT_NOTIFICATION_LOW);
+        ec->lock_client_location = 1;
      }
 }
 
