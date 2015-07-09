@@ -9,7 +9,7 @@ struct _Pol_Stack
 
    struct
      {
-        Ecore_Window win;
+        uint64_t win;
         Eina_Bool fetched;
      } transient;
 };
@@ -144,7 +144,7 @@ e_mod_pol_stack_hook_pre_fetch(E_Client *ec)
 
    if (ec->icccm.fetch.transient_for)
      {
-        Ecore_Window transient_for_win;
+        uint64_t transient_for_win = 0;
         E_Client *parent = NULL;
         Eina_Bool transient_each_other = EINA_FALSE;
 
@@ -153,7 +153,6 @@ e_mod_pol_stack_hook_pre_fetch(E_Client *ec)
         if (transient_for_win)
           parent = e_pixmap_find_client(E_PIXMAP_TYPE_X, transient_for_win);
 #else
-        transient_for_win = NULL;
         parent = e_pixmap_find_client(E_PIXMAP_TYPE_WL, ec->icccm.transient_for);
 #endif
 
