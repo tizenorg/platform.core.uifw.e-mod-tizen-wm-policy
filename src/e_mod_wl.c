@@ -51,6 +51,37 @@ _pol_wayland_get_info (E_Pixmap *ep)
 }
 
 static void
+_pol_wayland_role_handle(E_Client *ec, const char* role)
+{
+   /* TODO: support multiple roles */
+
+   EINA_SAFETY_ON_NULL_RETURN(ec->frame);
+   EINA_SAFETY_ON_NULL_RETURN(role);
+
+   if (!e_util_strcmp("notification-low", role))
+     {
+        evas_object_layer_set(ec->frame, E_LAYER_CLIENT_NOTIFICATION_LOW);
+     }
+   else if (!e_util_strcmp("notification-normal", role))
+     {
+        evas_object_layer_set(ec->frame, E_LAYER_CLIENT_NOTIFICATION_NORMAL);
+     }
+   else if (!e_util_strcmp("notification-high", role))
+     {
+        evas_object_layer_set(ec->frame, E_LAYER_CLIENT_NOTIFICATION_HIGH);
+     }
+   else if (!e_util_strcmp("alert", role))
+     {
+        evas_object_layer_set(ec->frame, E_LAYER_CLIENT_ALERT);
+     }
+   else if (!e_util_strcmp("tv-volume-popup", role))
+     {
+        evas_object_layer_set(ec->frame, E_LAYER_CLIENT_NOTIFICATION_LOW);
+        ec->lock_client_location = 1;
+     }
+}
+
+static void
 _e_tizen_visibility_destroy(struct wl_resource *resource)
 {
    E_Pixmap *ep;
@@ -313,17 +344,7 @@ _e_tizen_policy_cb_role_set(struct wl_client *client EINA_UNUSED,
    EINA_SAFETY_ON_NULL_RETURN(ec);
 
    eina_stringshare_replace(&ec->icccm.window_role, role);
-
-   if (!e_util_strcmp("wl-warning-popup", role))
-     {
-        evas_object_layer_set(ec->frame, E_LAYER_CLIENT_NOTIFICATION_LOW);
-     }
-
-   if (!e_util_strcmp("tv-volume-popup", role))
-     {
-        evas_object_layer_set(ec->frame, E_LAYER_CLIENT_NOTIFICATION_LOW);
-        ec->lock_client_location = 1;
-     }
+   _pol_wayland_role_handle(ec, role);
 }
 
 static void
