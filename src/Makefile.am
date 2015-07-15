@@ -24,10 +24,14 @@ module_la_SOURCES      = e_mod_config.c \
 if HAVE_WAYLAND_ONLY
 module_la_SOURCES += e_mod_wl.c \
 					 e_mod_wl.h \
+					 e_mod_ws_shell.c \
+					 e_mod_ws_shell.h \
 					 e_mod_rotation_wl.c \
 					 e_mod_rotation_wl.h \
 					 tizen_policy_ext-protocol.c \
-					 tizen_policy_ext-server-protocol.h
+					 tizen_policy_ext-server-protocol.h \
+					 tizen_ws_shell-protocol.c \
+					 tizen_ws_shell-server-protocol.h
 endif
 
 module_la_LIBADD       =
