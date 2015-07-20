@@ -31,7 +31,7 @@ static Eina_Hash *hash_notification_interfaces = NULL;
 static Eina_Hash *hash_policy_conformants = NULL;
 
 static Pol_Wayland*
-_pol_wayland_get_info (E_Pixmap *ep)
+_pol_wayland_get_info(E_Pixmap *ep)
 {
    Pol_Wayland *pn;
 
@@ -158,10 +158,7 @@ static const struct tizen_position_interface _e_tizen_position_interface =
 };
 
 static void
-_e_tizen_policy_cb_visibility_get(struct wl_client *client,
-                                  struct wl_resource *policy,
-                                  uint32_t id,
-                                  struct wl_resource *surface_resource)
+_e_tizen_policy_cb_visibility_get(struct wl_client *client, struct wl_resource *policy, uint32_t id, struct wl_resource *surface_resource)
 {
    int version = wl_resource_get_version(policy);
    struct wl_resource *res;
@@ -188,10 +185,7 @@ _e_tizen_policy_cb_visibility_get(struct wl_client *client,
 }
 
 static void
-_e_tizen_policy_cb_position_get(struct wl_client *client,
-                                struct wl_resource *tizen_policy,
-                                uint32_t id,
-                                struct wl_resource *surface_resource)
+_e_tizen_policy_cb_position_get(struct wl_client *client, struct wl_resource *tizen_policy, uint32_t id, struct wl_resource *surface_resource)
 {
    int version = wl_resource_get_version(tizen_policy);
    struct wl_resource *res;
@@ -212,15 +206,15 @@ _e_tizen_policy_cb_position_get(struct wl_client *client,
      }
 
    pn->position_list = eina_list_append(pn->position_list, res);
-   wl_resource_set_implementation(res, &_e_tizen_position_interface,
-                                  ep, _e_tizen_position_destroy);
+   wl_resource_set_implementation(res,
+                                  &_e_tizen_position_interface,
+                                  ep,
+                                  _e_tizen_position_destroy);
 
 }
 
 static void
-_e_tizen_policy_cb_activate(struct wl_client *client,
-                            struct wl_resource *policy,
-                            struct wl_resource *surface_resource)
+_e_tizen_policy_cb_activate(struct wl_client *client, struct wl_resource *policy, struct wl_resource *surface_resource)
 {
    int version = wl_resource_get_version(policy);
    struct wl_resource *res;
@@ -241,9 +235,7 @@ _e_tizen_policy_cb_activate(struct wl_client *client,
 }
 
 static void
-_e_tizen_policy_cb_lower(struct wl_client *client,
-                         struct wl_resource *policy,
-                         struct wl_resource *surface_resource)
+_e_tizen_policy_cb_lower(struct wl_client *client, struct wl_resource *policy, struct wl_resource *surface_resource)
 {
    E_Pixmap *ep;
    E_Client *ec, *below = NULL;
@@ -271,9 +263,7 @@ _e_tizen_policy_cb_lower(struct wl_client *client,
 }
 
 static void
-_e_tizen_policy_cb_focus_skip_set(struct wl_client *client,
-                                struct wl_resource *policy,
-                                struct wl_resource *surface_resource)
+_e_tizen_policy_cb_focus_skip_set(struct wl_client *client, struct wl_resource *policy, struct wl_resource *surface_resource)
 {
    E_Pixmap *ep;
    E_Client *ec;
@@ -300,9 +290,7 @@ _e_tizen_policy_cb_focus_skip_set(struct wl_client *client,
 }
 
 static void
-_e_tizen_policy_cb_focus_skip_unset(struct wl_client *client,
-                                struct wl_resource *policy,
-                                struct wl_resource *surface_resource)
+_e_tizen_policy_cb_focus_skip_unset(struct wl_client *client, struct wl_resource *policy, struct wl_resource *surface_resource)
 {
    E_Pixmap *ep;
    E_Client *ec;
@@ -329,10 +317,7 @@ _e_tizen_policy_cb_focus_skip_unset(struct wl_client *client,
 }
 
 static void
-_e_tizen_policy_cb_role_set(struct wl_client *client EINA_UNUSED,
-                            struct wl_resource *tizen_policy EINA_UNUSED,
-                            struct wl_resource *surface_resource,
-                            const char *role)
+_e_tizen_policy_cb_role_set(struct wl_client *client EINA_UNUSED, struct wl_resource *tizen_policy EINA_UNUSED, struct wl_resource *surface_resource, const char *role)
 {
    E_Pixmap *ep;
    E_Client *ec;
@@ -348,9 +333,7 @@ _e_tizen_policy_cb_role_set(struct wl_client *client EINA_UNUSED,
 }
 
 static void
-_e_tizen_policy_cb_conformant_set(struct wl_client *client,
-                                struct wl_resource *policy,
-                                struct wl_resource *surface_resource)
+_e_tizen_policy_cb_conformant_set(struct wl_client *client, struct wl_resource *policy, struct wl_resource *surface_resource)
 {
    E_Pixmap *ep;
    E_Client *ec;
@@ -388,9 +371,7 @@ _e_tizen_policy_cb_conformant_set(struct wl_client *client,
 }
 
 static void
-_e_tizen_policy_cb_conformant_unset(struct wl_client *client,
-                                struct wl_resource *policy,
-                                struct wl_resource *surface_resource)
+_e_tizen_policy_cb_conformant_unset(struct wl_client *client, struct wl_resource *policy, struct wl_resource *surface_resource)
 {
    E_Pixmap *ep;
    E_Client *ec;
@@ -417,9 +398,7 @@ _e_tizen_policy_cb_conformant_unset(struct wl_client *client,
 }
 
 static void
-_e_tizen_policy_cb_conformant_get(struct wl_client *client,
-                                struct wl_resource *policy,
-                                struct wl_resource *surface_resource)
+_e_tizen_policy_cb_conformant_get(struct wl_client *client, struct wl_resource *policy, struct wl_resource *surface_resource)
 {
    E_Pixmap *ep;
    E_Client *ec;
@@ -481,10 +460,7 @@ _e_tizen_policy_cb_bind(struct wl_client *client, void *data, uint32_t version, 
 }
 
 static void
-_e_tizen_notification_set_level_cb(struct wl_client   *client,
-                                   struct wl_resource *resource,
-                                   struct wl_resource *surface_resource,
-                                   uint32_t            level)
+_e_tizen_notification_set_level_cb(struct wl_client *client, struct wl_resource *resource, struct wl_resource *surface_resource, uint32_t level)
 {
    E_Pixmap *ep;
    E_Client *ec;
@@ -513,7 +489,10 @@ _e_tizen_notification_set_level_cb(struct wl_client   *client,
         e_mod_pol_notification_level_apply(ec, level);
 
         /* Add other error handling code on notification send done. */
-        tizen_notification_send_done(resource, surface_resource, level, TIZEN_NOTIFICATION_ERROR_STATE_NONE);
+        tizen_notification_send_done(resource,
+                                     surface_resource,
+                                     level,
+                                     TIZEN_NOTIFICATION_ERROR_STATE_NONE);
      }
    else
      {
@@ -562,13 +541,20 @@ _e_tizen_notification_bind_cb(struct wl_client *client, void *data, uint32_t ver
         return;
      }
 
-   if (!(res = wl_resource_create(client, &tizen_notification_interface, version, id)))
+   if (!(res = wl_resource_create(client,
+                                  &tizen_notification_interface,
+                                  version,
+                                  id)))
      {
         ERR("Could not create tizen_notification resource: %m");
         wl_client_post_no_memory(client);
         return;
      }
-   wl_resource_set_implementation(res, &_e_tizen_notification_interface, cdata, _e_tizen_notification_destroy);
+
+   wl_resource_set_implementation(res,
+                                  &_e_tizen_notification_interface,
+                                  cdata,
+                                  _e_tizen_notification_destroy);
 
    noti_interface = eina_hash_find(hash_notification_interfaces, &res);
    if (!noti_interface)
@@ -586,19 +572,25 @@ e_mod_pol_wl_init(void)
    EINA_SAFETY_ON_NULL_RETURN_VAL(cdata, EINA_FALSE);
    EINA_SAFETY_ON_NULL_RETURN_VAL(cdata->wl.disp, EINA_FALSE);
 
-   if (!wl_global_create(cdata->wl.disp, &tizen_policy_interface, 1,
-                         cdata, _e_tizen_policy_cb_bind))
+   if (!wl_global_create(cdata->wl.disp,
+                         &tizen_policy_interface,
+                         1,
+                         cdata,
+                         _e_tizen_policy_cb_bind))
      {
         ERR("Could not add tizen_policy to wayland globals: %m");
         return EINA_FALSE;
      }
 
-  if (!wl_global_create(cdata->wl.disp, &tizen_notification_interface, 1,
-                        cdata, _e_tizen_notification_bind_cb))
-    {
-       ERR("Could not add tizen_notification to wayland globals: %m");
-       return EINA_FALSE;
-    }
+   if (!wl_global_create(cdata->wl.disp,
+                         &tizen_notification_interface,
+                         1,
+                         cdata,
+                         _e_tizen_notification_bind_cb))
+     {
+        ERR("Could not add tizen_notification to wayland globals: %m");
+        return EINA_FALSE;
+     }
 
    hash_pol_wayland = eina_hash_pointer_new(free);
    hash_notification_levels = eina_hash_pointer_new(free);
@@ -723,6 +715,10 @@ e_mod_pol_wl_keyboard_send(E_Client *ec, Eina_Bool state, int x, int y, int w, i
    pn = eina_hash_find(hash_policy_conformants, &surface);
    if (pn)
      {
-        tizen_policy_send_conformant_area(pn->interface, pn->surface, TIZEN_POLICY_CONFORMANT_PART_KEYBOARD, state, x, y, w, h);
+        tizen_policy_send_conformant_area(pn->interface,
+                                          pn->surface,
+                                          TIZEN_POLICY_CONFORMANT_PART_KEYBOARD,
+                                          state,
+                                          x, y, w, h);
      }
 }

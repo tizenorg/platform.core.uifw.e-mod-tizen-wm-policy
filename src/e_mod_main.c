@@ -627,19 +627,30 @@ _pol_cb_client_resize(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    ev = event;
    ec = ev->ec;
    if (!ev) return ECORE_CALLBACK_PASS_ON;
+
    if (e_mod_pol_client_is_keyboard(ec) ||
        e_mod_pol_client_is_keyboard_sub(ec))
      {
 #ifdef HAVE_WAYLAND_ONLY
-        E_Client *comp_ec;
-        E_CLIENT_REVERSE_FOREACH(e_comp, comp_ec)
+        E_Client *ec2;
+        E_CLIENT_REVERSE_FOREACH(e_comp, ec2)
           {
-             if (e_client_util_ignored_get(comp_ec)) continue;
-             if (!e_mod_pol_client_is_conformant(comp_ec)) continue;
+             if (e_client_util_ignored_get(ec2)) continue;
+             if (!e_mod_pol_client_is_conformant(ec2)) continue;
              if (ec->visible)
-               e_mod_pol_wl_keyboard_send(comp_ec, EINA_TRUE, ec->x, ec->y, ec->client.w, ec->client.h);
+               e_mod_pol_wl_keyboard_send(ec2,
+                                          EINA_TRUE,
+                                          ec->x,
+                                          ec->y,
+                                          ec->client.w,
+                                          ec->client.h);
              else
-               e_mod_pol_wl_keyboard_send(comp_ec, EINA_FALSE, ec->x, ec->y, ec->client.w, ec->client.h);
+               e_mod_pol_wl_keyboard_send(ec2,
+                                          EINA_FALSE,
+                                          ec->x,
+                                          ec->y,
+                                          ec->client.w,
+                                          ec->client.h);
           }
 #endif
      }
