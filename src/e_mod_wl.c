@@ -25,10 +25,31 @@ typedef struct _Policy_Conformant
    struct wl_resource *surface;
 } Policy_Conformant;
 
+#undef E_CLIENT_HOOK_APPEND
+#define E_CLIENT_HOOK_APPEND(l, t, cb, d) \
+  do                                      \
+    {                                     \
+       E_Client_Hook *_h;                 \
+       _h = e_client_hook_add(t, cb, d);  \
+       assert(_h);                        \
+       l = eina_list_append(l, _h);       \
+    }                                     \
+  while (0)
+
+typedef struct _Window_Screen_Mode
+{
+   uint32_t mode;
+   struct wl_resource *surface;
+   struct wl_resource *interface;
+} Window_Screen_Mode;
+
 static Eina_Hash *hash_pol_wayland = NULL;
 static Eina_Hash *hash_notification_levels = NULL;
-static Eina_Hash *hash_notification_interfaces = NULL;
 static Eina_Hash *hash_policy_conformants = NULL;
+static Eina_Hash *hash_window_screen_modes = NULL;
+static Eina_List *_window_screen_modes = NULL;
+static Eina_List *_handlers = NULL;
+static Eina_List *_hooks = NULL;
 
 static Pol_Wayland*
 _pol_wayland_get_info(E_Pixmap *ep)
@@ -79,6 +100,74 @@ _pol_wayland_role_handle(E_Client *ec, const char* role)
         evas_object_layer_set(ec->frame, E_LAYER_CLIENT_NOTIFICATION_LOW);
         ec->lock_client_location = 1;
      }
+}
+
+static void
+_window_screen_mode_apply(void)
+{
+  //traversal e_client loop
+  // if  e_client is visible then apply screen_mode
+  // if all e_clients are default mode then set default screen_mode
+  return;
+}
+
+static void
+_pol_surface_parent_set(E_Client *ec, struct wl_resource *parent_resource)
+{
+   E_Pixmap *pp;
+   E_Client *pc;
+   Ecore_Window pwin = 0;
+
+   if (!parent_resource)
+     {
+        ec->icccm.fetch.transient_for = EINA_FALSE;
+        ec->icccm.transient_for = 0;
+        if (ec->parent)
+          {
+             ec->parent->transients =
+                eina_list_remove(ec->parent->transients, ec);
+             if (ec->parent->modal == ec) ec->parent->modal = NULL;
+             ec->parent = NULL;
+          }
+        return;
+     }
+   else if (!(pp = wl_resource_get_user_data(parent_resource)))
+     {
+        ERR("Could not get parent resource pixmap");
+        return;
+     }
+
+   pwin = e_pixmap_window_get(pp);
+
+   /* find the parent client */
+   if (!(pc = e_pixmap_client_get(pp)))
+     pc = e_pixmap_find_client(E_PIXMAP_TYPE_WL, pwin);
+
+   e_pixmap_parent_window_set(ec->pixmap, pwin);
+
+   /* If we already have a parent, remove it */
+   if (ec->parent)
+     {
+        if (pc != ec->parent)
+          {
+             ec->parent->transients =
+                eina_list_remove(ec->parent->transients, ec);
+             if (ec->parent->modal == ec) ec->parent->modal = NULL;
+             ec->parent = NULL;
+          }
+        else
+          pc = NULL;
+     }
+
+   if ((pc) && (pc != ec) &&
+       (eina_list_data_find(pc->transients, ec) != ec))
+     {
+        pc->transients = eina_list_append(pc->transients, ec);
+        ec->parent = pc;
+     }
+
+   ec->icccm.fetch.transient_for = EINA_TRUE;
+   ec->icccm.transient_for = pwin;
 }
 
 static void
@@ -429,6 +518,167 @@ _e_tizen_policy_cb_conformant_get(struct wl_client *client, struct wl_resource *
      }
 }
 
+static void
+_e_tizen_policy_cb_notification_level_set(struct wl_client *client, struct wl_resource *resource, struct wl_resource *surface, int32_t level)
+{
+   E_Pixmap *ep;
+   E_Client *ec;
+   Notification_Level *nl;
+
+   /* get the pixmap from this surface so we can find the client */
+   if (!(ep = wl_resource_get_user_data(surface)))
+     {
+        wl_resource_post_error(surface,
+                               WL_DISPLAY_ERROR_INVALID_OBJECT,
+                               "No Pixmap Set On Surface");
+        return;
+     }
+
+   /* make sure it's a wayland pixmap */
+   if (e_pixmap_type_get(ep) != E_PIXMAP_TYPE_WL) return;
+
+   /* find the client for this pixmap */
+   ec = e_pixmap_client_get(ep);
+   if (ec)
+     {
+        /* remove not processed level set */
+        nl = eina_hash_find(hash_notification_levels, &surface);
+        if (nl) eina_hash_del_by_key(hash_notification_levels, &surface);
+
+        e_mod_pol_notification_level_apply(ec, level);
+
+        /* Add other error handling code on notification send done. */
+        tizen_policy_send_notification_done(resource,
+                                            surface,
+                                            level,
+                                            TIZEN_POLICY_ERROR_STATE_NONE);
+     }
+   else
+     {
+         nl = eina_hash_find(hash_notification_levels, &surface);
+         if (!nl)
+           {
+              nl = E_NEW(Notification_Level, 1);
+              EINA_SAFETY_ON_NULL_RETURN(nl);
+              eina_hash_add(hash_notification_levels, &surface, nl);
+           }
+
+         nl->level = level;
+         nl->interface = resource;
+         nl->surface = surface;
+     }
+}
+
+static void
+_e_tizen_policy_cb_transient_for_set(struct wl_client *client, struct wl_resource *resource, uint32_t child_id, uint32_t parent_id)
+{
+   E_Client *ec, *pc;
+   struct wl_resource *parent_res;
+
+   DBG("chid_id: %" PRIu32 ", parent_id: %" PRIu32, child_id, parent_id);
+
+   ec = e_pixmap_find_client_by_res_id(child_id);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
+
+   pc = e_pixmap_find_client_by_res_id(parent_id);
+   EINA_SAFETY_ON_NULL_RETURN(pc);
+   EINA_SAFETY_ON_NULL_RETURN(pc->comp_data);
+
+   parent_res = pc->comp_data->surface;
+   _pol_surface_parent_set(ec, parent_res);
+   tizen_policy_send_transient_for_done(resource, child_id);
+
+   EC_CHANGED(ec);
+}
+
+static void
+_e_tizen_policy_cb_transient_for_unset(struct wl_client *client, struct wl_resource *resource, uint32_t child_id)
+{
+   E_Client *ec;
+
+   DBG("chid_id: %" PRIu32, child_id);
+
+   ec = e_pixmap_find_client_by_res_id(child_id);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
+
+   _pol_surface_parent_set(ec, NULL);
+   tizen_policy_send_transient_for_done(resource, child_id);
+
+   EC_CHANGED(ec);
+}
+
+static void
+_e_tizen_policy_cb_window_screen_mode_set(struct wl_client *client, struct wl_resource *resource, struct wl_resource *surface, uint32_t mode)
+{
+   E_Pixmap *ep;
+   Window_Screen_Mode *wsm;
+
+   /* get the pixmap from this surface so we can find the client */
+   if (!(ep = wl_resource_get_user_data(surface)))
+     {
+        wl_resource_post_error(surface,
+                               WL_DISPLAY_ERROR_INVALID_OBJECT,
+                               "No Pixmap Set On Surface");
+        return;
+     }
+
+   /* make sure it's a wayland pixmap */
+   if (e_pixmap_type_get(ep) != E_PIXMAP_TYPE_WL) return;
+
+   wsm = eina_hash_find(hash_window_screen_modes, &surface);
+   if (!wsm)
+     {
+        wsm = E_NEW(Window_Screen_Mode, 1);
+        EINA_SAFETY_ON_NULL_RETURN(wsm);
+        eina_hash_add(hash_window_screen_modes, &surface, wsm);
+        _window_screen_modes = eina_list_append(_window_screen_modes, wsm);
+     }
+
+   wsm->mode = mode;
+   wsm->surface = surface;
+   wsm->interface = resource;
+
+   _window_screen_mode_apply();
+
+   /* Add other error handling code on window_screen send done. */
+   tizen_policy_send_window_screen_mode_done(resource, surface, mode, TIZEN_POLICY_ERROR_STATE_NONE);
+}
+
+static void
+_e_tizen_policy_cb_subsurface_place_below_parent(struct wl_client *client, struct wl_resource *resource, struct wl_resource *subsurface)
+{
+   E_Client *ec;
+   E_Client *epc;
+   E_Comp_Wl_Subsurf_Data *sdata;
+
+   /* try to get the client from resource data */
+   if (!(ec = wl_resource_get_user_data(subsurface)))
+     {
+        wl_resource_post_error(resource, WL_DISPLAY_ERROR_INVALID_OBJECT,
+                               "Invalid subsurface");
+        return;
+     }
+
+   sdata = ec->comp_data->sub.data;
+   if (!sdata)
+     {
+        wl_resource_post_error(resource, WL_DISPLAY_ERROR_INVALID_OBJECT,
+                               "Not subsurface");
+        return;
+     }
+
+   epc = sdata->parent;
+   EINA_SAFETY_ON_NULL_RETURN(epc);
+
+   /* check if a subsurface has already placed below a parent */
+   if (eina_list_data_find(epc->comp_data->sub.below_list, ec)) return;
+
+   epc->comp_data->sub.list = eina_list_remove(epc->comp_data->sub.list, ec);
+   epc->comp_data->sub.list_pending = eina_list_remove(epc->comp_data->sub.list_pending, ec);
+   epc->comp_data->sub.below_list_pending = eina_list_append(epc->comp_data->sub.below_list_pending, ec);
+   epc->comp_data->sub.list_changed = EINA_TRUE;
+}
+
 static const struct tizen_policy_interface _e_tizen_policy_interface =
 {
    _e_tizen_policy_cb_visibility_get,
@@ -441,6 +691,11 @@ static const struct tizen_policy_interface _e_tizen_policy_interface =
    _e_tizen_policy_cb_conformant_set,
    _e_tizen_policy_cb_conformant_unset,
    _e_tizen_policy_cb_conformant_get,
+   _e_tizen_policy_cb_notification_level_set,
+   _e_tizen_policy_cb_transient_for_set,
+   _e_tizen_policy_cb_transient_for_unset,
+   _e_tizen_policy_cb_window_screen_mode_set,
+   _e_tizen_policy_cb_subsurface_place_below_parent,
 };
 
 static void
@@ -521,17 +776,29 @@ static const struct tizen_notification_interface _e_tizen_notification_interface
    _e_tizen_notification_set_level_cb
 };
 
+static Eina_Bool
+_e_tizen_notification_levels_remove(const Eina_Hash *hash EINA_UNUSED, const void *key EINA_UNUSED,
+                                    const void *tp EINA_UNUSED, const void *resource)
+{
+   Notification_Level *nl = eina_hash_find(hash_notification_levels, key);
+   if (!nl)
+     return EINA_TRUE;
+
+   if (nl->interface != resource)
+     return EINA_TRUE;
+
+   eina_hash_del_by_key(hash_notification_levels, key);
+
+   return EINA_TRUE;
+}
+
 static void
 _e_tizen_notification_destroy(struct wl_resource *resource)
 {
-   struct wl_resource *noti_interface = NULL;
-
    if (!resource) return;
 
-   noti_interface = eina_hash_find(hash_notification_interfaces, &resource);
-   if (!noti_interface) return;
-
-   eina_hash_del_by_key(hash_notification_interfaces, &resource);
+   eina_hash_foreach(hash_notification_levels,
+                     (Eina_Hash_Foreach)_e_tizen_notification_levels_remove, resource);
 }
 
 static void
@@ -539,7 +806,6 @@ _e_tizen_notification_bind_cb(struct wl_client *client, void *data, uint32_t ver
 {
    E_Comp_Data *cdata;
    struct wl_resource *res;
-   struct wl_resource *noti_interface;
 
    if (!(cdata = data))
      {
@@ -561,10 +827,41 @@ _e_tizen_notification_bind_cb(struct wl_client *client, void *data, uint32_t ver
                                   &_e_tizen_notification_interface,
                                   cdata,
                                   _e_tizen_notification_destroy);
+}
 
-   noti_interface = eina_hash_find(hash_notification_interfaces, &res);
-   if (!noti_interface)
-     eina_hash_add(hash_notification_interfaces, &res, res);
+static void
+_hook_client_del(void *d EINA_UNUSED, E_Client *ec)
+{
+   Window_Screen_Mode *wsm;
+   E_Comp_Client_Data *cdata;
+   struct wl_resource *surface;
+
+   EINA_SAFETY_ON_NULL_RETURN(ec);
+   cdata = e_pixmap_cdata_get(ec->pixmap);
+   EINA_SAFETY_ON_NULL_RETURN(cdata);
+   surface = cdata->wl_surface;
+   EINA_SAFETY_ON_NULL_RETURN(surface);
+
+   //remove window_screen_mode from hash
+   wsm = eina_hash_find(hash_window_screen_modes, &surface);
+   if (wsm)
+     {
+        _window_screen_modes =  eina_list_remove(_window_screen_modes, wsm);
+        eina_hash_del_by_key(hash_window_screen_modes, &surface);
+     }
+}
+
+static Eina_Bool
+_cb_client_visibility_change(void *data EINA_UNUSED,
+                             int type   EINA_UNUSED,
+                             void      *event)
+{
+   //E_Event_Client *ev;
+   //ev = event;
+
+   _window_screen_mode_apply();
+
+   return ECORE_CALLBACK_PASS_ON;
 }
 
 Eina_Bool
@@ -600,8 +897,14 @@ e_mod_pol_wl_init(void)
 
    hash_pol_wayland = eina_hash_pointer_new(free);
    hash_notification_levels = eina_hash_pointer_new(free);
-   hash_notification_interfaces = eina_hash_pointer_new(NULL); // do not free by hash_del by key.
    hash_policy_conformants = eina_hash_pointer_new(free);
+   hash_window_screen_modes = eina_hash_pointer_new(free);
+
+   E_CLIENT_HOOK_APPEND(_hooks, E_CLIENT_HOOK_DEL,
+                        _hook_client_del, NULL);
+
+   E_LIST_HANDLER_APPEND(_handlers, E_EVENT_CLIENT_VISIBILITY_CHANGE,
+                         _cb_client_visibility_change, NULL);
 
    return EINA_TRUE;
 }
@@ -611,8 +914,12 @@ e_mod_pol_wl_shutdown(void)
 {
    E_FREE_FUNC(hash_pol_wayland, eina_hash_free);
    E_FREE_FUNC(hash_notification_levels, eina_hash_free);
-   E_FREE_FUNC(hash_notification_interfaces, eina_hash_free);
    E_FREE_FUNC(hash_policy_conformants, eina_hash_free);
+
+   eina_list_free(_window_screen_modes);
+   E_FREE_LIST(_hooks, e_client_hook_del);
+   E_FREE_LIST(_handlers, ecore_event_handler_del);
+   E_FREE_FUNC(hash_window_screen_modes, eina_hash_free);
 }
 
 void
@@ -677,7 +984,6 @@ e_mod_pol_wl_notification_level_fetch(E_Client *ec)
    Notification_Level *nl;
    E_Comp_Client_Data *cdata;
    struct wl_resource *surface;
-   struct wl_resource *noti_interface;
 
    EINA_SAFETY_ON_NULL_RETURN(ec);
    cdata = e_pixmap_cdata_get(ec->pixmap);
@@ -688,17 +994,13 @@ e_mod_pol_wl_notification_level_fetch(E_Client *ec)
    nl = eina_hash_find(hash_notification_levels, &surface);
    if (nl)
      {
-        noti_interface = eina_hash_find(hash_notification_interfaces, &(nl->interface));
-        if (noti_interface)
-          {
-             e_mod_pol_notification_level_apply(ec, nl->level);
+        e_mod_pol_notification_level_apply(ec, nl->level);
 
-             // Add other error handling code on notification send done.
-             tizen_notification_send_done(nl->interface,
-                                          nl->surface,
-                                          nl->level,
-                                          TIZEN_NOTIFICATION_ERROR_STATE_NONE);
-          }
+        // Add other error handling code on notification send done.
+        tizen_notification_send_done(nl->interface,
+                                     nl->surface,
+                                     nl->level,
+                                     TIZEN_NOTIFICATION_ERROR_STATE_NONE);
 
         eina_hash_del_by_key(hash_notification_levels, &surface);
      }
