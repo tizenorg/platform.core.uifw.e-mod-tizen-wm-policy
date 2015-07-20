@@ -13,6 +13,7 @@ BuildRequires: pkgconfig(enlightenment)
 BuildRequires: pkgconfig(x11) 
 %endif
 %if %{with wayland}
+BuildRequires: pkgconfig(tizen-extension-server)
 BuildRequires: pkgconfig(eina)
 BuildRequires: pkgconfig(ecore)
 BuildRequires: pkgconfig(edje)

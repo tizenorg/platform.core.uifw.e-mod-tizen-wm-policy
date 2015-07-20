@@ -2,7 +2,7 @@
 #include "e_mod_notification.h"
 
 #include <wayland-server.h>
-#include "e_tizen_policy_server_protocol.h"
+#include <tizen-extension-server-protocol.h>
 #include "tizen_notification-server-protocol.h"
 
 typedef struct _Pol_Wayland

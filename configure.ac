@@ -28,10 +28,6 @@ AC_PROG_LIBTOOL
 #AM_GNU_GETTEXT([external])
 #AM_GNU_GETTEXT_VERSION(0.14)
 
-PKG_CHECK_MODULES(ENLIGHTENMENT, [enlightenment])
-AC_SUBST(ENLIGHTENMENT_CFLAGS)
-AC_SUBST(ENLIGHTENMENT_LIBS)
-
 have_wayland_only=no
 AC_ARG_ENABLE([wayland-only],
   AS_HELP_STRING([--enable-wayland-only],[enable wayland-only version of enlightenment @<:@default=disabled@:>@]),
@@ -42,6 +38,14 @@ if test "x${have_wayland_only}" != "xno"; then
   AC_DEFINE_UNQUOTED([HAVE_WAYLAND_ONLY],[1],[enable wayland-only version of enlightenment])
 fi
 AM_CONDITIONAL(HAVE_WAYLAND_ONLY, [test "x${have_wayland_only}" = xyes])
+
+if test "x${have_wayland_only}" = "xyes"; then
+	PKG_CHECK_MODULES(ENLIGHTENMENT, [enlightenment, tizen-extension-server])
+else
+	PKG_CHECK_MODULES(ENLIGHTENMENT, [enlightenment])
+fi
+AC_SUBST(ENLIGHTENMENT_CFLAGS)
+AC_SUBST(ENLIGHTENMENT_LIBS)
 
 AC_CHECK_LIB(dl, dlopen, dlopen_libs=-ldl)
 AC_SUBST(dlopen_libs)
