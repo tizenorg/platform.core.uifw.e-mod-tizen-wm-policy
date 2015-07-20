@@ -624,9 +624,11 @@ _pol_cb_client_resize(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    E_Event_Client *ev;
    E_Client *ec;
 
-   ev = event;
+   ev = (E_Event_Client *)event;
+   EINA_SAFETY_ON_NULL_RETURN(ev, ECORE_CALLBACK_PASS_ON);
+
    ec = ev->ec;
-   if (!ev) return ECORE_CALLBACK_PASS_ON;
+   EINA_SAFETY_ON_NULL_RETURN(ec, ECORE_CALLBACK_PASS_ON);
 
    if (e_mod_pol_client_is_keyboard(ec) ||
        e_mod_pol_client_is_keyboard_sub(ec))
