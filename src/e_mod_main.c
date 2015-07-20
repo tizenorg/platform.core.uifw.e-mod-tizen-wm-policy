@@ -633,26 +633,9 @@ _pol_cb_client_resize(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
        e_mod_pol_client_is_keyboard_sub(ec))
      {
 #ifdef HAVE_WAYLAND_ONLY
-        E_Client *ec2;
-        E_CLIENT_REVERSE_FOREACH(e_comp, ec2)
-          {
-             if (e_client_util_ignored_get(ec2)) continue;
-             if (!e_mod_pol_client_is_conformant(ec2)) continue;
-             if (ec->visible)
-               e_mod_pol_wl_keyboard_send(ec2,
-                                          EINA_TRUE,
-                                          ec->x,
-                                          ec->y,
-                                          ec->client.w,
-                                          ec->client.h);
-             else
-               e_mod_pol_wl_keyboard_send(ec2,
-                                          EINA_FALSE,
-                                          ec->x,
-                                          ec->y,
-                                          ec->client.w,
-                                          ec->client.h);
-          }
+        e_mod_pol_wl_keyboard_geom_broadcast(ec);
+#else
+        ;
 #endif
      }
 

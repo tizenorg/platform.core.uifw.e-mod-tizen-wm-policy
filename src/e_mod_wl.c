@@ -358,6 +358,7 @@ _e_tizen_policy_cb_conformant_set(struct wl_client *client, struct wl_resource *
         EINA_SAFETY_ON_NULL_RETURN(cdata);
         cdata->conformant = 1;
      }
+
    pn = eina_hash_find(hash_policy_conformants, &surface_resource);
    if (!pn)
      {
@@ -376,6 +377,7 @@ _e_tizen_policy_cb_conformant_unset(struct wl_client *client, struct wl_resource
    E_Pixmap *ep;
    E_Client *ec;
    E_Comp_Wl_Client_Data *cdata;
+   Policy_Conformant *pn;
 
    ep = wl_resource_get_user_data(surface_resource);
    EINA_SAFETY_ON_NULL_RETURN(ep);
@@ -394,6 +396,13 @@ _e_tizen_policy_cb_conformant_unset(struct wl_client *client, struct wl_resource
         cdata = e_pixmap_cdata_get(ep);
         EINA_SAFETY_ON_NULL_RETURN(cdata);
         cdata->conformant = 0;
+     }
+
+   pn = eina_hash_find(hash_policy_conformants, &surface_resource);
+   if (pn)
+     {
+        E_FREE(pn);
+        eina_hash_del_by_key(hash_policy_conformants, &surface_resource);
      }
 }
 
@@ -687,7 +696,7 @@ e_mod_pol_wl_notification_level_fetch(E_Client *ec)
           {
              e_mod_pol_notification_level_apply(ec, nl->level);
 
-             //Add other error handling code on notification send done.
+             // Add other error handling code on notification send done.
              tizen_notification_send_done(nl->interface,
                                           nl->surface,
                                           nl->level,
@@ -699,26 +708,38 @@ e_mod_pol_wl_notification_level_fetch(E_Client *ec)
 }
 
 void
-e_mod_pol_wl_keyboard_send(E_Client *ec, Eina_Bool state, int x, int y, int w, int h)
+e_mod_pol_wl_keyboard_geom_broadcast(E_Client *ec)
 {
+   E_Client *ec2;
    E_Comp_Client_Data *cdata;
    struct wl_resource *surface;
    Policy_Conformant *pn;
-   struct wl_resource *policy_interface;
+   Eina_Bool res;
 
-   EINA_SAFETY_ON_NULL_RETURN(ec);
-   cdata = e_pixmap_cdata_get(ec->pixmap);
-   EINA_SAFETY_ON_NULL_RETURN(cdata);
-   surface = cdata->wl_surface;
-   EINA_SAFETY_ON_NULL_RETURN(surface);
-
-   pn = eina_hash_find(hash_policy_conformants, &surface);
-   if (pn)
+   E_CLIENT_REVERSE_FOREACH(e_comp, ec2)
      {
+        res = e_client_util_ignored_get(ec2);
+        if (res) continue;
+
+        res = e_mod_pol_client_is_conformant(ec2);
+        if (!res) continue;
+
+        cdata = e_pixmap_cdata_get(ec->pixmap);
+        if (!cdata) continue;
+
+        surface = cdata->wl_surface;
+        if (!surface) continue;
+
+        pn = eina_hash_find(hash_policy_conformants, &surface);
+        if (!pn) continue;
+
         tizen_policy_send_conformant_area(pn->interface,
                                           pn->surface,
                                           TIZEN_POLICY_CONFORMANT_PART_KEYBOARD,
-                                          state,
-                                          x, y, w, h);
+                                          ec2->visible,
+                                          ec->x,
+                                          ec->y,
+                                          ec->client.w,
+                                          ec->client.h);
      }
 }
