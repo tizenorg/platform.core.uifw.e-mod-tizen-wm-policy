@@ -400,10 +400,7 @@ _e_tizen_policy_cb_conformant_unset(struct wl_client *client, struct wl_resource
 
    pn = eina_hash_find(hash_policy_conformants, &surface_resource);
    if (pn)
-     {
-        E_FREE(pn);
-        eina_hash_del_by_key(hash_policy_conformants, &surface_resource);
-     }
+     eina_hash_del_by_key(hash_policy_conformants, &surface_resource);
 }
 
 static void
