@@ -24,8 +24,6 @@ module_la_SOURCES      = e_mod_config.c \
 if HAVE_WAYLAND_ONLY
 module_la_SOURCES += e_mod_wl.c \
 					 e_mod_wl.h \
-					 tizen_notification-server-protocol.h \
-					 tizen_notification-protocol.c \
 					 e_mod_rotation_wl.c \
 					 e_mod_rotation_wl.h \
 					 tizen_policy_ext-protocol.c \

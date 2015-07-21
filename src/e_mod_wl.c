@@ -3,7 +3,6 @@
 
 #include <wayland-server.h>
 #include <tizen-extension-server-protocol.h>
-#include "tizen_notification-server-protocol.h"
 
 typedef struct _Pol_Wayland
 {
@@ -721,115 +720,6 @@ _e_tizen_policy_cb_bind(struct wl_client *client, void *data, uint32_t version, 
 }
 
 static void
-_e_tizen_notification_set_level_cb(struct wl_client *client, struct wl_resource *resource, struct wl_resource *surface_resource, uint32_t level)
-{
-   E_Pixmap *ep;
-   E_Client *ec;
-   Notification_Level *nl;
-
-   /* get the pixmap from this surface so we can find the client */
-   if (!(ep = wl_resource_get_user_data(surface_resource)))
-     {
-        wl_resource_post_error(surface_resource,
-                               WL_DISPLAY_ERROR_INVALID_OBJECT,
-                               "No Pixmap Set On Surface");
-        return;
-     }
-
-   /* make sure it's a wayland pixmap */
-   if (e_pixmap_type_get(ep) != E_PIXMAP_TYPE_WL) return;
-
-   /* find the client for this pixmap */
-   ec = e_pixmap_client_get(ep);
-   if (ec)
-     {
-        /* remove not processed level set */
-        nl = eina_hash_find(hash_notification_levels, &surface_resource);
-        if (nl) eina_hash_del_by_key(hash_notification_levels, &surface_resource);
-
-        e_mod_pol_notification_level_apply(ec, level);
-
-        /* Add other error handling code on notification send done. */
-        tizen_notification_send_done(resource,
-                                     surface_resource,
-                                     level,
-                                     TIZEN_NOTIFICATION_ERROR_STATE_NONE);
-     }
-   else
-     {
-         nl = eina_hash_find(hash_notification_levels, &surface_resource);
-         if (!nl)
-           {
-              nl = E_NEW(Notification_Level, 1);
-              EINA_SAFETY_ON_NULL_RETURN(nl);
-              eina_hash_add(hash_notification_levels, &surface_resource, nl);
-           }
-
-         nl->level = level;
-         nl->interface = resource;
-         nl->surface = surface_resource;
-     }
-}
-
-static const struct tizen_notification_interface _e_tizen_notification_interface =
-{
-   _e_tizen_notification_set_level_cb
-};
-
-static Eina_Bool
-_e_tizen_notification_levels_remove(const Eina_Hash *hash EINA_UNUSED, const void *key EINA_UNUSED,
-                                    const void *tp EINA_UNUSED, const void *resource)
-{
-   Notification_Level *nl = eina_hash_find(hash_notification_levels, key);
-   if (!nl)
-     return EINA_TRUE;
-
-   if (nl->interface != resource)
-     return EINA_TRUE;
-
-   eina_hash_del_by_key(hash_notification_levels, key);
-
-   return EINA_TRUE;
-}
-
-static void
-_e_tizen_notification_destroy(struct wl_resource *resource)
-{
-   if (!resource) return;
-
-   eina_hash_foreach(hash_notification_levels,
-                     (Eina_Hash_Foreach)_e_tizen_notification_levels_remove, resource);
-}
-
-static void
-_e_tizen_notification_bind_cb(struct wl_client *client, void *data, uint32_t version, uint32_t id)
-{
-   E_Comp_Data *cdata;
-   struct wl_resource *res;
-
-   if (!(cdata = data))
-     {
-        wl_client_post_no_memory(client);
-        return;
-     }
-
-   if (!(res = wl_resource_create(client,
-                                  &tizen_notification_interface,
-                                  version,
-                                  id)))
-     {
-        ERR("Could not create tizen_notification resource: %m");
-        wl_client_post_no_memory(client);
-        return;
-     }
-
-   wl_resource_set_implementation(res,
-                                  &_e_tizen_notification_interface,
-                                  cdata,
-                                  _e_tizen_notification_destroy);
-}
-
-static void
 _hook_client_del(void *d EINA_UNUSED, E_Client *ec)
 {
    Window_Screen_Mode *wsm;
@@ -882,16 +772,6 @@ e_mod_pol_wl_init(void)
                          _e_tizen_policy_cb_bind))
      {
         ERR("Could not add tizen_policy to wayland globals: %m");
-        return EINA_FALSE;
-     }
-
-   if (!wl_global_create(cdata->wl.disp,
-                         &tizen_notification_interface,
-                         1,
-                         cdata,
-                         _e_tizen_notification_bind_cb))
-     {
-        ERR("Could not add tizen_notification to wayland globals: %m");
         return EINA_FALSE;
      }
 
@@ -997,10 +877,10 @@ e_mod_pol_wl_notification_level_fetch(E_Client *ec)
         e_mod_pol_notification_level_apply(ec, nl->level);
 
         // Add other error handling code on notification send done.
-        tizen_notification_send_done(nl->interface,
-                                     nl->surface,
-                                     nl->level,
-                                     TIZEN_NOTIFICATION_ERROR_STATE_NONE);
+        tizen_policy_send_notification_done(nl->interface,
+                                            nl->surface,
+                                            nl->level,
+                                            TIZEN_POLICY_ERROR_STATE_NONE);
 
         eina_hash_del_by_key(hash_notification_levels, &surface);
      }
