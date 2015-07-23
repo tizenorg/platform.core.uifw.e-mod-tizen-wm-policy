@@ -39,10 +39,11 @@ if test "x${have_wayland_only}" != "xno"; then
 fi
 AM_CONDITIONAL(HAVE_WAYLAND_ONLY, [test "x${have_wayland_only}" = xyes])
 
+PKG_CHECK_MODULES(ENLIGHTENMENT, [enlightenment])
 if test "x${have_wayland_only}" = "xyes"; then
-	PKG_CHECK_MODULES(ENLIGHTENMENT, [enlightenment, tizen-extension-server])
-else
-	PKG_CHECK_MODULES(ENLIGHTENMENT, [enlightenment])
+  PKG_CHECK_MODULES(EXTRA, [tizen-extension-server])
+  ENLIGHTENMENT_CFLAGS="${ENLIGHTENMENT_CFLAGS} ${EXTRA_CFLAGS}"
+  ENLIGHTENMENT_LIBS="${ENLIGHTENMENT_LIBS} ${EXTRA_LIBS}"
 fi
 AC_SUBST(ENLIGHTENMENT_CFLAGS)
 AC_SUBST(ENLIGHTENMENT_LIBS)
