@@ -903,7 +903,7 @@ e_mod_pol_wl_keyboard_geom_broadcast(E_Client *ec)
         res = e_mod_pol_client_is_conformant(ec2);
         if (!res) continue;
 
-        cdata = e_pixmap_cdata_get(ec->pixmap);
+        cdata = e_pixmap_cdata_get(ec2->pixmap);
         if (!cdata) continue;
 
         surface = cdata->wl_surface;
@@ -915,7 +915,7 @@ e_mod_pol_wl_keyboard_geom_broadcast(E_Client *ec)
         tizen_policy_send_conformant_area(pn->interface,
                                           pn->surface,
                                           TIZEN_POLICY_CONFORMANT_PART_KEYBOARD,
-                                          ec2->visible,
+                                          ec->visible,
                                           ec->x,
                                           ec->y,
                                           ec->client.w,
