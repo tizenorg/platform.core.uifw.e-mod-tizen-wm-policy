@@ -18,14 +18,17 @@
  * license.
  */
 #include "e_mod_rotation.h"
-#include "e_mod_atoms.h"
-#include "e_mod_utils.h"
+#ifndef HAVE_WAYLAND_ONLY
+# include "e_mod_atoms.h"
+# include "e_mod_utils.h"
+#endif
 
 
 #ifdef HAVE_WAYLAND_ONLY
-#include "e_mod_rotation_wl.h"
+# include "e_mod_rotation_wl.h"
 #endif
 
+#ifndef HAVE_WAYLAND_ONLY
 typedef struct _E_Client_Rotation E_Client_Rotation;
 
 struct _E_Client_Rotation
@@ -159,11 +162,9 @@ static Eina_Bool _rot_hook_new_client_intern(E_Client *ec);
 static Eina_Bool _rot_cb_zone_rotation_change_begin_intern(E_Event_Zone_Rotation_Change_Begin *ev);
 static Eina_Bool _rot_intercept_hook_show_helper_intern(E_Client *ec);
 static Eina_Bool _rot_intercept_hook_hide_intern(E_Client *ec);
-#ifndef HAVE_WAYLAND_ONLY
 static Eina_Bool _rot_cb_window_configure_intern(Ecore_X_Event_Window_Configure *ev);
 static Eina_Bool _rot_cb_window_property_intern(Ecore_X_Event_Window_Property *ev);
 static Eina_Bool _rot_cb_window_message_intern(Ecore_X_Event_Client_Message *ev);
-#endif
 static Eina_Bool _rot_hook_eval_fetch_intern(E_Client *ec);
 
 /* e_client event, hook, intercept callbacks */
@@ -174,11 +175,9 @@ static void      _rot_hook_eval_end(void *d EINA_UNUSED, E_Client *ec);
 static void      _rot_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec);
 static Eina_Bool _rot_intercept_hook_show_helper(void *d EINA_UNUSED, E_Client *ec);
 static Eina_Bool _rot_intercept_hook_hide(void *d EINA_UNUSED, E_Client *ec);
-#ifndef HAVE_WAYLAND_ONLY
 static Eina_Bool _rot_cb_window_property(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Property *ev);
 static Eina_Bool _rot_cb_window_configure(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Configure *ev);
 static Eina_Bool _rot_cb_window_message(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Client_Message *ev);
-#endif
 static Eina_Bool _rot_cb_zone_rotation_change_begin(void *data EINA_UNUSED, int ev_type EINA_UNUSED, E_Event_Zone_Rotation_Change_Begin *ev);
 static Eina_Bool _rot_cb_idle_enterer(void *data EINA_UNUSED);
 static void      _rot_cb_evas_show(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event_info EINA_UNUSED);
@@ -188,7 +187,6 @@ static Eina_Bool
 _e_client_vkbd_state_check(E_Client *ec,
                            Eina_Bool show)
 {
-#ifndef HAVE_WAYLAND_ONLY
    Eina_Bool res = EINA_TRUE;
    if ((rot.vkbd) && (rot.vkbd == ec))
      {
@@ -206,15 +204,11 @@ _e_client_vkbd_state_check(E_Client *ec,
           }
      }
    return res;
-#else
-   return EINA_FALSE;
-#endif
 }
 
 static Eina_Bool
 _e_client_vkbd_show_timeout(void *data)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_Client *ec = data;
    if ((ec) && ((E_OBJECT(ec)->type) == (E_CLIENT_TYPE)))
      {
@@ -237,7 +231,6 @@ _e_client_vkbd_show_timeout(void *data)
    if (rot.vkbd_show_timer)
      ecore_timer_del(rot.vkbd_show_timer);
    rot.vkbd_show_timer = NULL;
-#endif
 
    return ECORE_CALLBACK_CANCEL;
 }
@@ -245,7 +238,6 @@ _e_client_vkbd_show_timeout(void *data)
 static Eina_Bool
 _e_client_vkbd_hide_timeout(void *data)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_Client *ec = data;
    int unref_count = 0;
 
@@ -276,14 +268,12 @@ _e_client_vkbd_hide_timeout(void *data)
         unref_count--;
      }
 
-#endif
    return ECORE_CALLBACK_CANCEL;
 }
 
 static void
 _e_client_vkbd_show(E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
    rot.vkbd_show_prepare_done = EINA_TRUE;
    if (rot.vkbd_show_prepare_timer)
      ecore_timer_del(rot.vkbd_show_prepare_timer);
@@ -296,13 +286,11 @@ _e_client_vkbd_show(E_Client *ec)
         evas_object_show(ec->frame);// e_client_show(ec)
         rot.vkbd_show_timer = ecore_timer_add(1.0f, _e_client_vkbd_show_timeout, ec);
      }
-#endif
 }
 
 static void
 _e_client_vkbd_hide(E_Client *ec, Eina_Bool clean)
 {
-#ifndef HAVE_WAYLAND_ONLY
    int unref_count = 0;
 
    rot.vkbd_hide_prepare_done = EINA_TRUE;
@@ -348,26 +336,22 @@ _e_client_vkbd_hide(E_Client *ec, Eina_Bool clean)
         e_object_unref(E_OBJECT(ec));
         unref_count--;
      }
-#endif
 }
 
 static Eina_Bool
 _e_client_vkbd_show_prepare_timeout(void *data)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_Client *ec = data;
    if ((ec) && (!e_object_is_del(E_OBJECT(ec))))
      {
         _e_client_vkbd_show(ec);
      }
-#endif
    return ECORE_CALLBACK_CANCEL;
 }
 
 static Eina_Bool
 _e_client_vkbd_hide_prepare_timeout(void *data)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_Client *ec = data;
    int unref_count = 0;
 
@@ -389,7 +373,6 @@ _e_client_vkbd_hide_prepare_timeout(void *data)
         unref_count--;
      }
 
-#endif
    return ECORE_CALLBACK_CANCEL;
 }
 
@@ -400,20 +383,15 @@ _e_client_vkbd_hide_prepare_timeout(void *data)
 static int
 _e_client_rotation_curr_next_get(const E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
    if (!ec) return -1;
 
    return ((ec->e.state.rot.ang.next == -1) ?
            ec->e.state.rot.ang.curr : ec->e.state.rot.ang.next);
-#else
-   return -1;
-#endif
 }
 
 static int
 _prev_angle_get(Ecore_Window win)
 {
-#ifndef HAVE_WAYLAND_ONLY
    int ret, count = 0, ang = -1;
    unsigned char* data = NULL;
 
@@ -425,16 +403,12 @@ _prev_angle_get(Ecore_Window win)
      ang = ((int *)data)[0];
    if (data) free(data);
    return ang;
-#else
-   return -1;
-#endif
 }
 
 /* check whether virtual keyboard is visible on the zone */
 static Eina_Bool
 _e_client_is_vkbd(E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
    if ((rot.vkbd_ctrl_win) &&
        (rot.vkbd == ec) &&
        (!e_object_is_del(E_OBJECT(rot.vkbd))) &&
@@ -446,30 +420,22 @@ _e_client_is_vkbd(E_Client *ec)
      {
         return EINA_TRUE;
      }
-#else
-   return EINA_FALSE;
-#endif
 }
 
 static Eina_Bool
 _e_client_rotation_is_dependent_parent(const E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
    if (!ec) return EINA_FALSE;
    if ((!ec->parent) || (!evas_object_visible_get(ec->parent->frame))) return EINA_FALSE;
    if (ec->netwm.type == E_WINDOW_TYPE_NORMAL) return EINA_FALSE;
    if ((!ec->e.state.rot.support) &&
        (!ec->e.state.rot.app_set)) return EINA_FALSE;
    return EINA_TRUE;
-#else
-   return EINA_FALSE;
-#endif
 }
 
 static Eina_Bool
 _e_client_rotation_zone_set(E_Zone *zone)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_Client *ec = NULL;
    Eina_Bool res = EINA_FALSE;
    Eina_Bool ret = EINA_FALSE;
@@ -513,15 +479,11 @@ _e_client_rotation_zone_set(E_Zone *zone)
      }
 
    return ret;
-#else
-   return EINA_FALSE;
-#endif
 }
 
 static void
 _e_client_rotation_change_message_send(E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
    int rotation;
    Eina_Bool resize = EINA_FALSE;
 
@@ -548,13 +510,11 @@ _e_client_rotation_change_message_send(E_Client *ec)
              e_client_rotation_change_request(ec, rotation);
           }
      }
-#endif
 }
 
 static void
 _e_client_rotation_list_send(void)
 {
-#ifndef HAVE_WAYLAND_ONLY
    Eina_List *l;
    E_Client *ec;
 
@@ -568,13 +528,11 @@ _e_client_rotation_list_send(void)
 
         _e_client_rotation_change_message_send(ec);
      }
-#endif
 }
 
 static Eina_Bool
 _e_client_rotation_change_prepare_timeout(void *data)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_Zone *zone = data;
 
    if ((zone) && (rot.wait_prepare_done))
@@ -588,23 +546,19 @@ _e_client_rotation_change_prepare_timeout(void *data)
              rot.wait_prepare_done = EINA_FALSE;
           }
      }
-#endif
    return ECORE_CALLBACK_CANCEL;
 }
 
 static Eina_Bool
 _e_client_rotation_change_done_timeout(void *data __UNUSED__)
 {
-#ifndef HAVE_WAYLAND_ONLY
    _e_client_rotation_change_done();
-#endif
    return ECORE_CALLBACK_CANCEL;
 }
 
 static void
 _e_client_rotation_list_remove(E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_Event_Client_Rotation_Change_End *ev = NULL;
    Eina_Bool found = EINA_FALSE;
 
@@ -643,13 +597,11 @@ _e_client_rotation_list_remove(E_Client *ec)
      }
    ec->e.state.rot.ang.next = -1;
    ec->changes.rotation = 0;
-#endif
 }
 
 static void
 _e_client_rotation_change_done(void)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_Manager *m = NULL;
    E_Client *ec;
 
@@ -687,13 +639,11 @@ _e_client_rotation_change_done(void)
         rot.screen_lock = EINA_FALSE;
      }
    e_zone_rotation_update_done(e_util_zone_current_get(m));
-#endif
 }
 
 static Eina_Bool
 _e_client_rotation_prepare_send(E_Client *ec, int rotation)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_Zone *zone = ec->zone;
    int x, y, w, h;
    Eina_Bool move = EINA_FALSE;
@@ -720,16 +670,9 @@ end:
    if (((move) && ((ec->x !=x) || (ec->y !=y))) ||
        ((resize) && ((ec->w != w) || (ec->h != h))))
      {
-#if 0
-     // need call: _e_comp_x_client_move_resize_send(); ?
-        _e_client_move_resize_internal(ec, x, y, w, h, EINA_TRUE, move);
-#endif
         e_client_util_move_resize_without_frame(ec, x, y, w, h); //check: this function work correct or not.
      }
    return resize;
-#else
-   return EINA_FALSE;
-#endif
 }
 
 static Eina_Bool
@@ -742,7 +685,6 @@ _e_client_rotation_geom_get(E_Client  *ec,
                             int       *h,
                             Eina_Bool *move)
 {
-#ifndef HAVE_WAYLAND_ONLY
    Eina_Bool res = EINA_FALSE;
    int _x = ec->x;
    int _y = ec->y;
@@ -814,39 +756,31 @@ _e_client_rotation_geom_get(E_Client  *ec,
      }
 
    return res;
-#else
-   return EINA_FALSE;
-#endif
 }
 
 static void
 _e_client_event_client_rotation_change_begin_free(void *data __UNUSED__,
                                                   void      *ev)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_Event_Client_Rotation_Change_Begin *e;
    e = ev;
    e_object_unref(E_OBJECT(e->ec));
    E_FREE(e);
-#endif
 }
 
 static void
 _e_client_event_client_rotation_change_end_free(void *data __UNUSED__,
                                                 void      *ev)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_Event_Client_Rotation_Change_End *e;
    e = ev;
    e_object_unref(E_OBJECT(e->ec));
    E_FREE(e);
-#endif
 }
 
 static void
 _e_client_event_client_rotation_change_begin_send(E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_Event_Client_Rotation_Change_Begin *ev = NULL;
    ev = E_NEW(E_Event_Client_Rotation_Change_End, 1);
    if (ev)
@@ -858,14 +792,12 @@ _e_client_event_client_rotation_change_begin_send(E_Client *ec)
                         _e_client_event_client_rotation_change_begin_free,
                         NULL);
      }
-#endif
 }
 
 /* local subsystem e_zone_rotation related functions */
 static void
 _e_zone_rotation_set_internal(E_Zone *zone, int rot)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_Event_Zone_Rotation_Change_Begin *ev;
 
    E_OBJECT_CHECK(zone);
@@ -893,47 +825,39 @@ _e_zone_rotation_set_internal(E_Zone *zone, int rot)
         ecore_event_add(E_EVENT_ZONE_ROTATION_CHANGE_BEGIN,
                         ev, _e_zone_event_rotation_change_begin_free, NULL);
      }
-#endif
 }
 
 static void
 _e_zone_event_rotation_change_begin_free(void *data __UNUSED__,
                                          void      *ev)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_Event_Zone_Rotation_Change_Begin *e = ev;
    e_object_unref(E_OBJECT(e->zone));
    E_FREE(e);
-#endif
 }
 
 static void
 _e_zone_event_rotation_change_cancel_free(void *data __UNUSED__,
                                           void      *ev)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_Event_Zone_Rotation_Change_Cancel *e = ev;
    e_object_unref(E_OBJECT(e->zone));
    E_FREE(e);
-#endif
 }
 
 static void
 _e_zone_event_rotation_change_end_free(void *data __UNUSED__,
                                        void      *ev)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_Event_Zone_Rotation_Change_End *e = ev;
    e_object_unref(E_OBJECT(e->zone));
    E_FREE(e);
-#endif
 }
 
 /* e_client_roation functions */
 static void
 e_client_rotation_change_request(E_Client *ec, int rotation)
 {
-#ifndef HAVE_WAYLAND_ONLY
    if (!ec) return;
    if (rotation < 0) return;
 
@@ -945,10 +869,6 @@ e_client_rotation_change_request(E_Client *ec, int rotation)
 
    ecore_x_e_window_rotation_change_request_send(e_client_util_win_get(ec), rotation);
 
-#if 0
-   if (ec->e.state.deiconify_approve.pending)
-     _e_client_deiconify_approve_send_pending_end(ec);
-#endif
    ec->e.state.rot.wait_for_done = 1;
 
    if ((!rot.async_list) ||
@@ -960,7 +880,6 @@ e_client_rotation_change_request(E_Client *ec, int rotation)
                                          _e_client_rotation_change_done_timeout,
                                          NULL);
      }
-#endif
 }
 
 /**
@@ -973,16 +892,12 @@ e_client_rotation_change_request(E_Client *ec, int rotation)
 static Eina_Bool
 e_client_rotation_is_progress(const E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
    if (!ec) return EINA_FALSE;
 
    if (ec->e.state.rot.ang.next == -1)
      return EINA_FALSE;
    else
      return EINA_TRUE;
-#else
-   return EINA_FALSE;
-#endif
 }
 
 /**
@@ -996,7 +911,6 @@ e_client_rotation_is_progress(const E_Client *ec)
 static Eina_Bool
 e_client_rotation_is_available(const E_Client *ec, int ang)
 {
-#ifndef HAVE_WAYLAND_ONLY
    if (!ec) return EINA_FALSE;
 
    if (ang < 0) goto fail;
@@ -1034,9 +948,6 @@ fail:
    return EINA_FALSE;
 success:
    return EINA_TRUE;
-#else
-   return EINA_FALSE;
-#endif
 }
 
 /**
@@ -1049,7 +960,6 @@ success:
 static Eina_List*
 e_client_rotation_available_list_get(const E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
    Eina_List *list = NULL;
    int *element;
    unsigned int i;
@@ -1078,9 +988,6 @@ e_client_rotation_available_list_get(const E_Client *ec)
           }
      }
    return list;
-#else
-   return NULL;
-#endif
 }
 
 
@@ -1093,14 +1000,10 @@ e_client_rotation_available_list_get(const E_Client *ec)
 static int
 e_client_rotation_next_angle_get(const E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_OBJECT_CHECK_RETURN(ec, -1);
    E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, -1);
 
    return ec->e.state.rot.ang.next;
-#else
-   return -1;
-#endif
 }
 
 /**
@@ -1112,14 +1015,10 @@ e_client_rotation_next_angle_get(const E_Client *ec)
 static int
 e_client_rotation_prev_angle_get(const E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_OBJECT_CHECK_RETURN(ec, -1);
    E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, -1);
 
    return ec->e.state.rot.ang.prev;
-#else
-   return -1;
-#endif
 }
 
 /**
@@ -1132,7 +1031,6 @@ e_client_rotation_prev_angle_get(const E_Client *ec)
 static int
 e_client_rotation_recommend_angle_get(const E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_Zone *zone = NULL;
    int ret_ang = -1;
 
@@ -1189,9 +1087,6 @@ e_client_rotation_recommend_angle_get(const E_Client *ec)
 
 end:
    return ret_ang;
-#else
-   return -1;
-#endif
 }
 
 /**
@@ -1205,7 +1100,6 @@ end:
 static Eina_Bool
 e_client_rotation_set(E_Client *ec, int rotation)
 {
-#ifndef HAVE_WAYLAND_ONLY
    Eina_List *list, *l;
    E_Client *child;
    int curr_rot;
@@ -1232,11 +1126,6 @@ e_client_rotation_set(E_Client *ec, int rotation)
                        if (!e_object_is_del(E_OBJECT(ec)))
                          evas_object_show(ec->frame); // e_client_show(ec);
                     }
-#if 0 //force rendering?
-                  if (ec->e.state.deiconify_approve.pending)
-                    _e_client_deiconify_approve_send_pending_end(ec);
-#endif
-
                   return EINA_FALSE;
                }
              else
@@ -1318,10 +1207,6 @@ finish:
         rot.cancel.zone = NULL;
      }
    return EINA_TRUE;
-#else
-   e_mod_rot_wl_angle_change_send(ec, rotation);
-   return EINA_TRUE;
-#endif
 }
 
 /* e_zone_rotation related functions */
@@ -1329,7 +1214,6 @@ static void
 e_zone_rotation_set(E_Zone *zone,
                     int     rot)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_OBJECT_CHECK(zone);
    E_OBJECT_TYPE_CHECK(zone, E_ZONE_TYPE);
 
@@ -1342,13 +1226,11 @@ e_zone_rotation_set(E_Zone *zone,
      zone->rot.unknown_state = EINA_FALSE;
 
    _e_zone_rotation_set_internal(zone, rot);
-#endif
 }
 
 static void
 e_zone_rotation_sub_set(E_Zone *zone, int rotation)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_OBJECT_CHECK(zone);
    E_OBJECT_TYPE_CHECK(zone, E_ZONE_TYPE);
 
@@ -1357,26 +1239,20 @@ e_zone_rotation_sub_set(E_Zone *zone, int rotation)
    if ((zone->rot.unknown_state) &&
        (zone->rot.curr != rotation))
      _e_zone_rotation_set_internal(zone, rotation);
-#endif
 }
 
 static int
 e_zone_rotation_get(E_Zone *zone)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_OBJECT_CHECK_RETURN(zone, -1);
    E_OBJECT_TYPE_CHECK_RETURN(zone, E_ZONE_TYPE, -1);
    if (!zone->rot.unknown_state) return zone->rot.curr;
    else return zone->rot.sub;
-#else
-   return -1;
-#endif
 }
 
 static Eina_Bool
 e_zone_rotation_block_set(E_Zone *zone, const char *name_hint, Eina_Bool set)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_Event_Zone_Rotation_Change_Begin *ev;
 
    E_OBJECT_CHECK_RETURN(zone, EINA_FALSE);
@@ -1408,15 +1284,11 @@ e_zone_rotation_block_set(E_Zone *zone, const char *name_hint, Eina_Bool set)
      }
 
    return EINA_TRUE;
-#else
-   return EINA_FALSE;
-#endif
 }
 
 static void
 e_zone_rotation_update_done(E_Zone *zone)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_Event_Zone_Rotation_Change_End *ev;
 
    E_OBJECT_CHECK(zone);
@@ -1450,13 +1322,11 @@ e_zone_rotation_update_done(E_Zone *zone)
                              ev2, _e_zone_event_rotation_change_begin_free, NULL);
           }
      }
-#endif
 }
 
 static void
 e_zone_rotation_update_cancel(E_Zone *zone)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_Event_Zone_Rotation_Change_Cancel *ev;
 
    E_OBJECT_CHECK(zone);
@@ -1478,14 +1348,12 @@ e_zone_rotation_update_cancel(E_Zone *zone)
         ecore_event_add(E_EVENT_ZONE_ROTATION_CHANGE_CANCEL,
                         ev, _e_zone_event_rotation_change_cancel_free, NULL);
      }
-#endif
 }
 
 /* e_client rotation internal callbacks */
 static Eina_Bool
 _rot_hook_client_free_intern(E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
    Eina_Bool rm_vkbd_parent = EINA_FALSE;
    int unref_count = 0;
 
@@ -1551,24 +1419,20 @@ _rot_hook_client_free_intern(E_Client *ec)
         unref_count--;
      }
 
-#endif
    return EINA_TRUE;
 }
 
 static Eina_Bool
 _rot_hook_client_del_intern(E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
    _e_client_rotation_list_remove(ec);
    if (rot.async_list) rot.async_list = eina_list_remove(rot.async_list, ec);
-#endif
    return EINA_TRUE;
 }
 
 static void
 _rot_cb_evas_show_intern(E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
    if (!ec->hidden)
      {
         if (rot.vkbd == ec)
@@ -1586,13 +1450,11 @@ _rot_cb_evas_show_intern(E_Client *ec)
                }
           }
      }
-#endif
 }
 
 static Eina_Bool
 _rot_hook_eval_end_intern(E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
    if (ec->changes.rotation)
      {
         E_Zone *zone = ec->zone;
@@ -1616,14 +1478,12 @@ _rot_hook_eval_end_intern(E_Client *ec)
         rot.fetch = EINA_TRUE;
         ec->changes.rotation = 0;
      }
-#endif
    return EINA_TRUE;
 }
 
 static Eina_Bool
 _rot_cb_idle_enterer_intern(void)
 {
-#ifndef HAVE_WAYLAND_ONLY
    if (rot.cancel.state)
      {
         /* there is no border which supports window manager rotation */
@@ -1742,14 +1602,12 @@ _rot_cb_idle_enterer_intern(void)
         rot.fetch = EINA_FALSE;
      }
 
-#endif
    return EINA_TRUE;
 }
 
 static Eina_Bool
 _rot_hook_new_client_intern(E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
    Ecore_X_Window win = e_client_util_win_get(ec);
    int at_num = 0, i;
    Ecore_X_Atom *atoms;
@@ -1795,14 +1653,12 @@ _rot_hook_new_client_intern(E_Client *ec)
         free(atoms);
      }
 
-#endif
    return EINA_TRUE;
 }
 
 static Eina_Bool
 _rot_cb_zone_rotation_change_begin_intern(E_Event_Zone_Rotation_Change_Begin *ev)
 {
-#ifndef HAVE_WAYLAND_ONLY
    if ((!ev) || (!ev->zone)) return EINA_FALSE;
 
    if (!_e_client_rotation_zone_set(ev->zone))
@@ -1813,14 +1669,12 @@ _rot_cb_zone_rotation_change_begin_intern(E_Event_Zone_Rotation_Change_Begin *ev
         rot.cancel.state = EINA_TRUE;
         rot.cancel.zone = ev->zone;
      }
-#endif
    return EINA_TRUE;
 }
 
 static Eina_Bool
 _rot_intercept_hook_hide_intern(E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
    if ((rot.vkbd_ctrl_win) && (rot.vkbd) &&
        (ec == rot.vkbd) &&
        (!rot.vkbd_hide_prepare_done) &&
@@ -1915,14 +1769,12 @@ _rot_intercept_hook_hide_intern(E_Client *ec)
    // clear pending_show, because this window is hidden now.
    ec->e.state.rot.pending_show = 0;
 
-#endif
    return EINA_TRUE;
 }
 
 static Eina_Bool
 _rot_intercept_hook_show_helper_intern(E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
    // newly created window that has to be rotated will be shown after rotation done.
    // so, skip at this time. it will be called again after GETTING ROT_DONE.
    if (ec->e.state.rot.ang.next != -1)
@@ -1945,11 +1797,9 @@ _rot_intercept_hook_show_helper_intern(E_Client *ec)
         return EINA_FALSE;
      }
 
-#endif
     return EINA_TRUE;
 }
 
-#ifndef HAVE_WAYLAND_ONLY
 static Eina_Bool
 _rot_cb_window_configure_intern(Ecore_X_Event_Window_Configure *ev)
 {
@@ -2074,30 +1924,10 @@ _rot_cb_window_message_intern(Ecore_X_Event_Client_Message *ev)
      }
    return ECORE_CALLBACK_PASS_ON;
 }
-#endif
 
 static Eina_Bool
 _rot_hook_eval_fetch_intern(E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
-#if 0
-   //TODO: add vkbd fetch_transient_for flag
-   /* workaround: since transient_for is fetched by illume in hook,
-    * added below flag to know this state in this eval time
-    */
-   Eina_Bool fetch_transient_for = EINA_FALSE;
-
-   if (ec->icccm.fetch.transient_for)
-     {
-        if (((rot.vkbd) && (rot.vkbd == ec)) ||
-            ((rot.vkbd_prediction) && (rot.vkbd_prediction == ec)))
-          {
-             ec->e.fetch.rot.need_rotation = EINA_TRUE;
-          }
-
-        fetch_transient_for = EINA_TRUE;
-     }
-#endif
    //TODO: Add fetch flag for VKBD
    if ((ec->icccm.name) && (ec->icccm.class))
      {
@@ -2279,27 +2109,7 @@ _rot_hook_eval_fetch_intern(E_Client *ec)
 
         ec->e.fetch.rot.available_rots = 0;
      }
-#if 0
-   if (fetch_transient_for)
-     {
-        Eina_Bool need_fetch = EINA_FALSE;
 
-        if (rot.vkbd)
-          {
-             if (rot.vkbd == bd) need_fetch = EINA_TRUE;
-          }
-        else if ((rot.vkbd_prediction) && (rot.vkbd_prediction == bd))
-          need_fetch = EINA_TRUE;
-
-        if (need_fetch)
-          {
-             if (bd->parent != rot.vkbd_parent)
-               {
-                  ;
-               }
-          }
-     }
-#endif
    if ((ec->e.fetch.rot.need_rotation) &&
        (ec->e.state.rot.type == E_CLIENT_ROTATION_TYPE_NORMAL))
      {
@@ -2318,10 +2128,6 @@ _rot_hook_eval_fetch_intern(E_Client *ec)
              hint = _e_client_rotation_geom_get(ec, ec->zone, ang, &x, &y, &w, &h, &move);
              if (hint)
                {
-#if 0
-                  /// need to change api to _e_comp_x_client_move_resize_send();
-                  _e_client_move_resize_internal(bd, x, y, w, h, EINA_TRUE, move);//?
-#endif
                   e_client_util_move_resize_without_frame(ec, x, y, w, h); //check: this function work correct or not.
                }
           }
@@ -2333,7 +2139,6 @@ _rot_hook_eval_fetch_intern(E_Client *ec)
    if (ec->e.fetch.rot.need_rotation)
      ec->e.fetch.rot.need_rotation = EINA_FALSE;
 
-#endif
    return EINA_TRUE;
 }
 
@@ -2374,7 +2179,6 @@ _rot_intercept_hook_hide(void *d EINA_UNUSED, E_Client *ec)
    return _rot_intercept_hook_hide_intern(ec);
 }
 
-#ifndef HAVE_WAYLAND_ONLY
 static Eina_Bool
 _rot_cb_window_property(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Property *ev)
 {
@@ -2409,7 +2213,6 @@ _rot_cb_window_message(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Eve
 
    return ECORE_CALLBACK_RENEW;
 }
-#endif
 
 static Eina_Bool
 _rot_cb_zone_rotation_change_begin(void *data EINA_UNUSED, int ev_type EINA_UNUSED, E_Event_Zone_Rotation_Change_Begin *ev)
@@ -2444,6 +2247,7 @@ _rot_hook_new_client_post(void *d EINA_UNUSED, E_Client *ec)
 
    evas_object_event_callback_add(ec->frame, EVAS_CALLBACK_SHOW, _rot_cb_evas_show, ec);
 }
+#endif //#ifndef HAVE_WAYLAND_ONLY
 
 /* externally accessible functions */
 /**
@@ -2455,16 +2259,13 @@ _rot_hook_new_client_post(void *d EINA_UNUSED, E_Client *ec)
 EINTERN int
 e_client_rotation_curr_angle_get(const E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
    E_OBJECT_CHECK_RETURN(ec, -1);
    E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, -1);
 
    return ec->e.state.rot.ang.curr;
-#else
-   return -1;
-#endif
 }
 
+#ifndef HAVE_WAYLAND_ONLY
 #undef E_CLIENT_HOOK_APPEND
 #define E_CLIENT_HOOK_APPEND(l, t, cb, d) \
   do                                      \
@@ -2486,6 +2287,7 @@ e_client_rotation_curr_angle_get(const E_Client *ec)
        l = eina_list_append(l, _h);                      \
     }                                                    \
   while (0)
+#endif
 
 EINTERN void
 e_mod_pol_rotation_init(void)
@@ -2497,7 +2299,6 @@ e_mod_pol_rotation_init(void)
                          _rot_cb_window_configure, NULL);
    E_LIST_HANDLER_APPEND(rot_handlers, ECORE_X_EVENT_CLIENT_MESSAGE,
                          _rot_cb_window_message, NULL);
-#endif
    E_LIST_HANDLER_APPEND(rot_handlers, E_EVENT_ZONE_ROTATION_CHANGE_BEGIN,
                          _rot_cb_zone_rotation_change_begin, NULL);
 
@@ -2521,6 +2322,8 @@ e_mod_pol_rotation_init(void)
 
 
    rot_idle_enterer = ecore_idle_enterer_add(_rot_cb_idle_enterer, NULL);
+#endif
+
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_rot_wl_init();
 #endif
@@ -2529,6 +2332,7 @@ e_mod_pol_rotation_init(void)
 EINTERN void
 e_mod_pol_rotation_shutdown(void)
 {
+#ifndef HAVE_WAYLAND_ONLY
    E_FREE_LIST(rot_hooks, e_client_hook_del);
    E_FREE_LIST(rot_handlers, ecore_event_handler_del);
    E_FREE_LIST(rot_intercept_hooks, e_comp_object_intercept_hook_del);
@@ -2538,6 +2342,7 @@ e_mod_pol_rotation_shutdown(void)
          ecore_idle_enterer_del(rot_idle_enterer);
          rot_idle_enterer = NULL;
      }
+#endif
 #ifdef HAVE_WAYLAND_ONLY
   e_mod_rot_wl_shutdown();
 #endif
