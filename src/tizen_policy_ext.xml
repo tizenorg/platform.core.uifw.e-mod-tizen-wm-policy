@@ -7,6 +7,7 @@
      </interface>
      <interface name="tizen_rotation" version="1">
         <enum name="angle">
+          <entry name="none" value = "0"/>
           <entry name="0" value = "1"/>
           <entry name="90" value = "2"/>
           <entry name="180" value = "4"/>
@@ -18,20 +19,25 @@
         <event name="available_angles_done">
             <arg name="angles" type="uint"/>
         </event>
-        <request name="set_preferred_angles">
-            <arg name="angles" type="uint"/>
+        <request name="set_preferred_angle">
+            <arg name="angle" type="uint"/>
         </request>
-        <event name="preferred_angles_done">
-            <arg name="angles" type="uint"/>
+        <event name="preferred_angle_done">
+            <arg name="angle" type="uint"/>
         </event>
         <event name="angle_change">
             <description summary="suggest a angle_change"/>
             <arg name="angle" type="uint"/>
+            <arg name="width" type="int"/>
+            <arg name="height" type="int"/>
             <arg name="serial" type="uint"/>
         </event>
         <request name="ack_angle_change">
             <description summary="ack a  angle_change"/>
             <arg name="serial" type="uint" summary="a serial to angle_change for"/>
+        </request>
+        <request name="set_geometry_hints">
+            <arg name="geometry_hints" type="array"/>
         </request>
      </interface>
 </protocol>

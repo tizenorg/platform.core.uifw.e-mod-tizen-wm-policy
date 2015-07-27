@@ -34,6 +34,7 @@ struct tizen_policy_ext_interface {
 #ifndef TIZEN_ROTATION_ANGLE_ENUM
 #define TIZEN_ROTATION_ANGLE_ENUM
 enum tizen_rotation_angle {
+	TIZEN_ROTATION_ANGLE_NONE = 0,
 	TIZEN_ROTATION_ANGLE_0 = 1,
 	TIZEN_ROTATION_ANGLE_90 = 2,
 	TIZEN_ROTATION_ANGLE_180 = 4,
@@ -50,12 +51,12 @@ struct tizen_rotation_interface {
 				     struct wl_resource *resource,
 				     uint32_t angles);
 	/**
-	 * set_preferred_angles - (none)
-	 * @angles: (none)
+	 * set_preferred_angle - (none)
+	 * @angle: (none)
 	 */
-	void (*set_preferred_angles)(struct wl_client *client,
-				     struct wl_resource *resource,
-				     uint32_t angles);
+	void (*set_preferred_angle)(struct wl_client *client,
+				    struct wl_resource *resource,
+				    uint32_t angle);
 	/**
 	 * ack_angle_change - ack a angle_change
 	 * @serial: a serial to angle_change for
@@ -65,14 +66,21 @@ struct tizen_rotation_interface {
 	void (*ack_angle_change)(struct wl_client *client,
 				 struct wl_resource *resource,
 				 uint32_t serial);
+	/**
+	 * set_geometry_hints - (none)
+	 * @geometry_hints: (none)
+	 */
+	void (*set_geometry_hints)(struct wl_client *client,
+				   struct wl_resource *resource,
+				   struct wl_array *geometry_hints);
 };
 
 #define TIZEN_ROTATION_AVAILABLE_ANGLES_DONE	0
-#define TIZEN_ROTATION_PREFERRED_ANGLES_DONE	1
+#define TIZEN_ROTATION_PREFERRED_ANGLE_DONE	1
 #define TIZEN_ROTATION_ANGLE_CHANGE	2
 
 #define TIZEN_ROTATION_AVAILABLE_ANGLES_DONE_SINCE_VERSION	1
-#define TIZEN_ROTATION_PREFERRED_ANGLES_DONE_SINCE_VERSION	1
+#define TIZEN_ROTATION_PREFERRED_ANGLE_DONE_SINCE_VERSION	1
 #define TIZEN_ROTATION_ANGLE_CHANGE_SINCE_VERSION	1
 
 static inline void
@@ -82,15 +90,15 @@ tizen_rotation_send_available_angles_done(struct wl_resource *resource_, uint32_
 }
 
 static inline void
-tizen_rotation_send_preferred_angles_done(struct wl_resource *resource_, uint32_t angles)
+tizen_rotation_send_preferred_angle_done(struct wl_resource *resource_, uint32_t angle)
 {
-	wl_resource_post_event(resource_, TIZEN_ROTATION_PREFERRED_ANGLES_DONE, angles);
+	wl_resource_post_event(resource_, TIZEN_ROTATION_PREFERRED_ANGLE_DONE, angle);
 }
 
 static inline void
-tizen_rotation_send_angle_change(struct wl_resource *resource_, uint32_t angle, uint32_t serial)
+tizen_rotation_send_angle_change(struct wl_resource *resource_, uint32_t angle, int32_t width, int32_t height, uint32_t serial)
 {
-	wl_resource_post_event(resource_, TIZEN_ROTATION_ANGLE_CHANGE, angle, serial);
+	wl_resource_post_event(resource_, TIZEN_ROTATION_ANGLE_CHANGE, angle, width, height, serial);
 }
 
 #ifdef  __cplusplus
