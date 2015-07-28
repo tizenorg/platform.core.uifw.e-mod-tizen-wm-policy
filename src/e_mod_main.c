@@ -301,7 +301,12 @@ _pol_hook_client_eval_pre_new_client(void *d EINA_UNUSED, E_Client *ec)
    if (e_object_is_del(E_OBJECT(ec))) return;
 
    if (e_mod_pol_client_is_keyboard_sub(ec))
-     ec->placed = 1;
+     {
+        ec->placed = 1;
+        EINA_SAFETY_ON_NULL_RETURN(ec->frame);
+        if (ec->layer != E_LAYER_CLIENT_ABOVE)
+          evas_object_layer_set(ec->frame, E_LAYER_CLIENT_ABOVE);
+     }
 }
 
 static void
