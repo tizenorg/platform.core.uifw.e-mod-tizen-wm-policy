@@ -10,6 +10,11 @@ typedef struct _WS_Shell_Service
    E_Client *ec;
 
    struct wl_resource *resource;
+
+   struct
+     {
+        int layer;
+     }orig;
 } WS_Shell_Service;
 
 typedef struct _WS_Shell_Region
@@ -117,6 +122,39 @@ static const struct tws_region_interface _e_tizen_ws_shell_region_interface =
    _e_tizen_ws_shell_region_cb_subtract,
 };
 
+static void
+_e_tizen_ws_shell_service_register_handle(WS_Shell_Service *service)
+{
+   EINA_SAFETY_ON_NULL_RETURN(service);
+   EINA_SAFETY_ON_NULL_RETURN(service->ec);
+
+   switch (service->role)
+     {
+      case E_TIZEN_WS_SHELL_SERVICE_ROLE_TVSERVICE:
+         service->orig.layer = service->ec->layer;
+         evas_object_layer_set(service->ec->frame, E_LAYER_CLIENT_BELOW);
+         break;
+      default:
+         break;
+     }
+}
+
+static void
+_e_tizen_ws_shell_service_unregister_handle(WS_Shell_Service *service)
+{
+   EINA_SAFETY_ON_NULL_RETURN(service);
+   EINA_SAFETY_ON_NULL_RETURN(service->ec);
+
+   switch (service->role)
+     {
+      case E_TIZEN_WS_SHELL_SERVICE_ROLE_TVSERVICE:
+         evas_object_layer_set(service->ec->frame, service->orig.layer);
+         break;
+      default:
+         break;
+     }
+}
+
 static int
 _e_tizen_ws_shell_service_role_get(const char *name)
 {
@@ -132,6 +170,8 @@ _e_tizen_ws_shell_service_role_get(const char *name)
      role = E_TIZEN_WS_SHELL_SERVICE_ROLE_LOCKSCREEN;
    else if (!e_util_strcmp(name, "indicator"))
      role = E_TIZEN_WS_SHELL_SERVICE_ROLE_INDICATOR;
+   else if (!e_util_strcmp(name, "tvservice"))
+     role = E_TIZEN_WS_SHELL_SERVICE_ROLE_TVSERVICE;
 
    return role;
 }
@@ -148,7 +188,8 @@ _e_tizen_ws_shell_service_destroy(struct wl_resource *resource)
    service = wl_resource_get_user_data(resource);
    if (!service) return;
 
-   /* TODO: do something for removed service */
+   /* handle deregistered service */
+   _e_tizen_ws_shell_service_unregister_handle(service);
 
    /* send service unregister */
    EINA_LIST_FOREACH(wssh_ifaces, l, res)
@@ -315,7 +356,8 @@ _e_tizen_ws_shell_cb_service_create(struct wl_client *client,
 
    wssh_services[role] = service;
 
-   /* TODO: do something for new service  */
+   /* handle newly registered service */
+   _e_tizen_ws_shell_service_register_handle(service);
 
    /* send service register */
    EINA_LIST_FOREACH(wssh_ifaces, l, res)
