@@ -23,12 +23,13 @@ static Eina_Bool   _pol_client_normal_check(E_Client *ec);
 static void        _pol_client_update(Pol_Client *pc);
 static void        _pol_client_launcher_set(Pol_Client *pc);
 
-static void        _pol_hook_client_eval_pre_new_client(void *d EINA_UNUSED, E_Client *ec);
-static void        _pol_hook_client_eval_pre_fetch(void *d EINA_UNUSED, E_Client *ec);
-static void        _pol_hook_client_eval_pre_post_fetch(void *d EINA_UNUSED, E_Client *ec);
-static void        _pol_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec);
-static void        _pol_hook_client_desk_set(void *d EINA_UNUSED, E_Client *ec);
-static void        _pol_hook_eval_end(void *d EINA_UNUSED, E_Client *ec);
+static void        _pol_cb_hook_client_eval_pre_new_client(void *d EINA_UNUSED, E_Client *ec);
+static void        _pol_cb_hook_client_eval_pre_fetch(void *d EINA_UNUSED, E_Client *ec);
+static void        _pol_cb_hook_client_eval_pre_post_fetch(void *d EINA_UNUSED, E_Client *ec);
+static void        _pol_cb_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec);
+static void        _pol_cb_hook_client_desk_set(void *d EINA_UNUSED, E_Client *ec);
+static void        _pol_cb_hook_eval_end(void *d EINA_UNUSED, E_Client *ec);
+static void        _pol_cb_hook_client_fullscreen_pre(void* data EINA_UNUSED, E_Client *ec);
 
 static void        _pol_cb_desk_data_free(void *data);
 static void        _pol_cb_client_data_free(void *data);
@@ -296,7 +297,7 @@ _pol_client_update(Pol_Client *pc)
 }
 
 static void
-_pol_hook_client_eval_pre_new_client(void *d EINA_UNUSED, E_Client *ec)
+_pol_cb_hook_client_eval_pre_new_client(void *d EINA_UNUSED, E_Client *ec)
 {
    if (e_object_is_del(E_OBJECT(ec))) return;
 
@@ -310,7 +311,7 @@ _pol_hook_client_eval_pre_new_client(void *d EINA_UNUSED, E_Client *ec)
 }
 
 static void
-_pol_hook_client_eval_pre_fetch(void *d EINA_UNUSED, E_Client *ec)
+_pol_cb_hook_client_eval_pre_fetch(void *d EINA_UNUSED, E_Client *ec)
 {
    if (e_object_is_del(E_OBJECT(ec))) return;
 
@@ -319,7 +320,7 @@ _pol_hook_client_eval_pre_fetch(void *d EINA_UNUSED, E_Client *ec)
 }
 
 static void
-_pol_hook_client_eval_pre_post_fetch(void *d EINA_UNUSED, E_Client *ec)
+_pol_cb_hook_client_eval_pre_post_fetch(void *d EINA_UNUSED, E_Client *ec)
 {
    if (e_object_is_del(E_OBJECT(ec))) return;
 
@@ -328,7 +329,7 @@ _pol_hook_client_eval_pre_post_fetch(void *d EINA_UNUSED, E_Client *ec)
 }
 
 static void
-_pol_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec)
+_pol_cb_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec)
 {
    Pol_Client *pc;
    Pol_Desk *pd;
@@ -383,7 +384,7 @@ _pol_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec)
 }
 
 static void
-_pol_hook_client_desk_set(void *d EINA_UNUSED, E_Client *ec)
+_pol_cb_hook_client_desk_set(void *d EINA_UNUSED, E_Client *ec)
 {
    Pol_Client *pc;
    Pol_Desk *pd;
@@ -403,14 +404,14 @@ _pol_hook_client_desk_set(void *d EINA_UNUSED, E_Client *ec)
 }
 
 static void
-_pol_hook_eval_end(void *d EINA_UNUSED, E_Client *ec)
+_pol_cb_hook_eval_end(void *d EINA_UNUSED, E_Client *ec)
 {
    /* calculate e_client visibility */
    e_mod_pol_visibility_calc();
 }
 
 static void
-_pol_hook_client_fullscreen_pre(void* data EINA_UNUSED, E_Client *ec)
+_pol_cb_hook_client_fullscreen_pre(void* data EINA_UNUSED, E_Client *ec)
 {
 
    if (e_object_is_del(E_OBJECT(ec))) return;
@@ -899,17 +900,6 @@ e_mod_pol_client_is_volume(E_Client *ec)
     }                                     \
   while (0)
 
-#undef E_COMP_OBJECT_INTERCEPT_HOOK_APPEND
-#define E_COMP_OBJECT_INTERCEPT_HOOK_APPEND(l, t, cb, d) \
-  do                                                     \
-    {                                                    \
-       E_Comp_Object_Intercept_Hook *_h;                 \
-       _h = e_comp_object_intercept_hook_add(t, cb, d);  \
-       assert(_h);                                       \
-       l = eina_list_append(l, _h);                      \
-    }                                                    \
-  while (0)
-
 EAPI void *
 e_modapi_init(E_Module *m)
 {
@@ -921,6 +911,8 @@ e_modapi_init(E_Module *m)
    char buf[PATH_MAX];
 
    mod = E_NEW(Mod, 1);
+   EINA_SAFETY_ON_NULL_RETURN_VAL(mod, NULL);
+
    mod->module = m;
    _pol_mod = mod;
 
@@ -949,7 +941,6 @@ e_modapi_init(E_Module *m)
 
    EINA_LIST_FOREACH(e_comp->zones, l, zone)
      {
-        //Eina_Bool home_add = EINA_FALSE;
         n = zone->desk_y_count * zone->desk_x_count;
         for (i = 0; i < n; i++)
           {
@@ -959,64 +950,34 @@ e_modapi_init(E_Module *m)
                                                  zone->desks[i]->x,
                                                  zone->desks[i]->y);
              if (d)
-               {
-                  e_mod_pol_desk_add(zone->desks[i]);
-                  //home_add = EINA_TRUE;
-               }
+               e_mod_pol_desk_add(zone->desks[i]);
           }
-
-        /* FIXME: should consider the case that illume-home module
-         * is not loaded yet and make it configurable.
-         * and also, this code will be enabled when e_policy stuff lands in e.
-         */
-        //if (home_add)
-        //  e_policy_zone_home_add_request(zone);
      }
 
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_ADD,
-                         _pol_cb_zone_add, NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_DEL,
-                         _pol_cb_zone_del, NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_MOVE_RESIZE,
-                         _pol_cb_zone_move_resize, NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_DESK_COUNT_SET,
-                         _pol_cb_zone_desk_count_set, NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_DESK_SHOW,
-                         _pol_cb_desk_show, NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_REMOVE,
-                         _pol_cb_client_remove, NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_ADD,
-                         _pol_cb_client_add, NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_MOVE,
-                         _pol_cb_client_move, NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_RESIZE,
-                         _pol_cb_client_resize, NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_STACK,
-                         _pol_cb_client_stack, NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_PROPERTY,
-                         _pol_cb_client_property, NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_ADD,                       _pol_cb_zone_add,                        NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_DEL,                       _pol_cb_zone_del,                        NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_MOVE_RESIZE,               _pol_cb_zone_move_resize,                NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_DESK_COUNT_SET,            _pol_cb_zone_desk_count_set,             NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_DESK_SHOW,                      _pol_cb_desk_show,                       NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_REMOVE,                  _pol_cb_client_remove,                   NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_ADD,                     _pol_cb_client_add,                      NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_MOVE,                    _pol_cb_client_move,                     NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_RESIZE,                  _pol_cb_client_resize,                   NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_STACK,                   _pol_cb_client_stack,                    NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_PROPERTY,                _pol_cb_client_property,                 NULL);
 
 #ifndef HAVE_WAYLAND_ONLY
-   E_LIST_HANDLER_APPEND(handlers, ECORE_X_EVENT_WINDOW_PROPERTY,
-                         _pol_cb_window_property, NULL);
-   E_LIST_HANDLER_APPEND(handlers, ECORE_X_EVENT_WINDOW_CONFIGURE_REQUEST,
-                         _pol_cb_window_configure_request, NULL);
+   E_LIST_HANDLER_APPEND(handlers, ECORE_X_EVENT_WINDOW_PROPERTY,          _pol_cb_window_property,                 NULL);
+   E_LIST_HANDLER_APPEND(handlers, ECORE_X_EVENT_WINDOW_CONFIGURE_REQUEST, _pol_cb_window_configure_request,        NULL);
 #endif
 
-   E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_EVAL_PRE_NEW_CLIENT,
-                        _pol_hook_client_eval_pre_new_client, NULL);
-   E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_EVAL_PRE_FETCH,
-                        _pol_hook_client_eval_pre_fetch, NULL);
-   E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_EVAL_PRE_POST_FETCH,
-                        _pol_hook_client_eval_pre_post_fetch, NULL);
-   E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_EVAL_POST_FETCH,
-                        _pol_hook_client_eval_post_fetch, NULL);
-   E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_DESK_SET,
-                        _pol_hook_client_desk_set, NULL);
-   E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_EVAL_END,
-                        _pol_hook_eval_end, NULL);
-   E_CLIENT_HOOK_APPEND(hooks, E_CLIENT_HOOK_FULLSCREEN_PRE,
-                        _pol_hook_client_fullscreen_pre, NULL);
+   E_CLIENT_HOOK_APPEND(hooks,     E_CLIENT_HOOK_EVAL_PRE_NEW_CLIENT,      _pol_cb_hook_client_eval_pre_new_client, NULL);
+   E_CLIENT_HOOK_APPEND(hooks,     E_CLIENT_HOOK_EVAL_PRE_FETCH,           _pol_cb_hook_client_eval_pre_fetch,      NULL);
+   E_CLIENT_HOOK_APPEND(hooks,     E_CLIENT_HOOK_EVAL_PRE_POST_FETCH,      _pol_cb_hook_client_eval_pre_post_fetch, NULL);
+   E_CLIENT_HOOK_APPEND(hooks,     E_CLIENT_HOOK_EVAL_POST_FETCH,          _pol_cb_hook_client_eval_post_fetch,     NULL);
+   E_CLIENT_HOOK_APPEND(hooks,     E_CLIENT_HOOK_DESK_SET,                 _pol_cb_hook_client_desk_set,            NULL);
+   E_CLIENT_HOOK_APPEND(hooks,     E_CLIENT_HOOK_EVAL_END,                 _pol_cb_hook_eval_end,                   NULL);
+   E_CLIENT_HOOK_APPEND(hooks,     E_CLIENT_HOOK_FULLSCREEN_PRE,           _pol_cb_hook_client_fullscreen_pre,      NULL);
 
    e_mod_pol_rotation_init();
 
