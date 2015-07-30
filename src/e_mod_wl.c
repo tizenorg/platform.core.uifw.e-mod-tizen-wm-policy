@@ -1,4 +1,5 @@
 #include "e_mod_wl.h"
+#include "e_mod_main.h"
 #include "e_mod_notification.h"
 
 #include <wayland-server.h>
@@ -114,59 +115,25 @@ static void
 _pol_surface_parent_set(E_Client *ec, struct wl_resource *parent_resource)
 {
    E_Pixmap *pp;
-   E_Client *pc;
+   E_Client *pc = NULL;
    Ecore_Window pwin = 0;
 
-   if (!parent_resource)
+   if (parent_resource)
      {
-        ec->icccm.fetch.transient_for = EINA_FALSE;
-        ec->icccm.transient_for = 0;
-        if (ec->parent)
+        if (!(pp = wl_resource_get_user_data(parent_resource)))
           {
-             ec->parent->transients =
-                eina_list_remove(ec->parent->transients, ec);
-             if (ec->parent->modal == ec) ec->parent->modal = NULL;
-             ec->parent = NULL;
+             ERR("Could not get parent resource pixmap");
+             return;
           }
-        return;
-     }
-   else if (!(pp = wl_resource_get_user_data(parent_resource)))
-     {
-        ERR("Could not get parent resource pixmap");
-        return;
-     }
 
-   pwin = e_pixmap_window_get(pp);
+        pwin = e_pixmap_window_get(pp);
 
-   /* find the parent client */
-   if (!(pc = e_pixmap_client_get(pp)))
-     pc = e_pixmap_find_client(E_PIXMAP_TYPE_WL, pwin);
-
-   e_pixmap_parent_window_set(ec->pixmap, pwin);
-
-   /* If we already have a parent, remove it */
-   if (ec->parent)
-     {
-        if (pc != ec->parent)
-          {
-             ec->parent->transients =
-                eina_list_remove(ec->parent->transients, ec);
-             if (ec->parent->modal == ec) ec->parent->modal = NULL;
-             ec->parent = NULL;
-          }
-        else
-          pc = NULL;
+        /* find the parent client */
+        if (!(pc = e_pixmap_client_get(pp)))
+          pc = e_pixmap_find_client(E_PIXMAP_TYPE_WL, pwin);
      }
 
-   if ((pc) && (pc != ec) &&
-       (eina_list_data_find(pc->transients, ec) != ec))
-     {
-        pc->transients = eina_list_append(pc->transients, ec);
-        ec->parent = pc;
-     }
-
-   ec->icccm.fetch.transient_for = EINA_TRUE;
-   ec->icccm.transient_for = pwin;
+   e_mod_pol_stack_transient_for_set(ec, pc);
 }
 
 static void

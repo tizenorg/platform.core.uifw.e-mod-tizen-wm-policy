@@ -1,4 +1,5 @@
 #include "e_mod_ws_shell.h"
+#include "e_mod_main.h"
 
 #include <wayland-server.h>
 #include "tizen_ws_shell-server-protocol.h"
@@ -25,10 +26,10 @@ typedef struct _WS_Shell_Region
    struct wl_resource *resource;
 } WS_Shell_Region;
 
-typedef struct _WS_Shell_Quickpanel
+typedef struct _WS_Shell_Subscriber
 {
    E_Client *ec;
-} WS_Shell_Quickpanel;
+} WS_Shell_Subscriber;
 
 #define SERVICE_FOREACH(service_idx)                   \
    for (service_idx = 0;                               \
@@ -131,9 +132,6 @@ _e_tizen_ws_shell_service_register_handle(WS_Shell_Service *service)
    switch (service->role)
      {
       case E_TIZEN_WS_SHELL_SERVICE_ROLE_TVSERVICE:
-         service->orig.layer = service->ec->layer;
-         evas_object_layer_set(service->ec->frame, E_LAYER_CLIENT_BELOW);
-         break;
       default:
          break;
      }
@@ -147,9 +145,6 @@ _e_tizen_ws_shell_service_unregister_handle(WS_Shell_Service *service)
 
    switch (service->role)
      {
-      case E_TIZEN_WS_SHELL_SERVICE_ROLE_TVSERVICE:
-         evas_object_layer_set(service->ec->frame, service->orig.layer);
-         break;
       default:
          break;
      }
@@ -238,7 +233,7 @@ static const struct tws_service_interface _e_tizen_ws_shell_service_interface =
 static void
 _e_tizen_ws_shell_quickpanel_destroy(struct wl_resource *resource)
 {
-   WS_Shell_Quickpanel *quickpanel = NULL;
+   WS_Shell_Subscriber *quickpanel = NULL;
 
    quickpanel = wl_resource_get_user_data(resource);
    if (quickpanel)
@@ -287,6 +282,61 @@ static const struct tws_quickpanel_interface _e_tizen_ws_shell_quickpanel_interf
    _e_tizen_ws_shell_quickpanel_cb_hide,
    _e_tizen_ws_shell_quickpanel_cb_enable,
    _e_tizen_ws_shell_quickpanel_cb_disable,
+};
+
+static void
+_e_tizen_ws_shell_tvsrv_destroy(struct wl_resource *resource)
+{
+   WS_Shell_Subscriber *tvapp = NULL;
+   WS_Shell_Service *tvsrv = NULL;
+
+   tvapp = wl_resource_get_user_data(resource);
+   EINA_SAFETY_ON_NULL_RETURN(tvapp);
+
+   if ((tvsrv = wssh_services[E_TIZEN_WS_SHELL_SERVICE_ROLE_TVSERVICE]))
+     {
+        if ((tvapp->ec) && (tvsrv->ec) &&
+            (tvsrv->ec == tvapp->ec->parent))
+          {
+             e_mod_pol_stack_transient_for_set(tvapp->ec, NULL);
+          }
+     }
+
+   if (tvapp)
+     E_FREE(tvapp);
+}
+
+static void
+_e_tizen_ws_shell_tvsrv_cb_release(struct wl_client *client EINA_UNUSED,
+                                   struct wl_resource *resource EINA_UNUSED)
+{
+   wl_resource_destroy(resource);
+}
+
+static void
+_e_tizen_ws_shell_tvsrv_cb_bind(struct wl_client *client,
+                                struct wl_resource *resource)
+{
+   WS_Shell_Subscriber *tvapp = NULL;
+   WS_Shell_Service *tvsrv = NULL;
+
+   tvapp = wl_resource_get_user_data(resource);
+   if (!tvapp) return;
+
+   if (!(tvsrv = wssh_services[E_TIZEN_WS_SHELL_SERVICE_ROLE_TVSERVICE]))
+     return;
+
+   if (!tvapp->ec || !tvsrv->ec) return;
+   if (tvapp->ec->parent == tvsrv->ec) return;
+
+   e_mod_pol_stack_transient_for_set(tvapp->ec, tvsrv->ec);
+   evas_object_stack_above(tvapp->ec->frame, tvsrv->ec->frame);
+}
+
+static const struct tws_tvsrv_interface _e_tizen_ws_shell_tvsrv_interface =
+{
+   _e_tizen_ws_shell_tvsrv_cb_release,
+   _e_tizen_ws_shell_tvsrv_cb_bind,
 };
 
 static void
@@ -407,7 +457,7 @@ _e_tizen_ws_shell_cb_quickpanel_get(struct wl_client *client,
 {
    int version = wl_resource_get_version(tizen_ws_shell);
    struct wl_resource *res, *surface_resource;
-   WS_Shell_Quickpanel *quickpanel = NULL;
+   WS_Shell_Subscriber *quickpanel = NULL;
    E_Client *ec = NULL;
 
    if (!(res = wl_resource_create(client, &tws_quickpanel_interface, version, id)))
@@ -420,7 +470,7 @@ _e_tizen_ws_shell_cb_quickpanel_get(struct wl_client *client,
    surface_resource = wl_client_get_object(client, surface_id);
    ec = e_pixmap_find_client(E_PIXMAP_TYPE_WL, (uintptr_t)surface_resource);
 
-   quickpanel = E_NEW(WS_Shell_Quickpanel, 1);
+   quickpanel = E_NEW(WS_Shell_Subscriber, 1);
    quickpanel->ec = ec;
 
    wl_resource_set_implementation(res,
@@ -429,12 +479,42 @@ _e_tizen_ws_shell_cb_quickpanel_get(struct wl_client *client,
                                   _e_tizen_ws_shell_quickpanel_destroy);
 }
 
+static void
+_e_tizen_ws_shell_cb_tvsrv_get(struct wl_client *client,
+                               struct wl_resource *tizen_ws_shell,
+                               uint32_t id,
+                               uint32_t surface_id)
+{
+   int version = wl_resource_get_version(tizen_ws_shell);
+   struct wl_resource *res, *surface_resource;
+   WS_Shell_Subscriber *tvapp = NULL;
+   E_Client *ec = NULL;
+
+   if (!(res = wl_resource_create(client, &tws_tvsrv_interface, version, id)))
+     {
+        ERR("Could not create tws_tvsrv resource: %m");
+        wl_client_post_no_memory(client);
+        return;
+     }
+
+   surface_resource = wl_client_get_object(client, surface_id);
+   ec = e_pixmap_find_client(E_PIXMAP_TYPE_WL, (uintptr_t)surface_resource);
+
+   tvapp = E_NEW(WS_Shell_Subscriber, 1);
+   tvapp->ec = ec;
+
+   wl_resource_set_implementation(res,
+                                  &_e_tizen_ws_shell_tvsrv_interface,
+                                  tvapp,
+                                  _e_tizen_ws_shell_tvsrv_destroy);
+}
 static const struct tizen_ws_shell_interface _e_tizen_ws_shell_interface =
 {
    _e_tizen_ws_shell_cb_destroy,
    _e_tizen_ws_shell_cb_service_create,
    _e_tizen_ws_shell_cb_region_create,
    _e_tizen_ws_shell_cb_quickpanel_get,
+   _e_tizen_ws_shell_cb_tvsrv_get,
 };
 
 static void
