@@ -7,7 +7,7 @@
 
 typedef struct _Pol_Wayland
 {
-   E_Pixmap *ep;
+   E_Pixmap *cp;
    Eina_List *visibility_list;
    Eina_List *position_list;
 } Pol_Wayland;
@@ -52,20 +52,20 @@ static Eina_List *_handlers = NULL;
 static Eina_List *_hooks = NULL;
 
 static Pol_Wayland*
-_pol_wayland_get_info(E_Pixmap *ep)
+_pol_wayland_get_info(E_Pixmap *cp)
 {
    Pol_Wayland *pn;
 
    EINA_SAFETY_ON_NULL_RETURN_VAL(hash_pol_wayland, NULL);
 
-   pn = eina_hash_find(hash_pol_wayland, &ep);
+   pn = eina_hash_find(hash_pol_wayland, &cp);
    if (!pn)
      {
         pn = E_NEW(Pol_Wayland, 1);
         EINA_SAFETY_ON_NULL_RETURN_VAL(pn, NULL);
 
-        pn->ep = ep;
-        eina_hash_add(hash_pol_wayland, &ep, pn);
+        pn->cp = cp;
+        eina_hash_add(hash_pol_wayland, &cp, pn);
      }
 
    return pn;
@@ -139,13 +139,13 @@ _pol_surface_parent_set(E_Client *ec, struct wl_resource *parent_resource)
 static void
 _e_tizen_visibility_destroy(struct wl_resource *resource)
 {
-   E_Pixmap *ep;
+   E_Pixmap *cp;
    Pol_Wayland *pn;
 
-   ep = wl_resource_get_user_data(resource);
-   EINA_SAFETY_ON_NULL_RETURN(ep);
+   cp = wl_resource_get_user_data(resource);
+   EINA_SAFETY_ON_NULL_RETURN(cp);
 
-   pn = _pol_wayland_get_info(ep);
+   pn = _pol_wayland_get_info(cp);
    EINA_SAFETY_ON_NULL_RETURN(pn);
 
    pn->visibility_list = eina_list_remove(pn->visibility_list, resource);
@@ -165,13 +165,13 @@ static const struct tizen_visibility_interface _e_tizen_visibility_interface =
 static void
 _e_tizen_position_destroy(struct wl_resource *resource)
 {
-   E_Pixmap *ep;
+   E_Pixmap *cp;
    Pol_Wayland *pn;
 
-   ep = wl_resource_get_user_data(resource);
-   EINA_SAFETY_ON_NULL_RETURN(ep);
+   cp = wl_resource_get_user_data(resource);
+   EINA_SAFETY_ON_NULL_RETURN(cp);
 
-   pn = _pol_wayland_get_info(ep);
+   pn = _pol_wayland_get_info(cp);
    EINA_SAFETY_ON_NULL_RETURN(pn);
 
    pn->position_list = eina_list_remove(pn->position_list, resource);
@@ -188,13 +188,13 @@ _e_tizen_position_cb_set(struct wl_client *client,
                          struct wl_resource *tizen_position,
                          int32_t x, int32_t y)
 {
-   E_Pixmap *ep;
+   E_Pixmap *cp;
    E_Client *ec;
 
-   ep = wl_resource_get_user_data(tizen_position);
-   EINA_SAFETY_ON_NULL_RETURN(ep);
+   cp = wl_resource_get_user_data(tizen_position);
+   EINA_SAFETY_ON_NULL_RETURN(cp);
 
-   ec = e_pixmap_client_get(ep);
+   ec = e_pixmap_client_get(cp);
    EINA_SAFETY_ON_NULL_RETURN(ec);
    EINA_SAFETY_ON_NULL_RETURN(ec->frame);
    
@@ -217,13 +217,13 @@ _e_tizen_policy_cb_visibility_get(struct wl_client *client, struct wl_resource *
 {
    int version = wl_resource_get_version(policy);
    struct wl_resource *res;
-   E_Pixmap *ep;
+   E_Pixmap *cp;
    Pol_Wayland *pn;
 
-   ep = wl_resource_get_user_data(surface_resource);
-   EINA_SAFETY_ON_NULL_RETURN(ep);
+   cp = wl_resource_get_user_data(surface_resource);
+   EINA_SAFETY_ON_NULL_RETURN(cp);
 
-   pn = _pol_wayland_get_info(ep);
+   pn = _pol_wayland_get_info(cp);
    EINA_SAFETY_ON_NULL_RETURN(pn);
 
    res = wl_resource_create(client, &tizen_visibility_interface, version, id);
@@ -236,7 +236,7 @@ _e_tizen_policy_cb_visibility_get(struct wl_client *client, struct wl_resource *
    pn->visibility_list = eina_list_append(pn->visibility_list, res);
 
    wl_resource_set_implementation(res, &_e_tizen_visibility_interface,
-                                  ep, _e_tizen_visibility_destroy);
+                                  cp, _e_tizen_visibility_destroy);
 }
 
 static void
@@ -244,13 +244,13 @@ _e_tizen_policy_cb_position_get(struct wl_client *client, struct wl_resource *ti
 {
    int version = wl_resource_get_version(tizen_policy);
    struct wl_resource *res;
-   E_Pixmap *ep;
+   E_Pixmap *cp;
    Pol_Wayland *pn;
 
-   ep = wl_resource_get_user_data(surface_resource);
-   EINA_SAFETY_ON_NULL_RETURN(ep);
+   cp = wl_resource_get_user_data(surface_resource);
+   EINA_SAFETY_ON_NULL_RETURN(cp);
 
-   pn = _pol_wayland_get_info(ep);
+   pn = _pol_wayland_get_info(cp);
    EINA_SAFETY_ON_NULL_RETURN(pn);
 
    res = wl_resource_create(client, &tizen_position_interface, version, id);
@@ -263,7 +263,7 @@ _e_tizen_policy_cb_position_get(struct wl_client *client, struct wl_resource *ti
    pn->position_list = eina_list_append(pn->position_list, res);
    wl_resource_set_implementation(res,
                                   &_e_tizen_position_interface,
-                                  ep,
+                                  cp,
                                   _e_tizen_position_destroy);
 
 }
@@ -273,13 +273,13 @@ _e_tizen_policy_cb_activate(struct wl_client *client, struct wl_resource *policy
 {
    int version = wl_resource_get_version(policy);
    struct wl_resource *res;
-   E_Pixmap *ep;
+   E_Pixmap *cp;
    E_Client *ec;
 
-   ep = wl_resource_get_user_data(surface_resource);
-   EINA_SAFETY_ON_NULL_RETURN(ep);
+   cp = wl_resource_get_user_data(surface_resource);
+   EINA_SAFETY_ON_NULL_RETURN(cp);
 
-   ec = e_pixmap_client_get(ep);
+   ec = e_pixmap_client_get(cp);
    EINA_SAFETY_ON_NULL_RETURN(ec);
    EINA_SAFETY_ON_NULL_RETURN(ec->frame);
 
@@ -292,13 +292,13 @@ _e_tizen_policy_cb_activate(struct wl_client *client, struct wl_resource *policy
 static void
 _e_tizen_policy_cb_raise(struct wl_client *client, struct wl_resource *policy, struct wl_resource *surface_resource)
 {
-   E_Pixmap *ep;
+   E_Pixmap *cp;
    E_Client *ec = NULL;
 
-   ep = wl_resource_get_user_data(surface_resource);
-   EINA_SAFETY_ON_NULL_RETURN(ep);
+   cp = wl_resource_get_user_data(surface_resource);
+   EINA_SAFETY_ON_NULL_RETURN(cp);
 
-   ec = e_pixmap_client_get(ep);
+   ec = e_pixmap_client_get(cp);
    EINA_SAFETY_ON_NULL_RETURN(ec);
    EINA_SAFETY_ON_NULL_RETURN(ec->frame);
 
@@ -311,13 +311,13 @@ _e_tizen_policy_cb_raise(struct wl_client *client, struct wl_resource *policy, s
 static void
 _e_tizen_policy_cb_lower(struct wl_client *client, struct wl_resource *policy, struct wl_resource *surface_resource)
 {
-   E_Pixmap *ep;
+   E_Pixmap *cp;
    E_Client *ec, *below = NULL;
 
-   ep = wl_resource_get_user_data(surface_resource);
-   EINA_SAFETY_ON_NULL_RETURN(ep);
+   cp = wl_resource_get_user_data(surface_resource);
+   EINA_SAFETY_ON_NULL_RETURN(cp);
 
-   ec = e_pixmap_client_get(ep);
+   ec = e_pixmap_client_get(cp);
    EINA_SAFETY_ON_NULL_RETURN(ec);
    EINA_SAFETY_ON_NULL_RETURN(ec->frame);
 
@@ -339,14 +339,14 @@ _e_tizen_policy_cb_lower(struct wl_client *client, struct wl_resource *policy, s
 static void
 _e_tizen_policy_cb_focus_skip_set(struct wl_client *client, struct wl_resource *policy, struct wl_resource *surface_resource)
 {
-   E_Pixmap *ep;
+   E_Pixmap *cp;
    E_Client *ec;
    E_Comp_Wl_Client_Data *cdata;
 
-   ep = wl_resource_get_user_data(surface_resource);
-   EINA_SAFETY_ON_NULL_RETURN(ep);
+   cp = wl_resource_get_user_data(surface_resource);
+   EINA_SAFETY_ON_NULL_RETURN(cp);
 
-   ec = e_pixmap_client_get(ep);
+   ec = e_pixmap_client_get(cp);
    if (ec)
      {
         if (ec->icccm.accepts_focus)
@@ -357,7 +357,7 @@ _e_tizen_policy_cb_focus_skip_set(struct wl_client *client, struct wl_resource *
      }
    else
      {
-        cdata = e_pixmap_cdata_get(ep);
+        cdata = e_pixmap_cdata_get(cp);
         EINA_SAFETY_ON_NULL_RETURN(cdata);
         cdata->accepts_focus = 0;
      }
@@ -366,14 +366,14 @@ _e_tizen_policy_cb_focus_skip_set(struct wl_client *client, struct wl_resource *
 static void
 _e_tizen_policy_cb_focus_skip_unset(struct wl_client *client, struct wl_resource *policy, struct wl_resource *surface_resource)
 {
-   E_Pixmap *ep;
+   E_Pixmap *cp;
    E_Client *ec;
    E_Comp_Wl_Client_Data *cdata;
 
-   ep = wl_resource_get_user_data(surface_resource);
-   EINA_SAFETY_ON_NULL_RETURN(ep);
+   cp = wl_resource_get_user_data(surface_resource);
+   EINA_SAFETY_ON_NULL_RETURN(cp);
 
-   ec = e_pixmap_client_get(ep);
+   ec = e_pixmap_client_get(cp);
    if (ec)
      {
         if (!ec->icccm.accepts_focus)
@@ -384,7 +384,7 @@ _e_tizen_policy_cb_focus_skip_unset(struct wl_client *client, struct wl_resource
      }
    else
      {
-        cdata = e_pixmap_cdata_get(ep);
+        cdata = e_pixmap_cdata_get(cp);
         EINA_SAFETY_ON_NULL_RETURN(cdata);
         cdata->accepts_focus = 1;
      }
@@ -393,13 +393,13 @@ _e_tizen_policy_cb_focus_skip_unset(struct wl_client *client, struct wl_resource
 static void
 _e_tizen_policy_cb_role_set(struct wl_client *client EINA_UNUSED, struct wl_resource *tizen_policy EINA_UNUSED, struct wl_resource *surface_resource, const char *role)
 {
-   E_Pixmap *ep;
+   E_Pixmap *cp;
    E_Client *ec;
 
-   ep = wl_resource_get_user_data(surface_resource);
-   EINA_SAFETY_ON_NULL_RETURN(ep);
+   cp = wl_resource_get_user_data(surface_resource);
+   EINA_SAFETY_ON_NULL_RETURN(cp);
 
-   ec = e_pixmap_client_get(ep);
+   ec = e_pixmap_client_get(cp);
    EINA_SAFETY_ON_NULL_RETURN(ec);
 
    eina_stringshare_replace(&ec->icccm.window_role, role);
@@ -409,15 +409,15 @@ _e_tizen_policy_cb_role_set(struct wl_client *client EINA_UNUSED, struct wl_reso
 static void
 _e_tizen_policy_cb_conformant_set(struct wl_client *client, struct wl_resource *policy, struct wl_resource *surface_resource)
 {
-   E_Pixmap *ep;
+   E_Pixmap *cp;
    E_Client *ec;
    E_Comp_Wl_Client_Data *cdata;
    Policy_Conformant *pn;
 
-   ep = wl_resource_get_user_data(surface_resource);
-   EINA_SAFETY_ON_NULL_RETURN(ep);
+   cp = wl_resource_get_user_data(surface_resource);
+   EINA_SAFETY_ON_NULL_RETURN(cp);
 
-   ec = e_pixmap_client_get(ep);
+   ec = e_pixmap_client_get(cp);
    if (ec)
      {
         if (!ec->comp_data->conformant)
@@ -428,7 +428,7 @@ _e_tizen_policy_cb_conformant_set(struct wl_client *client, struct wl_resource *
      }
    else
      {
-        cdata = e_pixmap_cdata_get(ep);
+        cdata = e_pixmap_cdata_get(cp);
         EINA_SAFETY_ON_NULL_RETURN(cdata);
         cdata->conformant = 1;
      }
@@ -448,15 +448,15 @@ _e_tizen_policy_cb_conformant_set(struct wl_client *client, struct wl_resource *
 static void
 _e_tizen_policy_cb_conformant_unset(struct wl_client *client, struct wl_resource *policy, struct wl_resource *surface_resource)
 {
-   E_Pixmap *ep;
+   E_Pixmap *cp;
    E_Client *ec;
    E_Comp_Wl_Client_Data *cdata;
    Policy_Conformant *pn;
 
-   ep = wl_resource_get_user_data(surface_resource);
-   EINA_SAFETY_ON_NULL_RETURN(ep);
+   cp = wl_resource_get_user_data(surface_resource);
+   EINA_SAFETY_ON_NULL_RETURN(cp);
 
-   ec = e_pixmap_client_get(ep);
+   ec = e_pixmap_client_get(cp);
    if (ec)
      {
         if (ec->comp_data->conformant)
@@ -467,7 +467,7 @@ _e_tizen_policy_cb_conformant_unset(struct wl_client *client, struct wl_resource
      }
    else
      {
-        cdata = e_pixmap_cdata_get(ep);
+        cdata = e_pixmap_cdata_get(cp);
         EINA_SAFETY_ON_NULL_RETURN(cdata);
         cdata->conformant = 0;
      }
@@ -480,23 +480,23 @@ _e_tizen_policy_cb_conformant_unset(struct wl_client *client, struct wl_resource
 static void
 _e_tizen_policy_cb_conformant_get(struct wl_client *client, struct wl_resource *policy, struct wl_resource *surface_resource)
 {
-   E_Pixmap *ep;
+   E_Pixmap *cp;
    E_Client *ec;
    E_Comp_Wl_Client_Data *cdata;
    Policy_Conformant *pn;
 
-   ep = wl_resource_get_user_data(surface_resource);
-   EINA_SAFETY_ON_NULL_RETURN(ep);
+   cp = wl_resource_get_user_data(surface_resource);
+   EINA_SAFETY_ON_NULL_RETURN(cp);
 
    pn = eina_hash_find(hash_policy_conformants, &surface_resource);
    if (pn)
      {
-        ec = e_pixmap_client_get(ep);
+        ec = e_pixmap_client_get(cp);
         if (ec)
           tizen_policy_send_conformant(pn->interface, surface_resource, ec->comp_data->conformant);
         else
           {
-             cdata = e_pixmap_cdata_get(ep);
+             cdata = e_pixmap_cdata_get(cp);
              EINA_SAFETY_ON_NULL_RETURN(cdata);
              tizen_policy_send_conformant(pn->interface, surface_resource, cdata->conformant);
           }
@@ -506,12 +506,12 @@ _e_tizen_policy_cb_conformant_get(struct wl_client *client, struct wl_resource *
 static void
 _e_tizen_policy_cb_notification_level_set(struct wl_client *client, struct wl_resource *resource, struct wl_resource *surface, int32_t level)
 {
-   E_Pixmap *ep;
+   E_Pixmap *cp;
    E_Client *ec;
    Notification_Level *nl;
 
    /* get the pixmap from this surface so we can find the client */
-   if (!(ep = wl_resource_get_user_data(surface)))
+   if (!(cp = wl_resource_get_user_data(surface)))
      {
         wl_resource_post_error(surface,
                                WL_DISPLAY_ERROR_INVALID_OBJECT,
@@ -520,10 +520,10 @@ _e_tizen_policy_cb_notification_level_set(struct wl_client *client, struct wl_re
      }
 
    /* make sure it's a wayland pixmap */
-   if (e_pixmap_type_get(ep) != E_PIXMAP_TYPE_WL) return;
+   if (e_pixmap_type_get(cp) != E_PIXMAP_TYPE_WL) return;
 
    /* find the client for this pixmap */
-   ec = e_pixmap_client_get(ep);
+   ec = e_pixmap_client_get(cp);
    if (ec)
      {
         /* remove not processed level set */
@@ -595,11 +595,11 @@ _e_tizen_policy_cb_transient_for_unset(struct wl_client *client, struct wl_resou
 static void
 _e_tizen_policy_cb_window_screen_mode_set(struct wl_client *client, struct wl_resource *resource, struct wl_resource *surface, uint32_t mode)
 {
-   E_Pixmap *ep;
+   E_Pixmap *cp;
    Window_Screen_Mode *wsm;
 
    /* get the pixmap from this surface so we can find the client */
-   if (!(ep = wl_resource_get_user_data(surface)))
+   if (!(cp = wl_resource_get_user_data(surface)))
      {
         wl_resource_post_error(surface,
                                WL_DISPLAY_ERROR_INVALID_OBJECT,
@@ -608,7 +608,7 @@ _e_tizen_policy_cb_window_screen_mode_set(struct wl_client *client, struct wl_re
      }
 
    /* make sure it's a wayland pixmap */
-   if (e_pixmap_type_get(ep) != E_PIXMAP_TYPE_WL) return;
+   if (e_pixmap_type_get(cp) != E_PIXMAP_TYPE_WL) return;
 
    wsm = eina_hash_find(hash_window_screen_modes, &surface);
    if (!wsm)
