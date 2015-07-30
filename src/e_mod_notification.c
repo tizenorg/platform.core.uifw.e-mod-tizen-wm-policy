@@ -8,8 +8,8 @@
 
 typedef struct _Pol_Notification
 {
-   E_Client *ec;
-   int       level;
+   E_Client     *ec;
+   int           level;
    unsigned char prev_ec_prop;
    unsigned char prev_ec_fetch_type;
 } Pol_Notification;
@@ -17,7 +17,7 @@ typedef struct _Pol_Notification
 static Eina_Hash *hash_pol_notifications = NULL;
 
 static Pol_Notification*
-_pol_notification_get_info (E_Client *ec)
+_pol_notification_get_info(E_Client *ec)
 {
    Pol_Notification *pn;
 
@@ -37,7 +37,7 @@ _pol_notification_get_info (E_Client *ec)
 }
 
 static Eina_Bool
-_pol_notification_is_notification (E_Client *ec)
+_pol_notification_is_notification(E_Client *ec)
 {
    int i;
 
@@ -46,11 +46,13 @@ _pol_notification_is_notification (E_Client *ec)
 
    /* check actual type */
    if (ec->netwm.type == E_WINDOW_TYPE_NOTIFICATION)
-      return EINA_TRUE;
+     return EINA_TRUE;
 
-   for (i=0; i<ec->netwm.extra_types_num; i++)
-      if (ec->netwm.extra_types[i] == E_WINDOW_TYPE_NOTIFICATION)
-         return EINA_TRUE;
+   for (i = 0; i < ec->netwm.extra_types_num; i++)
+     {
+        if (ec->netwm.extra_types[i] == E_WINDOW_TYPE_NOTIFICATION)
+          return EINA_TRUE;
+     }
 
    return EINA_FALSE;
 }
@@ -68,13 +70,16 @@ _pol_notification_get_level(E_Client *ec)
    win = e_pixmap_window_get(ec->pixmap);
    if (!win) return level;
 
-   ret = ecore_x_window_prop_property_get (win, E_MOD_POL_ATOM_NOTIFICATION_LEVEL,
-                                           ECORE_X_ATOM_CARDINAL, 32, &prop_data,
-                                           &num);
+   ret = ecore_x_window_prop_property_get(win,
+                                          E_MOD_POL_ATOM_NOTIFICATION_LEVEL,
+                                          ECORE_X_ATOM_CARDINAL,
+                                          32,
+                                          &prop_data,
+                                          &num);
    if (ret && prop_data)
-      memcpy (&level, prop_data, sizeof (int));
+     memcpy(&level, prop_data, sizeof(int));
 
-   if (prop_data) free (prop_data);
+   if (prop_data) free(prop_data);
 
    return level;
 #else
@@ -88,13 +93,13 @@ _pol_notification_level_to_layer(int level)
    switch (level)
      {
       case E_POL_NOTIFICATION_LEVEL_HIGH:
-        return E_LAYER_CLIENT_NOTIFICATION_HIGH;
+         return E_LAYER_CLIENT_NOTIFICATION_HIGH;
       case E_POL_NOTIFICATION_LEVEL_NORMAL:
-        return E_LAYER_CLIENT_NOTIFICATION_NORMAL;
+         return E_LAYER_CLIENT_NOTIFICATION_NORMAL;
       case E_POL_NOTIFICATION_LEVEL_LOW:
-        return E_LAYER_CLIENT_NOTIFICATION_LOW;
+         return E_LAYER_CLIENT_NOTIFICATION_LOW;
       default:
-        return E_LAYER_CLIENT_ABOVE;
+         return E_LAYER_CLIENT_ABOVE;
      }
 }
 
@@ -153,11 +158,11 @@ e_mod_pol_notification_hook_pre_post_fetch(E_Client *ec)
    pn = _pol_notification_get_info(ec);
    EINA_SAFETY_ON_NULL_RETURN(pn);
 
-   if (pn->prev_ec_prop == ec->changes.prop &&
-       pn->prev_ec_fetch_type == ec->netwm.fetch.type)
-      return;
+   if ((pn->prev_ec_prop == ec->changes.prop) &&
+       (pn->prev_ec_fetch_type == ec->netwm.fetch.type))
+     return;
 
-   e_mod_pol_notification_level_update (ec);
+   e_mod_pol_notification_level_update(ec);
 #else
    e_mod_pol_wl_notification_level_fetch(ec);
 #endif
@@ -179,19 +184,19 @@ e_mod_pol_notification_level_update(E_Client *ec)
 
    /* 1. Check if a window is notification or not */
    if (!_pol_notification_is_notification(ec))
-      return EINA_FALSE;
+     return EINA_FALSE;
 
    /* 2. Get and Set level */
    level = _pol_notification_get_level(ec);
    layer = _pol_notification_level_to_layer(level);
 
-   if (level == pn->level &&
-       layer == evas_object_layer_get(ec->frame))
-      return EINA_TRUE;
+   if ((level == pn->level) &&
+       (layer == evas_object_layer_get(ec->frame)))
+     return EINA_TRUE;
 
    /* 3. Change Stack */
    pn->level = level;
-   evas_object_layer_set (ec->frame, layer);
+   evas_object_layer_set(ec->frame, layer);
 
    return EINA_TRUE;
 }
@@ -211,19 +216,19 @@ e_mod_pol_notification_level_apply(E_Client *ec, int level)
 #if 0
    /* 1. Check if a window is notification or not */
    if (!_pol_notification_is_notification(ec))
-      return EINA_FALSE;
+     return EINA_FALSE;
 #endif
    /* 2. Get and Set level */
    level = _pol_notification_get_level(ec);
    layer = _pol_notification_level_to_layer(level);
 
-   if (level == pn->level &&
-       layer == evas_object_layer_get(ec->frame))
-      return EINA_TRUE;
+   if ((level == pn->level) &&
+       (layer == evas_object_layer_get(ec->frame)))
+     return EINA_TRUE;
 
    /* 3. Change Stack */
    pn->level = level;
-   evas_object_layer_set (ec->frame, layer);
+   evas_object_layer_set(ec->frame, layer);
 
    return EINA_TRUE;
 }
