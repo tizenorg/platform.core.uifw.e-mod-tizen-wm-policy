@@ -519,9 +519,6 @@ _e_tizen_policy_cb_notification_level_set(struct wl_client *client, struct wl_re
         return;
      }
 
-   /* make sure it's a wayland pixmap */
-   if (e_pixmap_type_get(cp) != E_PIXMAP_TYPE_WL) return;
-
    /* find the client for this pixmap */
    ec = e_pixmap_client_get(cp);
    if (ec)
@@ -606,9 +603,6 @@ _e_tizen_policy_cb_window_screen_mode_set(struct wl_client *client, struct wl_re
                                "No Pixmap Set On Surface");
         return;
      }
-
-   /* make sure it's a wayland pixmap */
-   if (e_pixmap_type_get(cp) != E_PIXMAP_TYPE_WL) return;
 
    wsm = eina_hash_find(hash_window_screen_modes, &surface);
    if (!wsm)
