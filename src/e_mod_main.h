@@ -132,6 +132,7 @@ EINTERN Eina_Bool        e_mod_pol_visibility_cb_window_property(Ecore_X_Event_W
 
 EINTERN void             e_mod_pol_stack_init(void);
 EINTERN void             e_mod_pol_stack_shutdonw(void);
+EINTERN void             e_mod_pol_stack_transient_for_set(E_Client *child, E_Client *parent);
 EINTERN void             e_mod_pol_stack_cb_client_remove(E_Client *ec);
 EINTERN void             e_mod_pol_stack_hook_pre_fetch(E_Client *ec);
 EINTERN void             e_mod_pol_stack_hook_pre_post_fetch(E_Client *ec);

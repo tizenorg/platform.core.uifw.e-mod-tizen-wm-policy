@@ -19,11 +19,13 @@ struct tizen_ws_shell;
 struct tws_quickpanel;
 struct tws_region;
 struct tws_service;
+struct tws_tvsrv;
 
 extern const struct wl_interface tizen_ws_shell_interface;
 extern const struct wl_interface tws_quickpanel_interface;
 extern const struct wl_interface tws_region_interface;
 extern const struct wl_interface tws_service_interface;
+extern const struct wl_interface tws_tvsrv_interface;
 
 /**
  * tizen_ws_shell - Tizsn Shell support
@@ -31,6 +33,7 @@ extern const struct wl_interface tws_service_interface;
  * @service_create: create new service
  * @region_create: create new region
  * @quickpanel_get: get the handle of quickpanel service
+ * @tvsrv_get: get the handle of tvsrv service
  *
  * 
  */
@@ -75,6 +78,17 @@ struct tizen_ws_shell_interface {
 			       struct wl_resource *resource,
 			       uint32_t id,
 			       uint32_t win);
+	/**
+	 * tvsrv_get - get the handle of tvsrv service
+	 * @id: (none)
+	 * @win: (none)
+	 *
+	 * 
+	 */
+	void (*tvsrv_get)(struct wl_client *client,
+			  struct wl_resource *resource,
+			  uint32_t id,
+			  uint32_t win);
 };
 
 #define TIZEN_WS_SHELL_SERVICE_REGISTER	0
@@ -240,6 +254,36 @@ struct tws_service_interface {
 			   int32_t type,
 			   int32_t angle,
 			   struct wl_resource *region);
+};
+
+
+#ifndef TWS_TVSRV_ERROR_ENUM
+#define TWS_TVSRV_ERROR_ENUM
+enum tws_tvsrv_error {
+	TWS_TVSRV_ERROR_REQUEST_REJECTED = 0,
+};
+#endif /* TWS_TVSRV_ERROR_ENUM */
+
+/**
+ * tws_tvsrv - 
+ * @release: release the handle of tws_quickpanel
+ * @bind: (none)
+ *
+ * 
+ */
+struct tws_tvsrv_interface {
+	/**
+	 * release - release the handle of tws_quickpanel
+	 *
+	 * 
+	 */
+	void (*release)(struct wl_client *client,
+			struct wl_resource *resource);
+	/**
+	 * bind - (none)
+	 */
+	void (*bind)(struct wl_client *client,
+		     struct wl_resource *resource);
 };
 
 

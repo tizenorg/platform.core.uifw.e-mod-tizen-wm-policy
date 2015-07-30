@@ -198,6 +198,55 @@ e_mod_pol_stack_hook_pre_fetch(E_Client *ec)
 }
 
 void
+e_mod_pol_stack_transient_for_set(E_Client *child, E_Client *parent)
+{
+   Ecore_Window pwin = 0;
+
+   EINA_SAFETY_ON_NULL_RETURN(child);
+
+   if (!parent)
+     {
+        child->icccm.fetch.transient_for = EINA_FALSE;
+        child->icccm.transient_for = 0;
+        if (child->parent)
+          {
+             child->parent->transients =
+                eina_list_remove(child->parent->transients, child);
+             if (child->parent->modal == child) child->parent->modal = NULL;
+             child->parent = NULL;
+          }
+        return;
+     }
+
+   pwin = e_client_util_win_get(parent);
+   e_pixmap_parent_window_set(child->pixmap, pwin);
+
+   /* If we already have a parent, remove it */
+   if (child->parent)
+     {
+        if (parent != child->parent)
+          {
+             child->parent->transients =
+                eina_list_remove(child->parent->transients, child);
+             if (child->parent->modal == child) child->parent->modal = NULL;
+             child->parent = NULL;
+          }
+        else
+          parent = NULL;
+     }
+
+   if ((parent) && (parent != child) &&
+       (eina_list_data_find(parent->transients, child) != child))
+     {
+        parent->transients = eina_list_append(parent->transients, child);
+        child->parent = parent;
+     }
+
+   child->icccm.fetch.transient_for = EINA_TRUE;
+   child->icccm.transient_for = pwin;
+}
+
+void
 e_mod_pol_stack_cb_client_remove(E_Client *ec)
 {
    _pol_stack_data_del(ec);
