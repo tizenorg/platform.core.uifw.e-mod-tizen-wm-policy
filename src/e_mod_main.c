@@ -766,7 +766,6 @@ e_mod_pol_desk_add(E_Desk *desk)
    Pol_Desk *pd;
    E_Client *ec;
    Pol_Softkey *softkey;
-   const Eina_List *l;
 
    pd = eina_hash_find(hash_pol_desks, &desk);
    if (pd) return;
@@ -903,7 +902,7 @@ e_mod_pol_client_is_conformant(E_Client *ec)
    EINA_SAFETY_ON_NULL_RETURN_VAL(ec->comp_data, EINA_FALSE);
 
 #ifdef HAVE_WAYLAND_ONLY
-   E_Comp_Wl_Client_Data * cdata = ec->comp_data;
+   E_Comp_Wl_Client_Data *cdata = (E_Comp_Wl_Client_Data *)ec->comp_data;
    if (cdata->conformant == 1)
      {
         return EINA_TRUE;
