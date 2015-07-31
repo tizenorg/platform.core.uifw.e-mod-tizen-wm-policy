@@ -87,11 +87,12 @@ WL_EXPORT const struct wl_interface tws_service_interface = {
 static const struct wl_message tws_tvsrv_requests[] = {
 	{ "release", "", types + 0 },
 	{ "bind", "", types + 0 },
+	{ "unbind", "", types + 0 },
 };
 
 WL_EXPORT const struct wl_interface tws_tvsrv_interface = {
 	"tws_tvsrv", 1,
-	2, tws_tvsrv_requests,
+	3, tws_tvsrv_requests,
 	0, NULL,
 };
 
