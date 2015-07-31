@@ -10,6 +10,19 @@
 #   endif
 #endif
 
+#define PLOG(t, cp, ec)                       \
+   DBG("WMPOL|%20.20s|cp:0x%08x|ec:0x%08x|",  \
+       (t),                                   \
+       (unsigned int)(cp),                    \
+       (unsigned int)(ec));
+
+#define PLOGF(t, f, cp, ec, x...)             \
+   DBG("WMPOL|%20.20s|cp:0x%08x|ec:0x%08x|"f, \
+       (t),                                   \
+       (unsigned int)(cp),                    \
+       (unsigned int)(ec),                    \
+       ##x);
+
 typedef struct _Pol_Desk     Pol_Desk;
 typedef struct _Pol_Client   Pol_Client;
 typedef struct _Pol_Softkey  Pol_Softkey;
