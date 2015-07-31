@@ -265,25 +265,40 @@ enum tws_tvsrv_error {
 #endif /* TWS_TVSRV_ERROR_ENUM */
 
 /**
- * tws_tvsrv - 
- * @release: release the handle of tws_quickpanel
- * @bind: (none)
+ * tws_tvsrv - interface for tv application
+ * @release: release the handle of tws_tvsrv
+ * @bind: request for binding with tv service window
+ * @unbind: request for unbinding with tv service window
  *
- * 
+ * This interface provides protocol to request for binding with tv
+ * service window.
  */
 struct tws_tvsrv_interface {
 	/**
-	 * release - release the handle of tws_quickpanel
+	 * release - release the handle of tws_tvsrv
 	 *
 	 * 
 	 */
 	void (*release)(struct wl_client *client,
 			struct wl_resource *resource);
 	/**
-	 * bind - (none)
+	 * bind - request for binding with tv service window
+	 *
+	 * Request for binding with tv service window, user window can
+	 * set tv service window as transient-for window through this
+	 * request.
 	 */
 	void (*bind)(struct wl_client *client,
 		     struct wl_resource *resource);
+	/**
+	 * unbind - request for unbinding with tv service window
+	 *
+	 * Request for un-binding with tv service window, user window can
+	 * unset transient-for relation with tv service window through this
+	 * request.
+	 */
+	void (*unbind)(struct wl_client *client,
+		       struct wl_resource *resource);
 };
 
 

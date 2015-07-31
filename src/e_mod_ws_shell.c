@@ -9,6 +9,8 @@ typedef struct _WS_Shell_Service
    E_Tizen_Ws_Shell_Service_Role role;
    const char *name;
    E_Client *ec;
+   Eina_List *subscribers;
+   Eina_Bool enabled;
 
    struct wl_resource *resource;
 
@@ -29,6 +31,7 @@ typedef struct _WS_Shell_Region
 typedef struct _WS_Shell_Subscriber
 {
    E_Client *ec;
+   struct wl_resource *resource;
 } WS_Shell_Subscriber;
 
 #define SERVICE_FOREACH(service_idx)                   \
@@ -126,12 +129,33 @@ static const struct tws_region_interface _e_tizen_ws_shell_region_interface =
 static void
 _e_tizen_ws_shell_service_register_handle(WS_Shell_Service *service)
 {
+   WS_Shell_Subscriber *subs = NULL;
+   Eina_List *l;
+
    EINA_SAFETY_ON_NULL_RETURN(service);
    EINA_SAFETY_ON_NULL_RETURN(service->ec);
 
    switch (service->role)
      {
       case E_TIZEN_WS_SHELL_SERVICE_ROLE_TVSERVICE:
+         if (service->subscribers)
+           {
+              E_Client *above = NULL;
+
+              EINA_LIST_FOREACH(service->subscribers, l, subs)
+                {
+                   if ((subs->ec) && (subs->ec->parent != service->ec))
+                     {
+                        if (!above) above = subs->ec;
+                        e_mod_pol_stack_transient_for_set(subs->ec,
+                                                          service->ec);
+                     }
+                }
+
+              if (above)
+                evas_object_stack_below(service->ec->frame, above->frame);
+           }
+         break;
       default:
          break;
      }
@@ -140,11 +164,25 @@ _e_tizen_ws_shell_service_register_handle(WS_Shell_Service *service)
 static void
 _e_tizen_ws_shell_service_unregister_handle(WS_Shell_Service *service)
 {
+   WS_Shell_Subscriber *subs = NULL;
+
    EINA_SAFETY_ON_NULL_RETURN(service);
    EINA_SAFETY_ON_NULL_RETURN(service->ec);
 
    switch (service->role)
      {
+      case E_TIZEN_WS_SHELL_SERVICE_ROLE_TVSERVICE:
+         if (service->subscribers)
+           {
+              EINA_LIST_FREE(service->subscribers, subs)
+                {
+                   if ((subs->ec) && (subs->ec->parent == service->ec))
+                     {
+                        e_mod_pol_stack_transient_for_set(subs->ec,
+                                                          NULL);
+                     }
+                }
+           }
       default:
          break;
      }
@@ -300,6 +338,8 @@ _e_tizen_ws_shell_tvsrv_destroy(struct wl_resource *resource)
           {
              e_mod_pol_stack_transient_for_set(tvapp->ec, NULL);
           }
+
+        tvsrv->subscribers = eina_list_remove(tvsrv->subscribers, tvapp);
      }
 
    if (tvapp)
@@ -324,19 +364,48 @@ _e_tizen_ws_shell_tvsrv_cb_bind(struct wl_client *client,
    if (!tvapp) return;
 
    if (!(tvsrv = wssh_services[E_TIZEN_WS_SHELL_SERVICE_ROLE_TVSERVICE]))
-     return;
+     {
+        tvsrv = E_NEW(WS_Shell_Service, 1);
+        wssh_services[E_TIZEN_WS_SHELL_SERVICE_ROLE_TVSERVICE] = tvsrv;
+     }
+
+   if (!tvsrv->enabled)
+     {
+        tvsrv->subscribers = eina_list_append(tvsrv->subscribers, tvapp);
+        return;
+     }
 
    if (!tvapp->ec || !tvsrv->ec) return;
    if (tvapp->ec->parent == tvsrv->ec) return;
 
    e_mod_pol_stack_transient_for_set(tvapp->ec, tvsrv->ec);
-   evas_object_stack_above(tvapp->ec->frame, tvsrv->ec->frame);
 }
 
+static void
+_e_tizen_ws_shell_tvsrv_cb_unbind(struct wl_client *client,
+                                  struct wl_resource *resource)
+{
+   WS_Shell_Subscriber *tvapp = NULL;
+   WS_Shell_Service *tvsrv = NULL;
+
+   tvapp = wl_resource_get_user_data(resource);
+   if (!tvapp) return;
+
+   if ((!(tvsrv = wssh_services[E_TIZEN_WS_SHELL_SERVICE_ROLE_TVSERVICE])) ||
+       (!tvsrv->enabled))
+     return;
+
+   if ((!tvapp->ec) || (!tvapp->ec->parent)) return;
+   if (tvapp->ec->parent != tvsrv->ec) return;
+
+   tvsrv->subscribers = eina_list_remove(tvsrv->subscribers, tvapp);
+   e_mod_pol_stack_transient_for_set(tvapp->ec, NULL);
+}
 static const struct tws_tvsrv_interface _e_tizen_ws_shell_tvsrv_interface =
 {
    _e_tizen_ws_shell_tvsrv_cb_release,
    _e_tizen_ws_shell_tvsrv_cb_bind,
+   _e_tizen_ws_shell_tvsrv_cb_unbind,
 };
 
 static void
@@ -376,7 +445,7 @@ _e_tizen_ws_shell_cb_service_create(struct wl_client *client,
         return;
      }
 
-   if (wssh_services[role] != NULL)
+   if ((wssh_services[role]) && (wssh_services[role]->enabled))
 
      {
         ERR("Service %s is already created.", name);
@@ -393,11 +462,12 @@ _e_tizen_ws_shell_cb_service_create(struct wl_client *client,
    surface_resource = wl_client_get_object(client, surface_id);
    ec = e_pixmap_find_client(E_PIXMAP_TYPE_WL, (uintptr_t)surface_resource);
 
-   service = E_NEW(WS_Shell_Service, 1);
+   service = wssh_services[role]?: E_NEW(WS_Shell_Service, 1);
    service->resource = res;
    service->name = eina_stringshare_add(name);
    service->ec = ec;
    service->role = role;
+   service->enabled = EINA_TRUE;
 
    wl_resource_set_implementation(res,
                                   &_e_tizen_ws_shell_service_interface,
@@ -502,6 +572,7 @@ _e_tizen_ws_shell_cb_tvsrv_get(struct wl_client *client,
 
    tvapp = E_NEW(WS_Shell_Subscriber, 1);
    tvapp->ec = ec;
+   tvapp->resource = res;
 
    wl_resource_set_implementation(res,
                                   &_e_tizen_ws_shell_tvsrv_interface,
@@ -554,6 +625,7 @@ _e_tizen_ws_shell_bind_cb(struct wl_client *client,
    SERVICE_FOREACH(i)
      {
         if (!wssh_services[i]) continue;
+        if (!wssh_services[i]->enabled) continue;
         tizen_ws_shell_send_service_register(res, wssh_services[i]->name);
      }
 }
@@ -584,13 +656,28 @@ void
 e_mod_ws_shell_shutdown(void)
 {
    struct wl_resource *res;
+   WS_Shell_Subscriber *subs;
+   Eina_List *l, *ll;
    int i;
 
    /* destroy resource of registered services*/
    SERVICE_FOREACH(i)
      {
         if (!wssh_services[i]) continue;
-        wl_resource_destroy(wssh_services[i]->resource);
+
+        EINA_LIST_FOREACH_SAFE(wssh_services[i]->subscribers, l, ll, subs)
+          {
+             wl_resource_destroy(subs->resource);
+          }
+
+        if (wssh_services[i]->resource)
+          {
+             wl_resource_destroy(wssh_services[i]->resource);
+             continue;
+          }
+
+        E_FREE(wssh_services[i]);
+        wssh_services[i] = NULL;
      }
 
    /* destroy interfaces */
