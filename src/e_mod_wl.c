@@ -55,6 +55,8 @@ static Pol_Wayland*
 _pol_wayland_get_info(E_Pixmap *cp)
 {
    Pol_Wayland *pn;
+   E_Comp_Client_Data *cdata = NULL;
+   struct wl_resource *surface = NULL;
 
    EINA_SAFETY_ON_NULL_RETURN_VAL(hash_pol_wayland, NULL);
 
@@ -66,6 +68,15 @@ _pol_wayland_get_info(E_Pixmap *cp)
 
         pn->cp = cp;
         eina_hash_add(hash_pol_wayland, &cp, pn);
+
+        cdata = e_pixmap_cdata_get(cp);
+        if (cdata)
+          surface = cdata->wl_surface;
+
+        PLOGF("POL",
+              "HASH_ADD |s:0x%08x|pn:0x%08x",
+              cp, e_pixmap_client_get(cp),
+              (unsigned int)surface, (unsigned int)pn);
      }
 
    return pn;
@@ -271,8 +282,6 @@ _e_tizen_policy_cb_position_get(struct wl_client *client, struct wl_resource *ti
 static void
 _e_tizen_policy_cb_activate(struct wl_client *client, struct wl_resource *policy, struct wl_resource *surface_resource)
 {
-   int version = wl_resource_get_version(policy);
-   struct wl_resource *res;
    E_Pixmap *cp;
    E_Client *ec;
 
@@ -506,9 +515,9 @@ _e_tizen_policy_cb_conformant_get(struct wl_client *client, struct wl_resource *
 static void
 _e_tizen_policy_cb_notification_level_set(struct wl_client *client, struct wl_resource *resource, struct wl_resource *surface, int32_t level)
 {
-   E_Pixmap *cp;
-   E_Client *ec;
-   Notification_Level *nl;
+   E_Pixmap *cp = NULL;
+   E_Client *ec = NULL;
+   Notification_Level *nl = NULL;
 
    /* get the pixmap from this surface so we can find the client */
    if (!(cp = wl_resource_get_user_data(surface)))
@@ -525,9 +534,22 @@ _e_tizen_policy_cb_notification_level_set(struct wl_client *client, struct wl_re
      {
         /* remove not processed level set */
         nl = eina_hash_find(hash_notification_levels, &surface);
-        if (nl) eina_hash_del_by_key(hash_notification_levels, &surface);
+        if (nl)
+          {
+             PLOGF("NOTI",
+                   "HASH_DEL1|s:0x%08x|nl:0x%08x",
+                   cp, ec, (unsigned int)surface,
+                   (unsigned int)nl);
+
+             eina_hash_del_by_key(hash_notification_levels, &surface);
+          }
 
         e_mod_pol_notification_level_apply(ec, level);
+
+        PLOGF("NOTI",
+              "SEND1    |s:0x%08x|lv%d",
+              cp, ec, (unsigned int)surface,
+              (unsigned int)level);
 
         /* Add other error handling code on notification send done. */
         tizen_policy_send_notification_done(resource,
@@ -537,12 +559,24 @@ _e_tizen_policy_cb_notification_level_set(struct wl_client *client, struct wl_re
      }
    else
      {
-         nl = eina_hash_find(hash_notification_levels, &surface);
-         if (!nl)
+        nl = eina_hash_find(hash_notification_levels, &surface);
+        if (!nl)
+          {
+             nl = E_NEW(Notification_Level, 1);
+             EINA_SAFETY_ON_NULL_RETURN(nl);
+             eina_hash_add(hash_notification_levels, &surface, nl);
+
+             PLOGF("NOTI",
+                   "HASH_ADD |s:0x%08x|nl:0x%08x|lv%d",
+                   cp, ec, (unsigned int)surface,
+                   (unsigned int)nl, level);
+           }
+         else
            {
-              nl = E_NEW(Notification_Level, 1);
-              EINA_SAFETY_ON_NULL_RETURN(nl);
-              eina_hash_add(hash_notification_levels, &surface, nl);
+             PLOGF("NOTI",
+                   "         |s:0x%08x|nl:0x%08x|lv%d",
+                   cp, ec, (unsigned int)surface,
+                   (unsigned int)nl, level);
            }
 
          nl->level = level;
@@ -717,7 +751,7 @@ _hook_client_del(void *d EINA_UNUSED, E_Client *ec)
    wsm = eina_hash_find(hash_window_screen_modes, &surface);
    if (wsm)
      {
-        _window_screen_modes =  eina_list_remove(_window_screen_modes, wsm);
+        _window_screen_modes = eina_list_remove(_window_screen_modes, wsm);
         eina_hash_del_by_key(hash_window_screen_modes, &surface);
      }
 }
@@ -762,7 +796,7 @@ e_mod_pol_wl_init(void)
    hash_window_screen_modes = eina_hash_pointer_new(free);
 
    E_CLIENT_HOOK_APPEND(_hooks, E_CLIENT_HOOK_DEL,
-                        _hook_client_del, NULL);
+                        _hook_client_del, NULL); // yigl TODO remove this func
 
    E_LIST_HANDLER_APPEND(_handlers, E_EVENT_CLIENT_VISIBILITY_CHANGE,
                          _cb_client_visibility_change, NULL);
@@ -787,6 +821,8 @@ void
 e_mod_pol_wl_client_del(E_Client *ec)
 {
    Pol_Wayland *pn;
+   E_Comp_Client_Data *cdata = NULL;
+   struct wl_resource *surface = NULL;
 
    EINA_SAFETY_ON_NULL_RETURN(ec);
    EINA_SAFETY_ON_NULL_RETURN(hash_pol_wayland);
@@ -796,7 +832,78 @@ e_mod_pol_wl_client_del(E_Client *ec)
    pn = eina_hash_find(hash_pol_wayland, &ec->pixmap);
    if (!pn) return;
 
+   cdata = e_pixmap_cdata_get(ec->pixmap);
+   if (cdata)
+     surface = cdata->wl_surface;
+
+   PLOGF("POL",
+         "HASH_DEL1|s:0x%08x|pn:0x%08x",
+         ec->pixmap, ec, (unsigned int)surface,
+         (unsigned int)pn);
+
    eina_hash_del_by_key(hash_pol_wayland, &ec->pixmap);
+}
+
+void
+e_mod_pol_wl_pixmap_del(E_Pixmap *cp)
+{
+   E_Comp_Client_Data *cdata = NULL;
+   struct wl_resource *surface = NULL;
+   Notification_Level *nl;
+   Pol_Wayland *pn;
+   Policy_Conformant *pc;
+   Window_Screen_Mode *wsm;
+
+   cdata = e_pixmap_cdata_get(cp);
+   if (cdata)
+     surface = cdata->wl_surface;
+
+   PLOGF("POL",
+         "SURF_DEL |s:0x%08x|cdata:0x%08x",
+         cp, e_pixmap_client_get(cp),
+         (unsigned int)surface, (unsigned int)cdata);
+
+   if (surface)
+     {
+        nl = eina_hash_find(hash_notification_levels, &surface);
+        if (nl)
+          {
+             PLOGF("NOTI",
+                   "HASH_DEL2|s:0x%08x|nl:0x%08x",
+                   cp, e_pixmap_client_get(cp),
+                   (unsigned int)surface, (unsigned int)nl);
+
+             eina_hash_del_by_key(hash_notification_levels, &surface);
+          }
+     }
+
+   pn = eina_hash_find(hash_pol_wayland, &cp);
+   if (pn)
+     {
+        PLOGF("POL",
+              "HASH_DEL2|s:0x%08x|pn:0x%08x",
+              cp, e_pixmap_client_get(cp),
+              (unsigned int)surface, (unsigned int)pn);
+
+        eina_hash_del_by_key(hash_pol_wayland, &cp);
+     }
+
+   if (surface)
+     {
+        pc = eina_hash_find(hash_policy_conformants, &surface);
+        if (pc)
+          eina_hash_del_by_key(hash_policy_conformants, &surface);
+     }
+
+   if (surface)
+     {
+        wsm = eina_hash_find(hash_window_screen_modes, &surface);
+        if (wsm)
+          {
+             _window_screen_modes = eina_list_remove(_window_screen_modes, wsm);
+             eina_hash_del_by_key(hash_window_screen_modes, &surface);
+          }
+     }
 }
 
 void
@@ -857,11 +964,21 @@ e_mod_pol_wl_notification_level_fetch(E_Client *ec)
      {
         e_mod_pol_notification_level_apply(ec, nl->level);
 
+        PLOGF("NOTI",
+              "SEND2    |s:0x%08x|nl:0x%08x|lv%d",
+              ec->pixmap, ec, (unsigned int)surface,
+              (unsigned int)nl, nl->level);
+
         // Add other error handling code on notification send done.
         tizen_policy_send_notification_done(nl->interface,
                                             nl->surface,
                                             nl->level,
                                             TIZEN_POLICY_ERROR_STATE_NONE);
+
+        PLOGF("NOTI",
+              "HASH_DEL3|s:0x%08x|nl:0x%08x",
+              ec->pixmap, ec, (unsigned int)surface,
+              (unsigned int)nl);
 
         eina_hash_del_by_key(hash_notification_levels, &surface);
      }
