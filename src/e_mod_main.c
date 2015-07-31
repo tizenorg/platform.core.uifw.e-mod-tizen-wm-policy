@@ -706,19 +706,19 @@ _pol_cb_client_property(void *data EINA_UNUSED, int type EINA_UNUSED, void *even
    E_Event_Client_Property *ev;
 
    ev = event;
-   if (!ev || (!ev->ec)) return 0;
+   if (!ev || (!ev->ec)) return ECORE_CALLBACK_PASS_ON;
    if (ev->property & E_CLIENT_PROPERTY_CLIENT_TYPE)
      {
         if (e_mod_pol_client_is_home_screen(ev->ec))
           {
              ev->ec->lock_client_stacking = 0;
-             return EINA_TRUE;
+             return ECORE_CALLBACK_PASS_ON;
           }
         else if (e_mod_pol_client_is_lock_screen(ev->ec))
-          return EINA_TRUE;
+          return ECORE_CALLBACK_PASS_ON;
      }
 
-   return EINA_FALSE;
+   return ECORE_CALLBACK_PASS_ON;
 }
 
 static Eina_Bool
