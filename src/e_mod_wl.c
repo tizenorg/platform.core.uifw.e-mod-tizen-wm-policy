@@ -25,17 +25,6 @@ typedef struct _Policy_Conformant
    struct wl_resource *surface;
 } Policy_Conformant;
 
-#undef E_CLIENT_HOOK_APPEND
-#define E_CLIENT_HOOK_APPEND(l, t, cb, d) \
-  do                                      \
-    {                                     \
-       E_Client_Hook *_h;                 \
-       _h = e_client_hook_add(t, cb, d);  \
-       assert(_h);                        \
-       l = eina_list_append(l, _h);       \
-    }                                     \
-  while (0)
-
 typedef struct _Window_Screen_Mode
 {
    uint32_t mode;
@@ -49,7 +38,6 @@ static Eina_Hash *hash_policy_conformants = NULL;
 static Eina_Hash *hash_window_screen_modes = NULL;
 static Eina_List *_window_screen_modes = NULL;
 static Eina_List *_handlers = NULL;
-static Eina_List *_hooks = NULL;
 
 static Pol_Wayland*
 _pol_wayland_get_info(E_Pixmap *cp)
@@ -734,28 +722,6 @@ _e_tizen_policy_cb_bind(struct wl_client *client, void *data, uint32_t version, 
    wl_resource_set_implementation(res, &_e_tizen_policy_interface, cdata, NULL);
 }
 
-static void
-_hook_client_del(void *d EINA_UNUSED, E_Client *ec)
-{
-   Window_Screen_Mode *wsm;
-   E_Comp_Client_Data *cdata;
-   struct wl_resource *surface;
-
-   EINA_SAFETY_ON_NULL_RETURN(ec);
-   cdata = e_pixmap_cdata_get(ec->pixmap);
-   EINA_SAFETY_ON_NULL_RETURN(cdata);
-   surface = cdata->wl_surface;
-   EINA_SAFETY_ON_NULL_RETURN(surface);
-
-   //remove window_screen_mode from hash
-   wsm = eina_hash_find(hash_window_screen_modes, &surface);
-   if (wsm)
-     {
-        _window_screen_modes = eina_list_remove(_window_screen_modes, wsm);
-        eina_hash_del_by_key(hash_window_screen_modes, &surface);
-     }
-}
-
 static Eina_Bool
 _cb_client_visibility_change(void *data EINA_UNUSED,
                              int type   EINA_UNUSED,
@@ -795,9 +761,6 @@ e_mod_pol_wl_init(void)
    hash_policy_conformants = eina_hash_pointer_new(free);
    hash_window_screen_modes = eina_hash_pointer_new(free);
 
-   E_CLIENT_HOOK_APPEND(_hooks, E_CLIENT_HOOK_DEL,
-                        _hook_client_del, NULL); // yigl TODO remove this func
-
    E_LIST_HANDLER_APPEND(_handlers, E_EVENT_CLIENT_VISIBILITY_CHANGE,
                          _cb_client_visibility_change, NULL);
 
@@ -812,7 +775,6 @@ e_mod_pol_wl_shutdown(void)
    E_FREE_FUNC(hash_policy_conformants, eina_hash_free);
 
    eina_list_free(_window_screen_modes);
-   E_FREE_LIST(_hooks, e_client_hook_del);
    E_FREE_LIST(_handlers, ecore_event_handler_del);
    E_FREE_FUNC(hash_window_screen_modes, eina_hash_free);
 }
