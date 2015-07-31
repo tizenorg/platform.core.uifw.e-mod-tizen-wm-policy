@@ -15,7 +15,8 @@ Eina_Hash *hash_pol_desks = NULL;
 Eina_Hash *hash_pol_clients = NULL;
 
 static Eina_List *handlers = NULL;
-static Eina_List *hooks = NULL;
+static Eina_List *hooks_ec = NULL;
+static Eina_List *hooks_cp = NULL;
 
 static Pol_Client *_pol_client_add(E_Client *ec);
 static void        _pol_client_del(Pol_Client *pc);
@@ -28,8 +29,11 @@ static void        _pol_cb_hook_client_eval_pre_fetch(void *d EINA_UNUSED, E_Cli
 static void        _pol_cb_hook_client_eval_pre_post_fetch(void *d EINA_UNUSED, E_Client *ec);
 static void        _pol_cb_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec);
 static void        _pol_cb_hook_client_desk_set(void *d EINA_UNUSED, E_Client *ec);
-static void        _pol_cb_hook_eval_end(void *d EINA_UNUSED, E_Client *ec);
-static void        _pol_cb_hook_client_fullscreen_pre(void* data EINA_UNUSED, E_Client *ec);
+static void        _pol_cb_hook_client_eval_end(void *d EINA_UNUSED, E_Client *ec);
+static void        _pol_cb_hook_client_fullscreen_pre(void *data EINA_UNUSED, E_Client *ec);
+
+static void        _pol_cb_hook_pixmap_new(void *data EINA_UNUSED, E_Pixmap *cp);
+static void        _pol_cb_hook_pixmap_del(void *data EINA_UNUSED, E_Pixmap *cp);
 
 static void        _pol_cb_desk_data_free(void *data);
 static void        _pol_cb_client_data_free(void *data);
@@ -404,7 +408,7 @@ _pol_cb_hook_client_desk_set(void *d EINA_UNUSED, E_Client *ec)
 }
 
 static void
-_pol_cb_hook_eval_end(void *d EINA_UNUSED, E_Client *ec)
+_pol_cb_hook_client_eval_end(void *d EINA_UNUSED, E_Client *ec)
 {
    /* calculate e_client visibility */
    e_mod_pol_visibility_calc();
@@ -413,12 +417,26 @@ _pol_cb_hook_eval_end(void *d EINA_UNUSED, E_Client *ec)
 static void
 _pol_cb_hook_client_fullscreen_pre(void* data EINA_UNUSED, E_Client *ec)
 {
-
    if (e_object_is_del(E_OBJECT(ec))) return;
    if (!_pol_client_normal_check(ec)) return;
    if (ec->internal) return;
 
    ec->skip_fullscreen = 1;
+}
+
+static void
+_pol_cb_hook_pixmap_new(void *data EINA_UNUSED, E_Pixmap *cp)
+{
+   PLOG("PIXMAP NEW", cp, e_pixmap_client_get(cp));
+}
+
+static void
+_pol_cb_hook_pixmap_del(void *data EINA_UNUSED, E_Pixmap *cp)
+{
+   PLOG("PIXMAP DEL", cp, e_pixmap_client_get(cp));
+#ifdef HAVE_WAYLAND_ONLY
+   e_mod_pol_wl_pixmap_del(cp);
+#endif
 }
 
 static void
@@ -579,7 +597,12 @@ _pol_cb_client_remove(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    Pol_Client *pc;
 
    ev = event;
+   EINA_SAFETY_ON_NULL_RETURN_VAL(ev, ECORE_CALLBACK_PASS_ON);
+
    pc = eina_hash_find(hash_pol_clients, &ev->ec);
+
+   PLOG("CLIENT DEL", ev->ec ? ev->ec->pixmap : NULL, ev->ec);
+
    if (!pc) return ECORE_CALLBACK_PASS_ON;
 
    eina_hash_del_by_key(hash_pol_clients, &ev->ec);
@@ -601,7 +624,9 @@ _pol_cb_client_add(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    E_Event_Client *ev;
 
    ev = event;
-   if (!ev) return ECORE_CALLBACK_PASS_ON;
+   EINA_SAFETY_ON_NULL_RETURN_VAL(ev, ECORE_CALLBACK_PASS_ON);
+
+   PLOG("CLIENT ADD", ev->ec ? ev->ec->pixmap : NULL, ev->ec);
 
    e_mod_pol_client_window_opaque_set(ev->ec);
 
@@ -900,6 +925,17 @@ e_mod_pol_client_is_volume(E_Client *ec)
     }                                     \
   while (0)
 
+#undef E_PIXMAP_HOOK_APPEND
+#define E_PIXMAP_HOOK_APPEND(l, t, cb, d) \
+  do                                      \
+    {                                     \
+       E_Pixmap_Hook *_h;                 \
+       _h = e_pixmap_hook_add(t, cb, d);  \
+       assert(_h);                        \
+       l = eina_list_append(l, _h);       \
+    }                                     \
+  while (0)
+
 EAPI void *
 e_modapi_init(E_Module *m)
 {
@@ -971,13 +1007,16 @@ e_modapi_init(E_Module *m)
    E_LIST_HANDLER_APPEND(handlers, ECORE_X_EVENT_WINDOW_CONFIGURE_REQUEST, _pol_cb_window_configure_request,        NULL);
 #endif
 
-   E_CLIENT_HOOK_APPEND(hooks,     E_CLIENT_HOOK_EVAL_PRE_NEW_CLIENT,      _pol_cb_hook_client_eval_pre_new_client, NULL);
-   E_CLIENT_HOOK_APPEND(hooks,     E_CLIENT_HOOK_EVAL_PRE_FETCH,           _pol_cb_hook_client_eval_pre_fetch,      NULL);
-   E_CLIENT_HOOK_APPEND(hooks,     E_CLIENT_HOOK_EVAL_PRE_POST_FETCH,      _pol_cb_hook_client_eval_pre_post_fetch, NULL);
-   E_CLIENT_HOOK_APPEND(hooks,     E_CLIENT_HOOK_EVAL_POST_FETCH,          _pol_cb_hook_client_eval_post_fetch,     NULL);
-   E_CLIENT_HOOK_APPEND(hooks,     E_CLIENT_HOOK_DESK_SET,                 _pol_cb_hook_client_desk_set,            NULL);
-   E_CLIENT_HOOK_APPEND(hooks,     E_CLIENT_HOOK_EVAL_END,                 _pol_cb_hook_eval_end,                   NULL);
-   E_CLIENT_HOOK_APPEND(hooks,     E_CLIENT_HOOK_FULLSCREEN_PRE,           _pol_cb_hook_client_fullscreen_pre,      NULL);
+   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_PRE_NEW_CLIENT,      _pol_cb_hook_client_eval_pre_new_client, NULL);
+   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_PRE_FETCH,           _pol_cb_hook_client_eval_pre_fetch,      NULL);
+   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_PRE_POST_FETCH,      _pol_cb_hook_client_eval_pre_post_fetch, NULL);
+   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_POST_FETCH,          _pol_cb_hook_client_eval_post_fetch,     NULL);
+   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_DESK_SET,                 _pol_cb_hook_client_desk_set,            NULL);
+   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_END,                 _pol_cb_hook_client_eval_end,            NULL);
+   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_FULLSCREEN_PRE,           _pol_cb_hook_client_fullscreen_pre,      NULL);
+
+   E_PIXMAP_HOOK_APPEND(hooks_cp,  E_PIXMAP_HOOK_NEW,                      _pol_cb_hook_pixmap_new,                 NULL);
+   E_PIXMAP_HOOK_APPEND(hooks_cp,  E_PIXMAP_HOOK_DEL,                      _pol_cb_hook_pixmap_del,                 NULL);
 
    e_mod_pol_rotation_init();
 
@@ -994,7 +1033,8 @@ e_modapi_shutdown(E_Module *m)
    eina_list_free(mod->launchers);
    EINA_INLIST_FOREACH_SAFE(mod->softkeys, l, softkey)
      e_mod_pol_softkey_del(softkey);
-   E_FREE_LIST(hooks, e_client_hook_del);
+   E_FREE_LIST(hooks_cp, e_pixmap_hook_del);
+   E_FREE_LIST(hooks_ec, e_client_hook_del);
    E_FREE_LIST(handlers, ecore_event_handler_del);
 
    E_FREE_FUNC(hash_pol_desks, eina_hash_free);
