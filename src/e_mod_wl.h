@@ -21,5 +21,9 @@ void e_mod_pol_wl_position_send(E_Client *ec);
 /* notification */
 void e_mod_pol_wl_notification_level_fetch(E_Client *ec);
 void e_mod_pol_wl_keyboard_geom_broadcast(E_Client *ec);
+
+/* window screenmode */
+void e_mod_pol_wl_win_scrmode_apply(void);
+
 #endif /* HAVE_WAYLAND_ONLY */
 #endif /* E_MOD_WL_H */

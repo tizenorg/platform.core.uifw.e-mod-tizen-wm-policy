@@ -37,7 +37,6 @@ static Eina_Hash *hash_notification_levels = NULL;
 static Eina_Hash *hash_policy_conformants = NULL;
 static Eina_Hash *hash_window_screen_modes = NULL;
 static Eina_List *_window_screen_modes = NULL;
-static Eina_List *_handlers = NULL;
 
 static Pol_Wayland*
 _pol_wayland_get_info(E_Pixmap *cp)
@@ -99,15 +98,6 @@ _pol_wayland_role_handle(E_Client *ec, const char* role)
         evas_object_layer_set(ec->frame, E_LAYER_CLIENT_NOTIFICATION_LOW);
         ec->lock_client_location = 1;
      }
-}
-
-static void
-_window_screen_mode_apply(void)
-{
-  //traversal e_client loop
-  // if  e_client is visible then apply screen_mode
-  // if all e_clients are default mode then set default screen_mode
-  return;
 }
 
 static void
@@ -639,7 +629,7 @@ _e_tizen_policy_cb_window_screen_mode_set(struct wl_client *client, struct wl_re
    wsm->surface = surface;
    wsm->interface = resource;
 
-   _window_screen_mode_apply();
+   e_mod_pol_wl_win_scrmode_apply();
 
    /* Add other error handling code on window_screen send done. */
    tizen_policy_send_window_screen_mode_done(resource, surface, mode, TIZEN_POLICY_ERROR_STATE_NONE);
@@ -722,17 +712,11 @@ _e_tizen_policy_cb_bind(struct wl_client *client, void *data, uint32_t version, 
    wl_resource_set_implementation(res, &_e_tizen_policy_interface, cdata, NULL);
 }
 
-static Eina_Bool
-_cb_client_visibility_change(void *data EINA_UNUSED,
-                             int type   EINA_UNUSED,
-                             void      *event)
+void
+e_mod_pol_wl_win_scrmode_apply(void)
 {
-   //E_Event_Client *ev;
-   //ev = event;
-
-   _window_screen_mode_apply();
-
-   return ECORE_CALLBACK_PASS_ON;
+   // TODO: update screen mode for ec which was changed to be visible
+   ;
 }
 
 Eina_Bool
@@ -761,9 +745,6 @@ e_mod_pol_wl_init(void)
    hash_policy_conformants = eina_hash_pointer_new(free);
    hash_window_screen_modes = eina_hash_pointer_new(free);
 
-   E_LIST_HANDLER_APPEND(_handlers, E_EVENT_CLIENT_VISIBILITY_CHANGE,
-                         _cb_client_visibility_change, NULL);
-
    return EINA_TRUE;
 }
 
@@ -775,7 +756,6 @@ e_mod_pol_wl_shutdown(void)
    E_FREE_FUNC(hash_policy_conformants, eina_hash_free);
 
    eina_list_free(_window_screen_modes);
-   E_FREE_LIST(_handlers, ecore_event_handler_del);
    E_FREE_FUNC(hash_window_screen_modes, eina_hash_free);
 }
 
