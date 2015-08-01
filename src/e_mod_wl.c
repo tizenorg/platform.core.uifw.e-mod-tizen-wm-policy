@@ -16,7 +16,6 @@ typedef struct _Pol_Wl_Surface
    E_Client           *ec;
    Eina_Bool           pending_notilv;
    int32_t             notilv;
-   uint32_t            scrmode;
    Eina_List          *vislist; /* list of tizen_visibility_interface resources */
    Eina_List          *poslist; /* list of tizen_position_inteface resources */
 } Pol_Wl_Surface;
@@ -96,12 +95,13 @@ _pol_wl_surf_del(void *data)
    Pol_Wl_Surface *psurf = (Pol_Wl_Surface *)data;
 
    PLOGF("POLSURF",
-         "HASH_DEL |s:0x%08x|ps:0x%08x|tzpol:0x%08x",
+         "HASH_DEL |s:0x%08x|ps:0x%08x|tzpol:0x%08x|pending_notilv:%d",
          psurf->cp,
          psurf->ec,
          (unsigned int)psurf->surf,
          (unsigned int)psurf->tzpol,
-         (unsigned int)psurf);
+         (unsigned int)psurf,
+         psurf->pending_notilv);
 
    eina_list_free(psurf->vislist);
    eina_list_free(psurf->poslist);
@@ -705,7 +705,7 @@ e_mod_pol_wl_keyboard_geom_broadcast(E_Client *ec)
 // notification level
 // --------------------------------------------------------
 static void
-_tzpol_iface_cb_notilv_set(struct wl_client *client, struct wl_resource *tzpol, struct wl_resource *surf, int32_t lv)
+_tzpol_iface_cb_notilv_set(struct wl_client *client EINA_UNUSED, struct wl_resource *tzpol, struct wl_resource *surf, int32_t lv)
 {
    E_Pixmap *cp;
    E_Client *ec;
@@ -723,30 +723,20 @@ _tzpol_iface_cb_notilv_set(struct wl_client *client, struct wl_resource *tzpol, 
 
    ec = e_pixmap_client_get(cp);
    if (ec)
-     {
-        e_mod_pol_notification_level_apply(ec, lv);
-
-        PLOGF("TZPOL",
-              "NOTISEND1|s:0x%08x|tzpol:0x%08x|psurf:0x%08x|lv%d",
-              cp, ec, (unsigned int)surf, (unsigned int)tzpol,
-              (unsigned int)psurf, lv);
-
-        tizen_policy_send_notification_done
-           (tzpol, surf, lv,
-            TIZEN_POLICY_ERROR_STATE_NONE);
-
-        psurf->pending_notilv = EINA_FALSE;
-     }
+     e_mod_pol_notification_level_apply(ec, lv);
    else
-     {
-        PLOGF("TZPOL",
-              "NOTIPEND |s:0x%08x|tzpol:0x%08x|psurf:0x%08x|lv%d",
-              cp, ec, (unsigned int)surf, (unsigned int)tzpol,
-              (unsigned int)psurf, lv);
+     psurf->pending_notilv = EINA_TRUE;
 
-        psurf->pending_notilv = EINA_TRUE;
-        psurf->notilv = lv;
-     }
+   psurf->notilv = lv;
+
+   PLOGF("TZPOL",
+         "NOTI_DONE|s:0x%08x|tzpol:0x%08x|psurf:0x%08x|lv%d",
+         cp, ec, (unsigned int)surf, (unsigned int)tzpol,
+         (unsigned int)psurf, lv);
+
+   tizen_policy_send_notification_done
+      (tzpol, surf, lv,
+       TIZEN_POLICY_ERROR_STATE_NONE);
 }
 
 void
@@ -754,9 +744,6 @@ e_mod_pol_wl_notification_level_fetch(E_Client *ec)
 {
    E_Pixmap *cp;
    Pol_Wl_Surface *psurf;
-   struct wl_resource *res;
-   Eina_List *l;
-   Eina_Bool found;
 
    EINA_SAFETY_ON_NULL_RETURN(ec);
 
@@ -771,40 +758,6 @@ e_mod_pol_wl_notification_level_fetch(E_Client *ec)
    psurf->pending_notilv = EINA_FALSE;
 
    e_mod_pol_notification_level_apply(ec, psurf->notilv);
-
-   PLOGF("TZPOL",
-         "NOTISEND2|s:0x%08x|tzpol:0x%08x|ps:0x%08x|lv%d",
-         ec->pixmap, ec,
-         (unsigned int)psurf->surf,
-         (unsigned int)psurf->tzpol,
-         (unsigned int)psurf,
-         psurf->notilv);
-
-   found = EINA_FALSE;
-   EINA_LIST_FOREACH(polwl->resources, l, res)
-     {
-        if (res == psurf->tzpol)
-          {
-             found = EINA_TRUE;
-             break;
-          }
-     }
-
-   if (!found)
-     {
-        PLOGF("TZPOL",
-              "NOTI ERR |s:0x%08x|tzpol:0x%08x|ps:0x%08x",
-              psurf->cp, psurf->ec,
-              (unsigned int)psurf->surf,
-              (unsigned int)psurf->tzpol,
-              (unsigned int)psurf);
-
-        return;
-     }
-
-   tizen_policy_send_notification_done
-      (psurf->tzpol, psurf->surf, psurf->notilv,
-       TIZEN_POLICY_ERROR_STATE_NONE);
 }
 
 // --------------------------------------------------------
