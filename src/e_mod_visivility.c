@@ -28,11 +28,11 @@ static Pol_Visibility *_visibility_add(E_Client *ec, int visibility);
 static Pol_Visibility *_visibility_find(E_Client *ec);
 static void            _visibility_notify_send(E_Client *ec, int visibility);
 static void            _pol_cb_visibility_data_free(void *data);
-static Pol_Win_Opaque *_win_opaque_add(E_Client *ec, int opaque);
 static Pol_Win_Opaque *_win_opaque_find(E_Client *ec);
 static void            _pol_cb_win_opaque_data_free(void *data);
 #ifndef HAVE_WAYLAND_ONLY
 static Eina_Bool       _win_opaque_prop_get(Ecore_X_Window win, int *opaque);
+static Pol_Win_Opaque *_win_opaque_add(E_Client *ec, int opaque);
 #endif
 
 static Pol_Visibility *
@@ -95,25 +95,6 @@ _pol_cb_visibility_data_free(void *data)
 }
 
 static Pol_Win_Opaque *
-_win_opaque_add(E_Client *ec, int opaque)
-{
-   Pol_Win_Opaque *pwo;
-
-   if (e_object_is_del(E_OBJECT(ec))) return NULL;
-
-   pwo = eina_hash_find(hash_pol_win_opaques, &ec);
-   if (pwo) return NULL;
-
-   pwo = E_NEW(Pol_Win_Opaque, 1);
-   pwo->ec = ec;
-   pwo->opaque = opaque;
-
-   eina_hash_add(hash_pol_win_opaques, &ec, pwo);
-
-   return pwo;
-}
-
-static Pol_Win_Opaque *
 _win_opaque_find(E_Client *ec)
 {
    Pol_Win_Opaque *pwo;
@@ -142,6 +123,25 @@ _win_opaque_prop_get(Ecore_X_Window win, int *opaque)
 
    *opaque = (int)val;
    return EINA_TRUE;
+}
+
+static Pol_Win_Opaque *
+_win_opaque_add(E_Client *ec, int opaque)
+{
+   Pol_Win_Opaque *pwo;
+
+   if (e_object_is_del(E_OBJECT(ec))) return NULL;
+
+   pwo = eina_hash_find(hash_pol_win_opaques, &ec);
+   if (pwo) return NULL;
+
+   pwo = E_NEW(Pol_Win_Opaque, 1);
+   pwo->ec = ec;
+   pwo->opaque = opaque;
+
+   eina_hash_add(hash_pol_win_opaques, &ec, pwo);
+
+   return pwo;
 }
 #endif
 
