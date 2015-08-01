@@ -43,7 +43,17 @@ _pol_wl_surf_add(E_Pixmap *cp, struct wl_resource *tzpol)
    Eina_Bool found = EINA_FALSE;
 
    psurf = eina_hash_find(polwl->surfaces, &cp);
-   EINA_SAFETY_ON_TRUE_RETURN_VAL(psurf, psurf);
+   if (psurf)
+     {
+        PLOGF("POLSURF",
+              "ADD ERR  |s:0x%08x|tzpol:0x%08x|ps:0x%08x",
+              psurf->cp, psurf->ec,
+              (unsigned int)psurf->surf,
+              (unsigned int)psurf->tzpol,
+              (unsigned int)psurf);
+
+        return NULL;
+     }
 
    EINA_LIST_FOREACH(polwl->resources, l, res)
      {
@@ -58,7 +68,7 @@ _pol_wl_surf_add(E_Pixmap *cp, struct wl_resource *tzpol)
    psurf = E_NEW(Pol_Wl_Surface, 1);
    EINA_SAFETY_ON_NULL_RETURN_VAL(psurf, NULL);
 
-   eina_hash_add(hash_surfaces, &cp, psurf);
+   eina_hash_add(polwl->surfaces, &cp, psurf);
 
    cdata = e_pixmap_cdata_get(cp);
    if (cdata)
@@ -81,8 +91,10 @@ _pol_wl_surf_add(E_Pixmap *cp, struct wl_resource *tzpol)
 }
 
 static void
-_pol_wl_surf_del(Pol_Wl_Surface *psurf)
+_pol_wl_surf_del(void *data)
 {
+   Pol_Wl_Surface *psurf = (Pol_Wl_Surface *)data;
+
    PLOGF("POLSURF",
          "HASH_DEL |s:0x%08x|ps:0x%08x|tzpol:0x%08x",
          psurf->cp,
@@ -143,7 +155,7 @@ _pol_wl_surf_valid_check(const char *func, unsigned int line, Pol_Wl_Surface *ps
 // --------------------------------------------------------
 // util funcs
 // --------------------------------------------------------
-static const char*
+static void
 _pol_wl_pname_print(pid_t pid)
 {
    FILE *h;
@@ -674,7 +686,10 @@ e_mod_pol_wl_keyboard_geom_broadcast(E_Client *ec)
              PLOGF("TZPOL",
                    "CONF ERR |s:0x%08x|tzpol:0x%08x|ps:0x%08x",
                    psurf->cp, psurf->ec,
-                   psurf->surf, psurf->tzpol, psurf);
+                   (unsigned int)psurf->surf,
+                   (unsigned int)psurf->tzpol,
+                   (unsigned int)psurf);
+
              continue;
           }
 
@@ -759,8 +774,10 @@ e_mod_pol_wl_notification_level_fetch(E_Client *ec)
 
    PLOGF("TZPOL",
          "NOTISEND2|s:0x%08x|tzpol:0x%08x|ps:0x%08x|lv%d",
-         ec->pixmap, ec, (unsigned int)psurf->surf,
-         (unsigned int)psurf->tzpol, (unsigned int)psurf,
+         ec->pixmap, ec,
+         (unsigned int)psurf->surf,
+         (unsigned int)psurf->tzpol,
+         (unsigned int)psurf,
          psurf->notilv);
 
    found = EINA_FALSE;
@@ -778,7 +795,10 @@ e_mod_pol_wl_notification_level_fetch(E_Client *ec)
         PLOGF("TZPOL",
               "NOTI ERR |s:0x%08x|tzpol:0x%08x|ps:0x%08x",
               psurf->cp, psurf->ec,
-              psurf->surf, psurf->tzpol, psurf);
+              (unsigned int)psurf->surf,
+              (unsigned int)psurf->tzpol,
+              (unsigned int)psurf);
+
         return;
      }
 
@@ -832,7 +852,7 @@ _tzpol_iface_cb_transient_for_set(struct wl_client *client EINA_UNUSED, struct w
    EINA_SAFETY_ON_NULL_RETURN(pc);
    EINA_SAFETY_ON_NULL_RETURN(pc->comp_data);
 
-   parent_surf = pc->comp_data->surf;
+   parent_surf = pc->comp_data->surface;
 
    _pol_wl_parent_surf_set(ec, parent_surf);
 
@@ -843,7 +863,7 @@ _tzpol_iface_cb_transient_for_set(struct wl_client *client EINA_UNUSED, struct w
    PLOGF("TZPOL",
          "         |child |s:0x%08x",
          ec->pixmap, ec,
-         (unsigned int)(ec->comp_data ? ec->comp_data->surf : NULL));
+         (unsigned int)(ec->comp_data ? ec->comp_data->surface : NULL));
 
    tizen_policy_send_transient_for_done(tzpol, child_id);
 
