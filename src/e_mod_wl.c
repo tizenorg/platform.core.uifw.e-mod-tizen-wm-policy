@@ -143,8 +143,8 @@ _pol_wl_surf_valid_check(const char *func, unsigned int line, Pol_Wl_Surface *ps
               (unsigned int)psurf->tzpol,
               (unsigned int)psurf,
               (unsigned int)tzpol,
-              found_psurf,
-              found_tzpol);
+              found_psurf, found_tzpol,
+              func, line);
 
         return EINA_FALSE;
      }
