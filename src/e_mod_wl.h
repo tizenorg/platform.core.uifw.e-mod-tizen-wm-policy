@@ -13,7 +13,7 @@ void e_mod_pol_wl_client_del(E_Client *ec);
 void e_mod_pol_wl_pixmap_del(E_Pixmap *cp);
 
 /* visibility */
-void e_mod_pol_wl_visibility_send(E_Client *ec, int visibility);
+void e_mod_pol_wl_visibility_send(E_Client *ec, int vis);
 
 /* position */
 void e_mod_pol_wl_position_send(E_Client *ec);
