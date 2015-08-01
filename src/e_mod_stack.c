@@ -153,7 +153,7 @@ e_mod_pol_stack_hook_pre_fetch(E_Client *ec)
         if (transient_for_win)
           parent = e_pixmap_find_client(E_PIXMAP_TYPE_X, transient_for_win);
 #else
-        transient_for_win = NULL;
+        transient_for_win = 0;
         parent = e_pixmap_find_client(E_PIXMAP_TYPE_WL, ec->icccm.transient_for);
 #endif
 
