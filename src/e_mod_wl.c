@@ -136,7 +136,7 @@ _pol_wl_surf_valid_check(const char *func, unsigned int line, Pol_Wl_Surface *ps
        (psurf->tzpol != tzpol))
      {
         PLOGF("POLSURF",
-              "INVALID!!|s:0x%08x|tzpol:0x%08x|ps:0x%08x|tzpol2:0x%08x|%d|%d",
+              "INVALID!!|s:0x%08x|tzpol:0x%08x|ps:0x%08x|tzpol2:0x%08x|%d|%d|%s(%d)",
               psurf->cp,
               psurf->ec,
               (unsigned int)psurf->surf,
