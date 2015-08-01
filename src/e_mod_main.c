@@ -601,21 +601,20 @@ _pol_cb_client_remove(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    ev = event;
    EINA_SAFETY_ON_NULL_RETURN_VAL(ev, ECORE_CALLBACK_PASS_ON);
 
-   pc = eina_hash_find(hash_pol_clients, &ev->ec);
-
    PLOG("CLIENT DEL", ev->ec ? ev->ec->pixmap : NULL, ev->ec);
 
-   if (!pc) return ECORE_CALLBACK_PASS_ON;
-
-   eina_hash_del_by_key(hash_pol_clients, &ev->ec);
-
+#ifdef HAVE_WAYLAND_ONLY
+   e_mod_pol_wl_client_del(ev->ec);
+#endif
    e_mod_pol_stack_cb_client_remove(ev->ec);
    e_mod_pol_notification_client_del(ev->ec);
    e_mod_pol_client_visibility_del(ev->ec);
    e_mod_pol_visibility_calc();
-#ifdef HAVE_WAYLAND_ONLY
-   e_mod_pol_wl_client_del(ev->ec);
-#endif
+
+   pc = eina_hash_find(hash_pol_clients, &ev->ec);
+   if (!pc) return ECORE_CALLBACK_PASS_ON;
+
+   eina_hash_del_by_key(hash_pol_clients, &ev->ec);
 
    return ECORE_CALLBACK_PASS_ON;
 }
