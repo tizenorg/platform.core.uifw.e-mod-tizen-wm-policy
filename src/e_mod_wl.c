@@ -95,7 +95,7 @@ _pol_wl_surf_del(void *data)
    Pol_Wl_Surface *psurf = (Pol_Wl_Surface *)data;
 
    PLOGF("POLSURF",
-         "HASH_DEL |s:0x%08x|ps:0x%08x|tzpol:0x%08x|pending_notilv:%d",
+         "HASH_DEL |s:0x%08x|tzpol:0x%08x|ps:0x%08x|pending_notilv:%d",
          psurf->cp,
          psurf->ec,
          (unsigned int)psurf->surf,
