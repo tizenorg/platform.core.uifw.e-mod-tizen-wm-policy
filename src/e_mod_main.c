@@ -32,7 +32,6 @@ static void        _pol_cb_hook_client_desk_set(void *d EINA_UNUSED, E_Client *e
 static void        _pol_cb_hook_client_eval_end(void *d EINA_UNUSED, E_Client *ec);
 static void        _pol_cb_hook_client_fullscreen_pre(void *data EINA_UNUSED, E_Client *ec);
 
-static void        _pol_cb_hook_pixmap_new(void *data EINA_UNUSED, E_Pixmap *cp);
 static void        _pol_cb_hook_pixmap_del(void *data EINA_UNUSED, E_Pixmap *cp);
 
 static void        _pol_cb_desk_data_free(void *data);
@@ -427,15 +426,8 @@ _pol_cb_hook_client_fullscreen_pre(void* data EINA_UNUSED, E_Client *ec)
 }
 
 static void
-_pol_cb_hook_pixmap_new(void *data EINA_UNUSED, E_Pixmap *cp)
-{
-   PLOG("PIXMAP NEW", cp, e_pixmap_client_get(cp));
-}
-
-static void
 _pol_cb_hook_pixmap_del(void *data EINA_UNUSED, E_Pixmap *cp)
 {
-   PLOG("PIXMAP DEL", cp, e_pixmap_client_get(cp));
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_pixmap_del(cp);
 #endif
@@ -601,8 +593,6 @@ _pol_cb_client_remove(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    ev = event;
    EINA_SAFETY_ON_NULL_RETURN_VAL(ev, ECORE_CALLBACK_PASS_ON);
 
-   PLOG("CLIENT DEL", ev->ec ? ev->ec->pixmap : NULL, ev->ec);
-
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_client_del(ev->ec);
 #endif
@@ -626,8 +616,6 @@ _pol_cb_client_add(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 
    ev = event;
    EINA_SAFETY_ON_NULL_RETURN_VAL(ev, ECORE_CALLBACK_PASS_ON);
-
-   PLOG("CLIENT ADD", ev->ec ? ev->ec->pixmap : NULL, ev->ec);
 
    e_mod_pol_client_window_opaque_set(ev->ec);
 
@@ -1026,7 +1014,6 @@ e_modapi_init(E_Module *m)
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_END,                 _pol_cb_hook_client_eval_end,            NULL);
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_FULLSCREEN_PRE,           _pol_cb_hook_client_fullscreen_pre,      NULL);
 
-   E_PIXMAP_HOOK_APPEND(hooks_cp,  E_PIXMAP_HOOK_NEW,                      _pol_cb_hook_pixmap_new,                 NULL);
    E_PIXMAP_HOOK_APPEND(hooks_cp,  E_PIXMAP_HOOK_DEL,                      _pol_cb_hook_pixmap_del,                 NULL);
 
    e_mod_pol_rotation_init();

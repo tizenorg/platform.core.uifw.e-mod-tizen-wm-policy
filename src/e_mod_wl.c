@@ -47,7 +47,7 @@ _pol_wl_tzpol_add(struct wl_resource *res_tzpol)
 
    tzpol->res_tzpol = res_tzpol;
 
-   PLOGF("TZPOL",
+   ELOGF("TZPOL",
          "HASH_ADD |res:0x%08x|tzpol:0x%08x",
          NULL, NULL,
          (unsigned int)res_tzpol,
@@ -69,7 +69,7 @@ _pol_wl_tzpol_del(void *data)
         _pol_wl_surf_del(psurf);
      }
 
-   PLOGF("TZPOL",
+   ELOGF("TZPOL",
          "HASH_DEL |res:0x%08x|tzpol:0x%08x",
          NULL, NULL,
          (unsigned int)tzpol->res_tzpol,
@@ -153,7 +153,7 @@ _pol_wl_surf_add(E_Pixmap *cp, struct wl_resource *res_tzpol)
    psurf->cp = cp;
    psurf->ec = e_pixmap_client_get(cp);
 
-   PLOGF("POLSURF",
+   ELOGF("POLSURF",
          "LIST_ADD |s:0x%08x|tzpol:0x%08x|ps:0x%08x",
          psurf->cp,
          psurf->ec,
@@ -169,7 +169,7 @@ _pol_wl_surf_add(E_Pixmap *cp, struct wl_resource *res_tzpol)
 static void
 _pol_wl_surf_del(Pol_Wl_Surface *psurf)
 {
-   PLOGF("POLSURF",
+   ELOGF("POLSURF",
          "LIST_DEL |s:0x%08x|tzpol:0x%08x|ps:0x%08x|pending_notilv:%d",
          psurf->cp,
          psurf->ec,
@@ -183,33 +183,6 @@ _pol_wl_surf_del(Pol_Wl_Surface *psurf)
 
    memset(psurf, 0x0, sizeof(Pol_Wl_Surface));
    E_FREE(psurf);
-}
-
-// --------------------------------------------------------
-// util funcs
-// --------------------------------------------------------
-static void
-_pol_wl_pname_print(pid_t pid)
-{
-   FILE *h;
-   char proc[512], pname[512];
-   size_t len;
-
-   sprintf(proc, "/proc/%d/cmdline", pid);
-
-   h = fopen(proc, "r");
-   if (!h) return;
-
-   len = fread(pname, sizeof(char), 512, h);
-   if (len > 0)
-     {
-        if ('\n' == pname[len - 1])
-          pname[len - 1] = '\0';
-     }
-
-   fclose(h);
-
-   PLOGF("TZPOL", "         |%s", NULL, NULL, pname);
 }
 
 // --------------------------------------------------------
@@ -718,7 +691,7 @@ _tzpol_iface_cb_notilv_set(struct wl_client *client EINA_UNUSED, struct wl_resou
 
    psurf->notilv = lv;
 
-   PLOGF("TZPOL",
+   ELOGF("TZPOL",
          "NOTI_DONE|s:0x%08x|res_tzpol:0x%08x|psurf:0x%08x|lv%d",
          cp, ec,
          (unsigned int)surf,
@@ -792,7 +765,7 @@ _tzpol_iface_cb_transient_for_set(struct wl_client *client EINA_UNUSED, struct w
    E_Client *ec, *pc;
    struct wl_resource *parent_surf;
 
-   PLOGF("TZPOL",
+   ELOGF("TZPOL",
          "TF_SET   |res_tzpol:0x%08x|parent:%d|child:%d",
          NULL, NULL, (unsigned int)res_tzpol, parent_id, child_id);
 
@@ -807,11 +780,11 @@ _tzpol_iface_cb_transient_for_set(struct wl_client *client EINA_UNUSED, struct w
 
    _pol_wl_parent_surf_set(ec, parent_surf);
 
-   PLOGF("TZPOL",
+   ELOGF("TZPOL",
          "         |parent|s:0x%08x",
          pc->pixmap, pc, (unsigned int)parent_surf);
 
-   PLOGF("TZPOL",
+   ELOGF("TZPOL",
          "         |child |s:0x%08x",
          ec->pixmap, ec,
          (unsigned int)(ec->comp_data ? ec->comp_data->surface : NULL));
@@ -826,7 +799,7 @@ _tzpol_iface_cb_transient_for_unset(struct wl_client *client EINA_UNUSED, struct
 {
    E_Client *ec;
 
-   PLOGF("TZPOL",
+   ELOGF("TZPOL",
          "TF_UNSET |res_tzpol:0x%08x|child:%d",
          NULL, NULL, (unsigned int)res_tzpol, child_id);
 
@@ -918,9 +891,6 @@ _tzpol_cb_unbind(struct wl_resource *res_tzpol)
 {
    Pol_Wl_Tzpol *tzpol;
    struct wl_client *client;
-   pid_t pid = 0;
-   uid_t uid = 0;
-   gid_t gid = 0;
 
    tzpol = _pol_wl_tzpol_get(res_tzpol);
    EINA_SAFETY_ON_NULL_RETURN(tzpol);
@@ -928,20 +898,16 @@ _tzpol_cb_unbind(struct wl_resource *res_tzpol)
    eina_hash_del_by_key(polwl->tzpols, &res_tzpol);
 
    client = wl_resource_get_client(res_tzpol);
-   if (client) wl_client_get_credentials(client, &pid, &uid, &gid);
 
-   PLOGF("TZPOL",
-         "UNBIND   |client:0x%08x|%d|%d|%d",
-         NULL, NULL, (unsigned int)client, pid, uid, gid);
+   ELOGF("TZPOL",
+         "UNBIND   |client:0x%08x",
+         NULL, NULL, (unsigned int)client);
 }
 
 static void
 _tzpol_cb_bind(struct wl_client *client, void *data EINA_UNUSED, uint32_t ver, uint32_t id)
 {
    struct wl_resource *res_tzpol;
-   pid_t pid = 0;
-   uid_t uid = 0;
-   gid_t gid = 0;
 
    EINA_SAFETY_ON_NULL_GOTO(polwl, err);
 
@@ -958,13 +924,9 @@ _tzpol_cb_bind(struct wl_client *client, void *data EINA_UNUSED, uint32_t ver, u
                                   NULL,
                                   _tzpol_cb_unbind);
 
-   wl_client_get_credentials(client, &pid, &uid, &gid);
-
-   PLOGF("TZPOL",
-         "BIND     |client:0x%08x|%d|%d|%d",
-         NULL, NULL, (unsigned int)client, pid, uid, gid);
-
-   _pol_wl_pname_print(pid);
+   ELOGF("TZPOL",
+         "BIND     |client:0x%08x",
+         NULL, NULL, (unsigned int)client);
 
    _pol_wl_tzpol_add(res_tzpol);
    return;
