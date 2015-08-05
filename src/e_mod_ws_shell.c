@@ -42,6 +42,24 @@ typedef struct _WS_Shell_Subscriber
 static Eina_List *wssh_ifaces = NULL;
 static WS_Shell_Service *wssh_services[E_TIZEN_WS_SHELL_SERVICE_ROLE_MAX];
 
+static WS_Shell_Subscriber*
+_service_tzsrv_parent_pick(WS_Shell_Service *tvsrv)
+{
+   WS_Shell_Subscriber *sub = NULL;
+   Eina_List *l;
+
+   EINA_SAFETY_ON_NULL_RETURN_VAL(tvsrv, NULL);
+   EINA_SAFETY_ON_NULL_RETURN_VAL(tvsrv->subscribers, NULL);
+
+   EINA_LIST_REVERSE_FOREACH(tvsrv->subscribers, l, sub)
+     {
+        if (!sub->ec) continue;
+        break;
+     }
+
+   return sub;
+}
+
 static void
 _e_tizen_ws_shell_region_cb_shell_destroy(struct wl_listener *listener, void *data)
 {
@@ -130,7 +148,6 @@ static void
 _e_tizen_ws_shell_service_register_handle(WS_Shell_Service *service)
 {
    WS_Shell_Subscriber *subs = NULL;
-   Eina_List *l;
 
    EINA_SAFETY_ON_NULL_RETURN(service);
    EINA_SAFETY_ON_NULL_RETURN(service->ec);
@@ -138,23 +155,9 @@ _e_tizen_ws_shell_service_register_handle(WS_Shell_Service *service)
    switch (service->role)
      {
       case E_TIZEN_WS_SHELL_SERVICE_ROLE_TVSERVICE:
-         if (service->subscribers)
-           {
-              E_Client *above = NULL;
-
-              EINA_LIST_FOREACH(service->subscribers, l, subs)
-                {
-                   if ((subs->ec) && (subs->ec->parent != service->ec))
-                     {
-                        if (!above) above = subs->ec;
-                        e_mod_pol_stack_transient_for_set(subs->ec,
-                                                          service->ec);
-                     }
-                }
-
-              if (above)
-                evas_object_stack_below(service->ec->frame, above->frame);
-           }
+         service->ec->transient_policy = E_TRANSIENT_BELOW;
+         if ((subs = _service_tzsrv_parent_pick(service)))
+           e_mod_pol_stack_transient_for_set(service->ec, subs->ec);
          break;
       default:
          break;
@@ -164,8 +167,6 @@ _e_tizen_ws_shell_service_register_handle(WS_Shell_Service *service)
 static void
 _e_tizen_ws_shell_service_unregister_handle(WS_Shell_Service *service)
 {
-   WS_Shell_Subscriber *subs = NULL;
-
    EINA_SAFETY_ON_NULL_RETURN(service);
    EINA_SAFETY_ON_NULL_RETURN(service->ec);
 
@@ -174,16 +175,13 @@ _e_tizen_ws_shell_service_unregister_handle(WS_Shell_Service *service)
       case E_TIZEN_WS_SHELL_SERVICE_ROLE_TVSERVICE:
          if (service->subscribers)
            {
-              EINA_LIST_FREE(service->subscribers, subs)
-                {
-                   if ((subs->ec) && (subs->ec->parent == service->ec))
-                     {
-                        e_mod_pol_stack_transient_for_set(subs->ec,
-                                                          NULL);
-                     }
-                }
+              service->enabled = EINA_FALSE;
+              break;
            }
       default:
+         wssh_services[service->role] = NULL;
+         eina_stringshare_del(service->name);
+         E_FREE(service);
          break;
      }
 }
@@ -221,19 +219,14 @@ _e_tizen_ws_shell_service_destroy(struct wl_resource *resource)
    service = wl_resource_get_user_data(resource);
    if (!service) return;
 
-   /* handle deregistered service */
-   _e_tizen_ws_shell_service_unregister_handle(service);
-
    /* send service unregister */
    EINA_LIST_FOREACH(wssh_ifaces, l, res)
      {
         tizen_ws_shell_send_service_unregister(res, service->name);
      }
 
-   wssh_services[service->role] = NULL;
-
-   eina_stringshare_del(service->name);
-   E_FREE(service);
+   /* handle deregistered service */
+   _e_tizen_ws_shell_service_unregister_handle(service);
 }
 
 static void
@@ -325,25 +318,27 @@ static const struct tws_quickpanel_interface _e_tizen_ws_shell_quickpanel_interf
 static void
 _e_tizen_ws_shell_tvsrv_destroy(struct wl_resource *resource)
 {
-   WS_Shell_Subscriber *tvapp = NULL;
+   WS_Shell_Subscriber *tvsub = NULL, *newsub = NULL;
    WS_Shell_Service *tvsrv = NULL;
 
-   tvapp = wl_resource_get_user_data(resource);
-   EINA_SAFETY_ON_NULL_RETURN(tvapp);
+   tvsub = wl_resource_get_user_data(resource);
+   EINA_SAFETY_ON_NULL_RETURN(tvsub);
 
    if ((tvsrv = wssh_services[E_TIZEN_WS_SHELL_SERVICE_ROLE_TVSERVICE]))
      {
-        if ((tvapp->ec) && (tvsrv->ec) &&
-            (tvsrv->ec == tvapp->ec->parent))
-          {
-             e_mod_pol_stack_transient_for_set(tvapp->ec, NULL);
-          }
+        tvsrv->subscribers = eina_list_remove(tvsrv->subscribers, tvsub);
 
-        tvsrv->subscribers = eina_list_remove(tvsrv->subscribers, tvapp);
+        if ((newsub = _service_tzsrv_parent_pick(tvsrv)))
+          {
+             e_mod_pol_stack_transient_for_set(tvsrv->ec, newsub->ec);
+             evas_object_stack_below(tvsrv->ec->frame, newsub->ec->frame);
+          }
+        else
+          e_mod_pol_stack_transient_for_set(tvsrv->ec, NULL);
      }
 
-   if (tvapp)
-     E_FREE(tvapp);
+   if (tvsub)
+     E_FREE(tvsub);
 }
 
 static void
@@ -357,11 +352,11 @@ static void
 _e_tizen_ws_shell_tvsrv_cb_bind(struct wl_client *client,
                                 struct wl_resource *resource)
 {
-   WS_Shell_Subscriber *tvapp = NULL;
+   WS_Shell_Subscriber *tvsub = NULL;
    WS_Shell_Service *tvsrv = NULL;
 
-   tvapp = wl_resource_get_user_data(resource);
-   if (!tvapp) return;
+   tvsub = wl_resource_get_user_data(resource);
+   if ((!tvsub) || (!tvsub->ec)) return;
 
    if (!(tvsrv = wssh_services[E_TIZEN_WS_SHELL_SERVICE_ROLE_TVSERVICE]))
      {
@@ -369,37 +364,42 @@ _e_tizen_ws_shell_tvsrv_cb_bind(struct wl_client *client,
         wssh_services[E_TIZEN_WS_SHELL_SERVICE_ROLE_TVSERVICE] = tvsrv;
      }
 
-   if (!tvsrv->enabled)
-     {
-        tvsrv->subscribers = eina_list_append(tvsrv->subscribers, tvapp);
-        return;
-     }
+   tvsrv->subscribers = eina_list_append(tvsrv->subscribers, tvsub);
 
-   if (!tvapp->ec || !tvsrv->ec) return;
-   if (tvapp->ec->parent == tvsrv->ec) return;
+   if (!tvsrv->enabled) return;
+   if (!tvsrv->ec) return;
+   if (tvsrv->ec->parent == tvsub->ec) return;
 
-   e_mod_pol_stack_transient_for_set(tvapp->ec, tvsrv->ec);
+   e_mod_pol_stack_transient_for_set(tvsrv->ec, tvsub->ec);
+   evas_object_stack_below(tvsrv->ec->frame, tvsub->ec->frame);
 }
 
 static void
 _e_tizen_ws_shell_tvsrv_cb_unbind(struct wl_client *client,
                                   struct wl_resource *resource)
 {
-   WS_Shell_Subscriber *tvapp = NULL;
+   WS_Shell_Subscriber *tvsub = NULL, *newsub;
    WS_Shell_Service *tvsrv = NULL;
 
-   tvapp = wl_resource_get_user_data(resource);
-   if (!tvapp) return;
+   tvsub = wl_resource_get_user_data(resource);
+   if (!tvsub) return;
 
    if ((!(tvsrv = wssh_services[E_TIZEN_WS_SHELL_SERVICE_ROLE_TVSERVICE])) ||
        (!tvsrv->enabled))
      return;
 
-   if ((!tvapp->ec) || (!tvapp->ec->parent)) return;
-   if (tvapp->ec->parent != tvsrv->ec) return;
+   tvsrv->subscribers = eina_list_remove(tvsrv->subscribers, tvsub);
 
-   tvsrv->subscribers = eina_list_remove(tvsrv->subscribers, tvapp);
-   e_mod_pol_stack_transient_for_set(tvapp->ec, NULL);
+   if ((!tvsub->ec) || (!tvsrv->ec->parent)) return;
+   if (tvsrv->ec->parent != tvsub->ec) return;
+
+   if ((newsub = _service_tzsrv_parent_pick(tvsrv)))
+     {
+        e_mod_pol_stack_transient_for_set(tvsrv->ec, newsub->ec);
+        evas_object_stack_below(tvsrv->ec->frame, newsub->ec->frame);
+     }
+   else
+     e_mod_pol_stack_transient_for_set(tvsrv->ec, NULL);
 }
 static const struct tws_tvsrv_interface _e_tizen_ws_shell_tvsrv_interface =
 {
@@ -557,7 +557,7 @@ _e_tizen_ws_shell_cb_tvsrv_get(struct wl_client *client,
 {
    int version = wl_resource_get_version(tizen_ws_shell);
    struct wl_resource *res, *surface_resource;
-   WS_Shell_Subscriber *tvapp = NULL;
+   WS_Shell_Subscriber *tvsub = NULL;
    E_Client *ec = NULL;
 
    if (!(res = wl_resource_create(client, &tws_tvsrv_interface, version, id)))
@@ -570,13 +570,13 @@ _e_tizen_ws_shell_cb_tvsrv_get(struct wl_client *client,
    surface_resource = wl_client_get_object(client, surface_id);
    ec = e_pixmap_find_client(E_PIXMAP_TYPE_WL, (uintptr_t)surface_resource);
 
-   tvapp = E_NEW(WS_Shell_Subscriber, 1);
-   tvapp->ec = ec;
-   tvapp->resource = res;
+   tvsub = E_NEW(WS_Shell_Subscriber, 1);
+   tvsub->ec = ec;
+   tvsub->resource = res;
 
    wl_resource_set_implementation(res,
                                   &_e_tizen_ws_shell_tvsrv_interface,
-                                  tvapp,
+                                  tvsub,
                                   _e_tizen_ws_shell_tvsrv_destroy);
 }
 static const struct tizen_ws_shell_interface _e_tizen_ws_shell_interface =
