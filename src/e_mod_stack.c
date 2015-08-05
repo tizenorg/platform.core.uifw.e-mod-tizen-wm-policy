@@ -79,19 +79,31 @@ _pol_stack_transient_for_apply(E_Client *ec)
         e_config->transient.raise = raise;
      }
 
-   top = e_client_top_get(ec->comp);
-   while (top)
+   if (ec->transient_policy == E_TRANSIENT_ABOVE)
      {
-        if ((top != ec) && (eina_list_data_find(ec->parent->transients, top)))
-          break;
+        top = e_client_top_get(ec->comp);
+        while (top)
+          {
+             if ((!ec->parent->transients) || (top == ec->parent))
+               {
+                  top = NULL;
+                  break;
+               }
+             if ((top != ec) && (eina_list_data_find(ec->parent->transients, top)))
+               break;
 
-        top = e_client_below_get(top);
+             top = e_client_below_get(top);
+          }
+
+        if (top)
+          evas_object_stack_above(ec->frame, top->frame);
+        else
+          evas_object_stack_above(ec->frame, ec->parent->frame);
      }
-
-   if (top)
-     evas_object_stack_above(ec->frame, top->frame);
-   else
-     evas_object_stack_above(ec->frame, ec->parent->frame);
+   else if (ec->transient_policy == E_TRANSIENT_BELOW)
+     {
+        evas_object_stack_below(ec->frame, ec->parent->frame);
+     }
 }
 
 Eina_Bool
@@ -219,7 +231,6 @@ e_mod_pol_stack_transient_for_set(E_Client *child, E_Client *parent)
      }
 
    pwin = e_client_util_win_get(parent);
-   e_pixmap_parent_window_set(child->pixmap, pwin);
 
    /* If we already have a parent, remove it */
    if (child->parent)
