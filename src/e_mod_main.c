@@ -218,6 +218,15 @@ _pol_client_normal_check(E_Client *ec)
    if (e_mod_pol_client_is_volume(ec))
      return EINA_FALSE;
 
+   if (!e_util_strcmp("e_demo", ec->icccm.window_role))
+     {
+        Pol_Client *pc;
+        pc = eina_hash_find(hash_pol_clients, &ec);
+        if (pc) _pol_client_del(pc);
+
+        return EINA_FALSE;
+     }
+
    if ((ec->netwm.type == E_WINDOW_TYPE_NORMAL) ||
        (ec->netwm.type == E_WINDOW_TYPE_UNKNOWN))
      {
