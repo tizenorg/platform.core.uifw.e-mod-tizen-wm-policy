@@ -185,6 +185,40 @@ _pol_wl_surf_del(Pol_Wl_Surface *psurf)
    E_FREE(psurf);
 }
 
+static void
+_pol_wl_surf_client_set(E_Client *ec)
+{
+   Pol_Wl_Tzpol *tzpol;
+   Pol_Wl_Surface *psurf;
+   Eina_Iterator *it;
+
+   it = eina_hash_iterator_data_new(polwl->tzpols);
+   EINA_ITERATOR_FOREACH(it, tzpol)
+     {
+        psurf = _pol_wl_tzpol_surf_find(tzpol, ec->pixmap);
+        if (psurf)
+          {
+             if (psurf->ec == ec)
+               {
+                  ELOGF("POLSURF",
+                        "CRI ERR!!|s:0x%08x|tzpol:0x%08x|ps:0x%08x|new_ec:0x%08x|new_cp:0x%08x",
+                        psurf->cp,
+                        psurf->ec,
+                        (unsigned int)psurf->surf,
+                        (unsigned int)psurf->tzpol,
+                        (unsigned int)psurf,
+                        (unsigned int)ec,
+                        (unsigned int)ec->pixmap);
+               }
+
+             psurf->ec = ec;
+          }
+     }
+   eina_iterator_free(it);
+
+   return EINA_FALSE;
+}
+
 // --------------------------------------------------------
 // visibility
 // --------------------------------------------------------
@@ -943,6 +977,15 @@ _tzpol_cb_bind(struct wl_client *client, void *data EINA_UNUSED, uint32_t ver, u
 err:
    ERR("Could not create tizen_policy_interface res: %m");
    wl_client_post_no_memory(client);
+}
+
+void
+e_mod_pol_wl_client_add(E_Client *ec)
+{
+   EINA_SAFETY_ON_NULL_RETURN(ec);
+   if (!ec->pixmap) return;
+
+   _pol_wl_surf_client_set(ec);
 }
 
 void
