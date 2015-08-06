@@ -258,7 +258,7 @@ e_mod_pol_wl_visibility_send(E_Client *ec, int vis)
    EINA_ITERATOR_FOREACH(it, tzpol)
      EINA_LIST_FOREACH(tzpol->psurfs, l, psurf)
        {
-          if (psurf->ec != ec) continue;
+          if (e_pixmap_client_get(psurf->cp) != ec) continue;
 
           EINA_LIST_FOREACH(psurf->poslist, ll, res_tzvis)
             tizen_visibility_send_notify(res_tzvis, vis);
@@ -360,7 +360,7 @@ e_mod_pol_wl_position_send(E_Client *ec)
    EINA_ITERATOR_FOREACH(it, tzpol)
      EINA_LIST_FOREACH(tzpol->psurfs, l, psurf)
        {
-          if (psurf->ec != ec) continue;
+          if (e_pixmap_client_get(psurf->cp) != ec) continue;
 
           EINA_LIST_FOREACH(psurf->poslist, ll, res_tzpos)
             tizen_position_send_changed(res_tzpos, ec->x, ec->y);
@@ -648,7 +648,7 @@ e_mod_pol_wl_keyboard_geom_broadcast(E_Client *ec)
    EINA_ITERATOR_FOREACH(it, tzpol)
      EINA_LIST_FOREACH(tzpol->psurfs, l, psurf)
        {
-          ec2 = psurf->ec;
+          ec2 = e_pixmap_client_get(psurf->cp);
           if (!ec2) continue;
 
           r = e_client_util_ignored_get(ec2);
