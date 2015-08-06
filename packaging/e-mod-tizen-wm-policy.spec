@@ -26,6 +26,7 @@ The Enlightenment WM Policy Module for Tizen
 %setup -q -n %{name}-%{version}
 
 %build
+export CFLAGS+=" -DE_LOGGING=1"
 %autogen
 %if %{with wayland}
 %configure \
