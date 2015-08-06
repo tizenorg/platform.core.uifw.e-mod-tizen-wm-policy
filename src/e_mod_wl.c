@@ -648,7 +648,7 @@ e_mod_pol_wl_keyboard_geom_broadcast(E_Client *ec)
    EINA_ITERATOR_FOREACH(it, tzpol)
      EINA_LIST_FOREACH(tzpol->psurfs, l, psurf)
        {
-          ec2 = psurf->ec;
+          ec2 = e_pixmap_client_get(psurf->cp);
           if (!ec2) continue;
 
           r = e_client_util_ignored_get(ec2);
