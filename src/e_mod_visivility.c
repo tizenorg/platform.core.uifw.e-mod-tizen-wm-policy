@@ -1,5 +1,7 @@
 #include "e_mod_main.h"
 #ifdef HAVE_WAYLAND_ONLY
+#define E_COMP_WL
+#include "e_comp_wl.h"
 #include "e_mod_wl.h"
 #else
 #include "e_mod_atoms.h"
@@ -32,8 +34,8 @@ static Pol_Win_Opaque *_win_opaque_find(E_Client *ec);
 static void            _pol_cb_win_opaque_data_free(void *data);
 #ifndef HAVE_WAYLAND_ONLY
 static Eina_Bool       _win_opaque_prop_get(Ecore_X_Window win, int *opaque);
-static Pol_Win_Opaque *_win_opaque_add(E_Client *ec, int opaque);
 #endif
+static Pol_Win_Opaque *_win_opaque_add(E_Client *ec, int opaque);
 
 static Pol_Visibility *
 _visibility_add(E_Client *ec, int visibility)
@@ -124,6 +126,7 @@ _win_opaque_prop_get(Ecore_X_Window win, int *opaque)
    *opaque = (int)val;
    return EINA_TRUE;
 }
+#endif
 
 static Pol_Win_Opaque *
 _win_opaque_add(E_Client *ec, int opaque)
@@ -143,7 +146,6 @@ _win_opaque_add(E_Client *ec, int opaque)
 
    return pwo;
 }
-#endif
 
 void
 e_mod_pol_visibility_init(void)
@@ -319,16 +321,24 @@ e_mod_pol_client_visibility_del(E_Client *ec)
 void
 e_mod_pol_client_window_opaque_set(E_Client *ec)
 {
-#ifndef HAVE_WAYLAND_ONLY
-   Ecore_X_Window win;
    int opaque = 0;
 
    if (!ec) return;
-   win = e_client_util_win_get(ec);
 
-   if (_win_opaque_prop_get(win, &opaque))
-     _win_opaque_add(ec, opaque);
+#ifndef HAVE_WAYLAND_ONLY
+   Ecore_X_Window win = e_client_util_win_get(ec);
+
+   if (!_win_opaque_prop_get(win, &opaque)) return;
+#else
+   E_Comp_Wl_Client_Data *cdata;
+
+   if (!ec->pixmap) return;
+   if (!(cdata = e_pixmap_cdata_get(ec->pixmap))) return;
+
+   opaque = cdata->opaque_state;
 #endif
+
+   _win_opaque_add(ec, opaque);
 }
 
 #ifndef HAVE_WAYLAND_ONLY
