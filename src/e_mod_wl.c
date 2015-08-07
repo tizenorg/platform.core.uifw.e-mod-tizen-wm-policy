@@ -928,6 +928,26 @@ _tzpol_iface_cb_subsurf_place_below_parent(struct wl_client *client EINA_UNUSED,
    epc->comp_data->sub.list_changed = EINA_TRUE;
 }
 
+static void
+_tzpol_iface_cb_opaque_state_set(struct wl_client *client, struct wl_resource *resource, struct wl_resource *surface, int32_t state)
+{
+   E_Pixmap *ep;
+   E_Client *ec;
+   E_Comp_Wl_Client_Data *cdata;
+
+   ep = wl_resource_get_user_data(surface);
+   EINA_SAFETY_ON_NULL_RETURN(ep);
+
+   cdata = e_pixmap_cdata_get(ep);
+   EINA_SAFETY_ON_NULL_RETURN(cdata);
+
+   cdata->opaque_state = state;
+
+   ec = e_pixmap_client_get(ep);
+   if (ec)
+     e_mod_pol_client_window_opaque_set(ec);
+}
+
 static const struct tizen_policy_interface _tzpol_iface =
 {
    _tzpol_iface_cb_vis_get,
@@ -945,7 +965,8 @@ static const struct tizen_policy_interface _tzpol_iface =
    _tzpol_iface_cb_transient_for_set,
    _tzpol_iface_cb_transient_for_unset,
    _tzpol_iface_cb_win_scrmode_set,
-   _tzpol_iface_cb_subsurf_place_below_parent
+   _tzpol_iface_cb_subsurf_place_below_parent,
+   _tzpol_iface_cb_opaque_state_set,
 };
 
 static void
