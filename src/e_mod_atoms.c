@@ -1,7 +1,6 @@
 #include "e_mod_atoms.h"
 #include "e_mod_utils.h"
 
-#ifndef HAVE_WAYLAND_ONLY
 Ecore_X_Atom E_MOD_POL_ATOM_WINDOW_OPAQUE = 0;
 Ecore_X_Atom E_MOD_POL_ATOM_NOTIFICATION_LEVEL = 0;
 
@@ -9,12 +8,10 @@ static const char *atom_names[] = {
   "_E_ILLUME_WINDOW_REGION_OPAQUE",
   "_E_ILLUME_NOTIFICATION_LEVEL",
 };
-#endif
 
 Eina_Bool
 e_mod_pol_atoms_init(void)
 {
-#ifndef HAVE_WAYLAND_ONLY
    Ecore_X_Atom *atoms = NULL;
    int n = 0, i = 0;
    Eina_Bool res = EINA_FALSE;
@@ -34,7 +31,4 @@ e_mod_pol_atoms_init(void)
 cleanup:
    if (atoms) E_FREE(atoms);
    return res;
-#else
-   return EINA_FALSE;
-#endif
 }

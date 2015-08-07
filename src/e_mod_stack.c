@@ -1,5 +1,7 @@
 #include "e_mod_main.h"
+#ifndef HAVE_WAYLAND_ONLY
 #include "e_mod_atoms.h"
+#endif
 
 typedef struct _Pol_Stack Pol_Stack;
 

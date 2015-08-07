@@ -1,8 +1,8 @@
 #include "e_mod_main.h"
-#include "e_mod_atoms.h"
 #ifdef HAVE_WAYLAND_ONLY
 #include "e_mod_wl.h"
 #else
+#include "e_mod_atoms.h"
 #include <X11/Xlib.h>
 #endif
 

@@ -1,9 +1,10 @@
 #include "e_mod_notification.h"
-#include "e_mod_atoms.h"
 #include "e_mod_utils.h"
 
 #ifdef HAVE_WAYLAND_ONLY
 #include "e_mod_wl.h"
+#else
+#include "e_mod_atoms.h"
 #endif
 
 typedef struct _Pol_Notification

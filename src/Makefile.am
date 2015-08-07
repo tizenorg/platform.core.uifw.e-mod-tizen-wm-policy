@@ -13,8 +13,6 @@ module_la_SOURCES      = e_mod_config.c \
                          e_mod_softkey.c \
                          e_mod_notification.c \
                          e_mod_visivility.c \
-                         e_mod_atoms.c \
-                         e_mod_atoms.h \
                          e_mod_rotation.c \
                          e_mod_rotation.h \
                          e_mod_utils.h \
@@ -32,6 +30,9 @@ module_la_SOURCES += e_mod_wl.c \
 					 tizen_policy_ext-server-protocol.h \
 					 tizen_ws_shell-protocol.c \
 					 tizen_ws_shell-server-protocol.h
+else
+module_la_SOURCES += e_mod_atoms.c \
+                     e_mod_atoms.h
 endif
 
 module_la_LIBADD       =

@@ -1,11 +1,12 @@
 #include "e_mod_main.h"
-#include "e_mod_atoms.h"
 #include "e_mod_rotation.h"
 #include "e_mod_keyboard.h"
 #include "e_mod_notification.h"
 #ifdef HAVE_WAYLAND_ONLY
 #include "e_mod_wl.h"
 #include "e_mod_ws_shell.h"
+#else
+#include "e_mod_atoms.h"
 #endif
 
 EAPI E_Module_Api e_modapi = { E_MODULE_API_VERSION, "Policy-Mobile" };
@@ -966,7 +967,9 @@ e_modapi_init(E_Module *m)
 
    e_mod_pol_stack_init();
    e_mod_pol_visibility_init();
+#ifndef HAVE_WAYLAND_ONLY
    e_mod_pol_atoms_init();
+#endif
    e_mod_pol_notification_init();
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_init();

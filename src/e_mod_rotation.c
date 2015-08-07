@@ -18,12 +18,13 @@
  * license.
  */
 #include "e_mod_rotation.h"
-#include "e_mod_atoms.h"
 #include "e_mod_utils.h"
 
 
 #ifdef HAVE_WAYLAND_ONLY
 #include "e_mod_rotation_wl.h"
+#else
+#include "e_mod_atoms.h"
 #endif
 
 typedef struct _E_Client_Rotation E_Client_Rotation;
