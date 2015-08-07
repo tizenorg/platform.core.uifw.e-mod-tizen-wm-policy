@@ -198,7 +198,7 @@ _pol_wl_surf_client_set(E_Client *ec)
         psurf = _pol_wl_tzpol_surf_find(tzpol, ec->pixmap);
         if (psurf)
           {
-             if (psurf->ec == ec)
+             if ((psurf->ec) && (psurf->ec != ec))
                {
                   ELOGF("POLSURF",
                         "CRI ERR!!|s:0x%08x|tzpol:0x%08x|ps:0x%08x|new_ec:0x%08x|new_cp:0x%08x",
@@ -216,7 +216,7 @@ _pol_wl_surf_client_set(E_Client *ec)
      }
    eina_iterator_free(it);
 
-   return EINA_FALSE;
+   return;
 }
 
 // --------------------------------------------------------
@@ -246,6 +246,11 @@ _tzvis_iface_cb_vis_destroy(struct wl_resource *res_tzvis)
    if (!r) return;
 
    psurf->vislist = eina_list_remove(psurf->vislist, res_tzvis);
+
+   ELOGF("TZVIS",
+         "DEL      |res_tzvis:0x%08x",
+         psurf->cp, psurf->ec,
+         (unsigned int)res_tzvis);
 }
 
 static void
@@ -277,6 +282,11 @@ _tzpol_iface_cb_vis_get(struct wl_client *client, struct wl_resource *res_tzpol,
                                   _tzvis_iface_cb_vis_destroy);
 
    psurf->vislist = eina_list_append(psurf->vislist, res_tzvis);
+
+   ELOGF("TZVIS",
+         "ADD      |res_tzvis:0x%08x",
+         psurf->cp, psurf->ec,
+         (unsigned int)res_tzvis);
 }
 
 void
@@ -287,15 +297,24 @@ e_mod_pol_wl_visibility_send(E_Client *ec, int vis)
    struct wl_resource *res_tzvis;
    Eina_List *l, *ll;
    Eina_Iterator *it;
+   E_Client *ec2;
 
    it = eina_hash_iterator_data_new(polwl->tzpols);
    EINA_ITERATOR_FOREACH(it, tzpol)
      EINA_LIST_FOREACH(tzpol->psurfs, l, psurf)
        {
-          if (e_pixmap_client_get(psurf->cp) != ec) continue;
+          ec2 = e_pixmap_client_get(psurf->cp);
+          if (ec2 != ec) continue;
 
-          EINA_LIST_FOREACH(psurf->poslist, ll, res_tzvis)
-            tizen_visibility_send_notify(res_tzvis, vis);
+          EINA_LIST_FOREACH(psurf->vislist, ll, res_tzvis)
+            {
+               tizen_visibility_send_notify(res_tzvis, vis);
+               ELOGF("TZVIS",
+                     "SEND     |res_tzvis:0x%08x|v:%d",
+                     ec->pixmap, ec,
+                     (unsigned int)res_tzvis,
+                     vis);
+            }
        }
    eina_iterator_free(it);
 }
