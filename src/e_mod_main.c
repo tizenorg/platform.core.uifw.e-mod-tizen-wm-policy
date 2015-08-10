@@ -4,7 +4,6 @@
 #include "e_mod_notification.h"
 #ifdef HAVE_WAYLAND_ONLY
 #include "e_mod_wl.h"
-#include "e_mod_ws_shell.h"
 #else
 #include "e_mod_atoms.h"
 #endif
@@ -604,6 +603,7 @@ _pol_cb_client_remove(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    EINA_SAFETY_ON_NULL_RETURN_VAL(ev, ECORE_CALLBACK_PASS_ON);
 
 #ifdef HAVE_WAYLAND_ONLY
+   e_mod_pol_tzsh_client_del(ev->ec);
    e_mod_pol_wl_client_del(ev->ec);
 #endif
    e_mod_pol_stack_cb_client_remove(ev->ec);
@@ -630,6 +630,7 @@ _pol_cb_client_add(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    e_mod_pol_client_window_opaque_set(ev->ec);
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_client_add(ev->ec);
+   e_mod_pol_tzsh_client_add(ev->ec);
 #endif
 
    return ECORE_CALLBACK_PASS_ON;
@@ -973,7 +974,6 @@ e_modapi_init(E_Module *m)
    e_mod_pol_notification_init();
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_init();
-   e_mod_ws_shell_init();
 #endif
 
    /* initialize configure and config data type */
@@ -1059,7 +1059,6 @@ e_modapi_shutdown(E_Module *m)
    e_mod_pol_rotation_shutdown();
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_shutdown();
-   e_mod_ws_shell_shutdown();
 #endif
 
    e_configure_registry_item_del("windows/policy-tizen");
