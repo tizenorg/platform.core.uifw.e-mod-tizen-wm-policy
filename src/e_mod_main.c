@@ -4,7 +4,6 @@
 #include "e_mod_notification.h"
 #ifdef HAVE_WAYLAND_ONLY
 #include "e_mod_wl.h"
-#include "e_mod_ws_shell.h"
 #else
 #include "e_mod_atoms.h"
 #endif
@@ -973,7 +972,6 @@ e_modapi_init(E_Module *m)
    e_mod_pol_notification_init();
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_init();
-   e_mod_ws_shell_init();
 #endif
 
    /* initialize configure and config data type */
@@ -1059,7 +1057,6 @@ e_modapi_shutdown(E_Module *m)
    e_mod_pol_rotation_shutdown();
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_shutdown();
-   e_mod_ws_shell_shutdown();
 #endif
 
    e_configure_registry_item_del("windows/policy-tizen");
