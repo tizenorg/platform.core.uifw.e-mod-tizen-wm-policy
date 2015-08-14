@@ -333,7 +333,7 @@ e_mod_pol_client_window_opaque_set(E_Client *ec)
    E_Comp_Wl_Client_Data *cdata;
 
    if (!ec->pixmap) return;
-   if (!(cdata = e_pixmap_cdata_get(ec->pixmap))) return;
+   if (!(cdata = (E_Comp_Wl_Client_Data *)e_pixmap_cdata_get(ec->pixmap))) return;
 
    opaque = cdata->opaque_state;
 #endif
