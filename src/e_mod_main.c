@@ -4,6 +4,7 @@
 #include "e_mod_notification.h"
 #ifdef HAVE_WAYLAND_ONLY
 #include "e_mod_wl.h"
+#include "e_mod_sysinfo.h"
 #else
 #include "e_mod_atoms.h"
 #endif
@@ -192,6 +193,8 @@ _pol_client_del(Pol_Client *pc)
 static Eina_Bool
 _pol_client_normal_check(E_Client *ec)
 {
+   Pol_Client *pc;
+
    if ((e_client_util_ignored_get(ec)) ||
        (!ec->pixmap))
      {
@@ -207,23 +210,28 @@ _pol_client_normal_check(E_Client *ec)
    if (e_mod_pol_client_is_keyboard(ec) ||
        e_mod_pol_client_is_keyboard_sub(ec))
      {
-        Pol_Client *pc;
         pc = eina_hash_find(hash_pol_clients, &ec);
         if (pc) _pol_client_del(pc);
 
         e_mod_pol_keyboard_layout_apply(ec);
         return EINA_FALSE;
      }
-
-   if (e_mod_pol_client_is_volume(ec))
-     return EINA_FALSE;
-
-   if (!e_util_strcmp("e_demo", ec->icccm.window_role))
+   else if (e_mod_pol_client_is_volume(ec))
      {
-        Pol_Client *pc;
         pc = eina_hash_find(hash_pol_clients, &ec);
         if (pc) _pol_client_del(pc);
-
+        return EINA_FALSE;
+     }
+   else if (!e_util_strcmp("e_demo", ec->icccm.window_role))
+     {
+        pc = eina_hash_find(hash_pol_clients, &ec);
+        if (pc) _pol_client_del(pc);
+        return EINA_FALSE;
+     }
+   else if (e_mod_pol_client_is_sysinfo(ec))
+     {
+        pc = eina_hash_find(hash_pol_clients, &ec);
+        if (pc) _pol_client_del(pc);
         return EINA_FALSE;
      }
 
@@ -603,6 +611,7 @@ _pol_cb_client_remove(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    EINA_SAFETY_ON_NULL_RETURN_VAL(ev, ECORE_CALLBACK_PASS_ON);
 
 #ifdef HAVE_WAYLAND_ONLY
+   e_mod_pol_sysinfo_client_del(ev->ec);
    e_mod_pol_wl_client_del(ev->ec);
 #endif
    e_mod_pol_stack_cb_client_remove(ev->ec);
@@ -629,6 +638,7 @@ _pol_cb_client_add(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    e_mod_pol_client_window_opaque_set(ev->ec);
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_client_add(ev->ec);
+   e_mod_pol_sysinfo_client_add(ev->ec);
 #endif
 
    return ECORE_CALLBACK_PASS_ON;
@@ -655,6 +665,7 @@ _pol_cb_client_resize(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 {
    E_Event_Client *ev;
    E_Client *ec;
+   int zh = 0;
 
    ev = (E_Event_Client *)event;
    EINA_SAFETY_ON_NULL_RETURN_VAL(ev, ECORE_CALLBACK_PASS_ON);
@@ -672,13 +683,19 @@ _pol_cb_client_resize(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 #endif
      }
 
-   /* re-calculate volume popup's position with changed size */
+   /* re-calculate window's position with changed size */
    if (e_mod_pol_client_is_volume(ec))
      {
-        int zh = 0;
         e_zone_useful_geometry_get(ec->zone, NULL, NULL, NULL, &zh);
         evas_object_move(ec->frame, 0, (zh / 2) - (ec->h / 2));
      }
+   /*
+   else if (e_mod_pol_client_is_sysinfo(ec))
+     {
+        e_zone_useful_geometry_get(ec->zone, NULL, NULL, NULL, &zh);
+        evas_object_move(ec->frame, 0, (zh / 2) - (ec->h / 2));
+     }
+   */
 
    /* calculate e_client visibility */
    e_mod_pol_visibility_calc();
@@ -923,6 +940,18 @@ e_mod_pol_client_is_volume(E_Client *ec)
    return EINA_FALSE;
 }
 
+Eina_Bool
+e_mod_pol_client_is_sysinfo(E_Client *ec)
+{
+   E_OBJECT_CHECK_RETURN(ec, EINA_FALSE);
+   E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, EINA_FALSE);
+
+   if (!e_util_strcmp(ec->icccm.window_role, "e_sysinfo"))
+     return EINA_TRUE;
+
+   return EINA_FALSE;
+}
+
 #undef E_CLIENT_HOOK_APPEND
 #define E_CLIENT_HOOK_APPEND(l, t, cb, d) \
   do                                      \
@@ -972,6 +1001,7 @@ e_modapi_init(E_Module *m)
    e_mod_pol_notification_init();
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_init();
+   e_mod_pol_sysinfo_init();
 #endif
 
    /* initialize configure and config data type */
@@ -1056,6 +1086,7 @@ e_modapi_shutdown(E_Module *m)
    e_mod_pol_visibility_shutdown();
    e_mod_pol_rotation_shutdown();
 #ifdef HAVE_WAYLAND_ONLY
+   e_mod_pol_sysinfo_shutdown();
    e_mod_pol_wl_shutdown();
 #endif
 
