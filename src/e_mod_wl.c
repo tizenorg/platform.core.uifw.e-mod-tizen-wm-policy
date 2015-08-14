@@ -1166,6 +1166,11 @@ _tzpol_iface_cb_role_set(struct wl_client *client EINA_UNUSED, struct wl_resourc
         evas_object_layer_set(ec->frame, E_LAYER_CLIENT_NOTIFICATION_HIGH);
         ec->lock_client_location = 1;
      }
+   else if (!e_util_strcmp("e_sysinfo", role))
+     {
+        evas_object_layer_set(ec->frame, E_LAYER_CLIENT_NOTIFICATION_HIGH);
+        ec->lock_client_location = 1;
+     }
 }
 
 // --------------------------------------------------------
