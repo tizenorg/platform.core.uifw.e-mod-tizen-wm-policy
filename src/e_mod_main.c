@@ -689,16 +689,13 @@ _pol_cb_client_resize(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
         e_zone_useful_geometry_get(ec->zone, NULL, NULL, NULL, &zh);
         evas_object_move(ec->frame, 0, (zh / 2) - (ec->h / 2));
      }
-   /*
-   else if (e_mod_pol_client_is_sysinfo(ec))
-     {
-        e_zone_useful_geometry_get(ec->zone, NULL, NULL, NULL, &zh);
-        evas_object_move(ec->frame, 0, (zh / 2) - (ec->h / 2));
-     }
-   */
 
    /* calculate e_client visibility */
    e_mod_pol_visibility_calc();
+
+#ifdef HAVE_WAYLAND_ONLY
+   e_mod_pol_sysinfo_client_resize(ec);
+#endif
 
    return ECORE_CALLBACK_PASS_ON;
 }
