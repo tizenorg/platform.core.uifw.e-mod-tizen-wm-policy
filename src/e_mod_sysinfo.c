@@ -7,8 +7,11 @@
 #include <unistd.h>
 #include <sys/param.h>
 
-#define WIN_WIDTH  500
-#define WIN_HEIGHT 1080
+#define WIN_WIDTH    500
+#define WIN_HEIGHT   1080
+#define SCR_WIDTH    1920
+#define SCR_HEIGHT   1080
+#define SCR_MARGIN_W 30
 
 typedef struct _E_Sysinfo
 {
@@ -35,6 +38,93 @@ typedef struct _E_Sysinfo
 
 static E_Sysinfo *e_sysinfo = NULL;
 static Eina_List *handlers = NULL;
+
+static void
+_win_effect_zoom(Eina_Bool show, double progress)
+{
+   E_Client *ec;
+   Evas_Object *o;
+   Eina_Tiler *t;
+   Eina_Rectangle r, *_r;
+   Eina_Iterator *it;
+   Eina_Bool canvas_vis = EINA_TRUE;
+   Eina_Bool ec_vis, ec_opaque;
+   double zoom, factor;
+   Evas_Map *map;
+
+   t = eina_tiler_new(SCR_WIDTH, SCR_HEIGHT);
+   eina_tiler_tile_size_set(t, 1, 1);
+
+   EINA_RECTANGLE_SET(&r, 0, 0, SCR_WIDTH, SCR_HEIGHT);
+   eina_tiler_rect_add(t, &r);
+
+   o = evas_object_top_get(e_comp->evas);
+   for (; o; o = evas_object_below_get(o))
+     {
+        ec = evas_object_data_get(o, "E_Client");
+
+        if (!ec) continue;
+        if (e_object_is_del(E_OBJECT(ec))) continue;
+        if (e_client_util_ignored_get(ec)) continue;
+        if ((e_sysinfo->ec) && (e_sysinfo->ec == ec)) continue;
+
+        ec_vis = ec_opaque = EINA_FALSE;
+
+        /* check visible state */
+        if ((!ec->visible) ||
+            (ec->iconic) ||
+            (!evas_object_visible_get(ec->frame)))
+          {
+             ; /* do nothing */
+          }
+        else
+          {
+             it = eina_tiler_iterator_new(t);
+             EINA_ITERATOR_FOREACH(it, _r)
+               {
+                  if (E_INTERSECTS(ec->x, ec->y, ec->w, ec->h,
+                                   _r->x, _r->y, _r->w, _r->h))
+                    {
+                       ec_vis = EINA_TRUE;
+                       break;
+                    }
+               }
+             eina_iterator_free(it);
+          }
+
+        if (ec_vis)
+          {
+             if ((ec->visibility.opaque > 0) && (ec->argb))
+               ec_opaque = EINA_TRUE;
+
+             if ((!ec->argb) || (ec_opaque))
+               {
+                  EINA_RECTANGLE_SET(&r, ec->x, ec->y, ec->w, ec->h);
+                  eina_tiler_rect_del(t, &r);
+
+                  if (eina_tiler_empty(t))
+                    canvas_vis = EINA_FALSE;
+               }
+
+             if (!e_util_strcmp("e_demo", ec->icccm.window_role)) factor = 0.25f;
+             else factor = 0.4f;
+
+             if (show) zoom = 1.0 - (factor * progress);
+             else zoom = (1.0 - factor) + (factor * progress);
+
+             map = evas_map_new(4);
+             evas_map_util_points_populate_from_geometry(map, ec->client.x, ec->client.y, ec->client.w, ec->client.h, 0);
+             evas_map_util_zoom(map, zoom, zoom, SCR_WIDTH - 300, SCR_HEIGHT/2);
+             evas_map_util_object_move_sync_set(map, EINA_TRUE);
+             evas_object_map_set(ec->frame, map);
+             evas_object_map_enable_set(ec->frame, EINA_TRUE);
+             evas_map_free(map);
+          }
+
+        if (!canvas_vis) break;
+     }
+   eina_tiler_free(t);
+}
 
 static void
 _win_effect_cb_trans(Elm_Transit_Effect *eff EINA_UNUSED, Elm_Transit *trans EINA_UNUSED, double progress)
@@ -71,6 +161,8 @@ _win_effect_cb_trans(Elm_Transit_Effect *eff EINA_UNUSED, Elm_Transit *trans EIN
 
    evas_object_color_set(e_sysinfo->fps, col, col, col, col);
    evas_object_move(e_sysinfo->fps, 155, fps_y);
+
+   _win_effect_zoom(e_sysinfo->show, progress);
 
    ELOGF("SYSINFO", "EFF DO   |t:0x%08x prog:%.3f", NULL, NULL, (unsigned int)e_sysinfo->effect.trans, progress);
 }
@@ -250,36 +342,33 @@ _sysinfo_cb_comp_fps_update(void *data EINA_UNUSED, int type EINA_UNUSED, void *
 Eina_Bool
 e_mod_pol_sysinfo_init(void)
 {
-   Evas_Object *o, *comp_obj, *text;
+   Evas_Object *o, *comp_obj;
 
    e_sysinfo = E_NEW(E_Sysinfo, 1);
    EINA_SAFETY_ON_NULL_RETURN_VAL(e_sysinfo, EINA_FALSE);
+
+   o = evas_object_text_add(e_comp->evas);
+   evas_object_text_font_set(o, "TizenSans", 75);
+   evas_object_size_hint_align_set(o, EVAS_HINT_FILL, 0.0);
+   evas_object_text_text_set(o, "0.0");
+   evas_object_move(o, 200, 200);
+   comp_obj = e_comp_object_util_add(o, E_COMP_OBJECT_TYPE_NONE);
+   evas_object_layer_set(comp_obj, E_LAYER_POPUP);
+   e_sysinfo->fps_text = o;
+   e_sysinfo->fps = comp_obj;
+   e_sysinfo->fps_src = 0.0f;
+   e_sysinfo->fps_target = 0.0f;
+   e_sysinfo->fps_curr = 0.0f;
 
    o = evas_object_rectangle_add(e_comp->evas);
    evas_object_color_set(o, 0, 0, 0, 0);
    evas_object_resize(o, 64, 64);
    evas_object_move(o, 0, 0);
-
    comp_obj = e_comp_object_util_add(o, E_COMP_OBJECT_TYPE_NONE);
    evas_object_layer_set(comp_obj, E_LAYER_POPUP);
    evas_object_event_callback_add(comp_obj, EVAS_CALLBACK_MOUSE_UP, _btn_cb_mouse_up, NULL);
    evas_object_show(comp_obj);
-
    e_sysinfo->btn = comp_obj;
-
-   text = evas_object_text_add(e_comp->evas);
-   evas_object_text_font_set(text, "TizenSans", 75);
-   evas_object_size_hint_align_set(text, EVAS_HINT_FILL, 0.0);
-   evas_object_text_text_set(text, "0.0");
-   evas_object_move(text, 200, 200);
-   comp_obj = e_comp_object_util_add(text, E_COMP_OBJECT_TYPE_NONE);
-   evas_object_layer_set(comp_obj, E_LAYER_POPUP);
-
-   e_sysinfo->fps_text = text;
-   e_sysinfo->fps = comp_obj;
-   e_sysinfo->fps_src = 0.0f;
-   e_sysinfo->fps_target = 0.0f;
-   e_sysinfo->fps_curr = 0.0f;
 
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_COMPOSITOR_FPS_UPDATE, _sysinfo_cb_comp_fps_update, NULL);
 
