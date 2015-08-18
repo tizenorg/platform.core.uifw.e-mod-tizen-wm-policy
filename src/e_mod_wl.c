@@ -905,7 +905,7 @@ _tzpos_iface_cb_set(struct wl_client *client EINA_UNUSED, struct wl_resource *re
    if(!E_INTERSECTS(ec->zone->x, ec->zone->y,
                     ec->zone->w, ec->zone->h,
                     x, y,
-                    ec->client.w, ec->client.h))
+                    ec->w, ec->h))
      {
         e_mod_pol_wl_position_send(ec);
         return;
