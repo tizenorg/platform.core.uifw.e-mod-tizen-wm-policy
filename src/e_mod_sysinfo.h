@@ -12,6 +12,7 @@ void      e_mod_pol_sysinfo_shutdown(void);
 void      e_mod_pol_sysinfo_client_add(E_Client *ec);
 void      e_mod_pol_sysinfo_client_del(E_Client *ec);
 void      e_mod_pol_sysinfo_client_resize(E_Client *ec);
+void      e_mod_pol_sysinfo_client_stack(E_Client *ec);
 
 #endif /* HAVE_WAYLAND_ONLY */
 #endif /* E_MOD_SYSINFO_H */

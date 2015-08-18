@@ -710,6 +710,10 @@ _pol_cb_client_stack(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    /* calculate e_client visibility */
    e_mod_pol_visibility_calc();
 
+#ifdef HAVE_WAYLAND_ONLY
+   e_mod_pol_sysinfo_client_stack(ev->ec);
+#endif
+
    return ECORE_CALLBACK_PASS_ON;
 }
 

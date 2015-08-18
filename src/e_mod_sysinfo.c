@@ -21,6 +21,7 @@ typedef struct _E_Sysinfo
    Evas_Object *bg;
 
    /* FPS */
+   Evas_Object *fps_unit;
    Evas_Object *fps;
    Evas_Object *fps_text;
    Ecore_Animator *fps_anim;
@@ -184,6 +185,9 @@ _win_effect_cb_trans(Elm_Transit_Effect *eff EINA_UNUSED, Elm_Transit *trans EIN
    evas_object_color_set(ec->frame, col, col, col, col);
    evas_object_move(ec->frame, curr, 0);
 
+   evas_object_color_set(e_sysinfo->fps_unit, col, col, col, col);
+   evas_object_move(e_sysinfo->fps_unit, 155, fps_y - 5);
+
    evas_object_color_set(e_sysinfo->fps, col, col, col, col);
    evas_object_move(e_sysinfo->fps, 155, fps_y);
 
@@ -193,26 +197,46 @@ _win_effect_cb_trans(Elm_Transit_Effect *eff EINA_UNUSED, Elm_Transit *trans EIN
 static void
 _win_effect_cb_trans_end(Elm_Transit_Effect *eff EINA_UNUSED, Elm_Transit *trans EINA_UNUSED)
 {
-   ELOGF("SYSINFO", "EFF END  |t:0x%08x", NULL, NULL, (unsigned int)e_sysinfo->effect.trans);
-   if (e_sysinfo->zoom.noti_list) eina_list_free(e_sysinfo->zoom.noti_list);
-   if (e_sysinfo->zoom.normal_list) eina_list_free(e_sysinfo->zoom.normal_list);
-   e_sysinfo->zoom.noti_list = NULL;
-   e_sysinfo->zoom.normal_list = NULL;
+   E_Client *ec;
+
    e_sysinfo->zoom.noti_factor = e_sysinfo->zoom.noti_factor_target;
    e_sysinfo->zoom.normal_factor = e_sysinfo->zoom.normal_factor_target;
+
+   if (e_sysinfo->zoom.noti_list)
+     {
+        EINA_LIST_FREE(e_sysinfo->zoom.noti_list, ec)
+          _win_map_apply(ec, e_sysinfo->zoom.noti_factor);
+     }
+   if (e_sysinfo->zoom.normal_list)
+     {
+        EINA_LIST_FREE(e_sysinfo->zoom.normal_list, ec)
+          _win_map_apply(ec, e_sysinfo->zoom.normal_factor);
+     }
+   e_sysinfo->zoom.noti_list = NULL;
+   e_sysinfo->zoom.normal_list = NULL;
    e_sysinfo->effect.trans = NULL;
 }
 
 static void
 _win_effect_cb_trans_del(void *data EINA_UNUSED, Elm_Transit *transit EINA_UNUSED)
 {
-   ELOGF("SYSINFO", "EFF DEL  |t:0x%08x", NULL, NULL, (unsigned int)e_sysinfo->effect.trans);
-   if (e_sysinfo->zoom.noti_list) eina_list_free(e_sysinfo->zoom.noti_list);
-   if (e_sysinfo->zoom.normal_list) eina_list_free(e_sysinfo->zoom.normal_list);
-   e_sysinfo->zoom.noti_list = NULL;
-   e_sysinfo->zoom.normal_list = NULL;
+   E_Client *ec;
+
    e_sysinfo->zoom.noti_factor = e_sysinfo->zoom.noti_factor_target;
    e_sysinfo->zoom.normal_factor = e_sysinfo->zoom.normal_factor_target;
+
+   if (e_sysinfo->zoom.noti_list)
+     {
+        EINA_LIST_FREE(e_sysinfo->zoom.noti_list, ec)
+          _win_map_apply(ec, e_sysinfo->zoom.noti_factor);
+     }
+   if (e_sysinfo->zoom.normal_list)
+     {
+        EINA_LIST_FREE(e_sysinfo->zoom.normal_list, ec)
+          _win_map_apply(ec, e_sysinfo->zoom.normal_factor);
+     }
+   e_sysinfo->zoom.noti_list = NULL;
+   e_sysinfo->zoom.normal_list = NULL;
    e_sysinfo->effect.trans = NULL;
 }
 
@@ -335,6 +359,12 @@ _win_show(void)
         evas_object_show(e_sysinfo->fps);
      }
 
+   if (!evas_object_visible_get(e_sysinfo->fps_unit))
+     {
+        evas_object_color_set(e_sysinfo->fps_unit, 0, 0, 0, 0);
+        evas_object_show(e_sysinfo->fps_unit);
+     }
+
    if (!e_sysinfo->bg)
      {
         o = edje_object_add(e_comp->evas);
@@ -439,6 +469,8 @@ e_mod_pol_sysinfo_client_resize(E_Client *ec)
          (unsigned int)ec->frame,
          ec->frame ? evas_object_visible_get(ec->frame) : 0);
 
+   if ((!e_sysinfo->ec) || (!e_sysinfo->ec->frame)) return;
+
    if (!e_mod_pol_client_is_sysinfo(ec) &&
        (e_sysinfo->zoom.normal_factor < 1.0) &&
        (ec->w >= 300) && (ec->h >= 300) &&
@@ -454,6 +486,28 @@ e_mod_pol_sysinfo_client_resize(E_Client *ec)
                _win_map_apply(ec, e_sysinfo->zoom.normal_factor);
              evas_object_data_set(ec->frame, "client_mapped", (void*)1);
           }
+     }
+}
+
+void
+e_mod_pol_sysinfo_client_stack(E_Client *ec)
+{
+   ELOGF("SYSINFO",
+         "RESTACK  |%dx%d frame:0x%08x vis:%d",
+         ec->pixmap, ec, ec->w, ec->h,
+         (unsigned int)ec->frame,
+         ec->frame ? evas_object_visible_get(ec->frame) : 0);
+
+   if ((!e_sysinfo->ec) || (!e_sysinfo->ec->frame)) return;
+
+   if (!e_mod_pol_client_is_sysinfo(ec) &&
+       (ec->w >= 300) && (ec->h >= 300) &&
+       (ec->frame))
+     {
+        if (!e_util_strcmp("e_demo", ec->icccm.window_role))
+          _win_map_apply(ec, e_sysinfo->zoom.noti_factor);
+        else
+          _win_map_apply(ec, e_sysinfo->zoom.normal_factor);
      }
 }
 
@@ -529,7 +583,7 @@ e_mod_pol_sysinfo_init(void)
    evas_object_text_font_set(o, "TizenSans", 75);
    evas_object_size_hint_align_set(o, EVAS_HINT_FILL, 0.0);
    evas_object_text_text_set(o, "0.0");
-   evas_object_move(o, 200, 200);
+   evas_object_move(o, 155, 70);
    comp_obj = e_comp_object_util_add(o, E_COMP_OBJECT_TYPE_NONE);
    evas_object_layer_set(comp_obj, E_LAYER_POPUP);
    e_sysinfo->fps_text = o;
@@ -537,6 +591,15 @@ e_mod_pol_sysinfo_init(void)
    e_sysinfo->fps_src = 0.0f;
    e_sysinfo->fps_target = 0.0f;
    e_sysinfo->fps_curr = 0.0f;
+
+   o = evas_object_text_add(e_comp->evas);
+   evas_object_text_font_set(o, "TizenSans", 20);
+   evas_object_size_hint_align_set(o, EVAS_HINT_FILL, 0.0);
+   evas_object_text_text_set(o, "FPS");
+   evas_object_move(o, 155, 65);
+   comp_obj = e_comp_object_util_add(o, E_COMP_OBJECT_TYPE_NONE);
+   evas_object_layer_set(comp_obj, E_LAYER_POPUP);
+   e_sysinfo->fps_unit = comp_obj;
 
    o = evas_object_rectangle_add(e_comp->evas);
    evas_object_color_set(o, 0, 0, 0, 0);
@@ -571,6 +634,7 @@ e_mod_pol_sysinfo_shutdown(void)
      }
 
    evas_object_del(e_sysinfo->bg);
+   evas_object_del(e_sysinfo->fps_unit);
    evas_object_del(e_sysinfo->fps);
    evas_object_del(e_sysinfo->btn);
 
