@@ -58,48 +58,21 @@ static void
 _win_map_apply(E_Client *ec, double factor)
 {
    Evas_Map *map;
+   int cx, cy;
 
    if (!ec->frame) return;
-   if ((ec->transformed) && (map = (Evas_Map*)evas_object_map_get(ec->frame)))
+
+   cx = SCR_WIDTH - 500;
+   cy = SCR_HEIGHT / 2;
+
+   if (eina_list_data_find(e_sysinfo->zoom.noti_list, ec))
      {
-        E_Comp_Wl_Client_Data *cdata = (E_Comp_Wl_Client_Data*)ec->comp_data;
-        int i = 0;
-
-        map = evas_map_new(4);
-        evas_map_util_points_populate_from_object_full(map, ec->frame, 0);
-        for (i = 0; i < 4; i ++)
-          {
-
-             evas_map_point_precise_coord_set(map,
-                                              i,
-                                              cdata->transform.maps[i].x,
-                                              cdata->transform.maps[i].y,
-                                              0);
-          }
-
-        evas_map_util_zoom(map, factor, factor,
-                           cdata->transform.maps[0].x + ec->client.w / 2,
-                           cdata->transform.maps[0].y + ec->client.h / 2);
-        evas_map_util_object_move_sync_set(map, EINA_TRUE);
-        evas_object_map_set(ec->frame, map);
-        evas_object_map_enable_set(ec->frame, EINA_TRUE);
-        evas_map_free(map);
-
-     }
-   else
-     {
-        map = evas_map_new(4);
-        evas_map_util_points_populate_from_geometry(map, ec->client.x, ec->client.y, ec->client.w, ec->client.h, 0);
-        evas_map_util_zoom(map, factor, factor,SCR_WIDTH - 500, SCR_HEIGHT/2);
-        evas_map_util_object_move_sync_set(map, EINA_TRUE);
-        evas_object_map_set(ec->frame, map);
-        evas_object_map_enable_set(ec->frame, EINA_TRUE);
-        evas_map_free(map);
+        cx = ec->client.x + ec->client.w / 2;
+        cy = ec->client.y + ec->client.h / 2;
      }
 
-   evas_object_data_set(ec->frame, "zoom", (void*)(uintptr_t)(factor * 100));
-   if (factor == 1.0)
-     evas_object_data_del(ec->frame, "zoom");
+   e_client_transform_apply(ec, -1.0, factor, cx, cy);
+   evas_object_data_set(ec->frame, "client_mapped", (void*)1);
 }
 
 static void
