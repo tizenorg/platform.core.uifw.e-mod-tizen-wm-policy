@@ -113,6 +113,9 @@ EINTERN Eina_Bool        e_mod_pol_client_is_quickpanel(E_Client *ec);
 EINTERN Eina_Bool        e_mod_pol_client_is_conformant(E_Client *ec);
 EINTERN Eina_Bool        e_mod_pol_client_is_volume(E_Client *ec);
 EINTERN Eina_Bool        e_mod_pol_client_is_sysinfo(E_Client *ec);
+#ifdef HAVE_WAYLAND_ONLY
+EINTERN Eina_Bool        e_mod_pol_client_is_subsurface(E_Client *ec);
+#endif
 
 EINTERN Pol_Softkey     *e_mod_pol_softkey_add(E_Zone *zone);
 EINTERN void             e_mod_pol_softkey_del(Pol_Softkey *softkey);

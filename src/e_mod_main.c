@@ -240,6 +240,14 @@ _pol_client_normal_check(E_Client *ec)
      {
         return EINA_TRUE;
      }
+#ifdef HAVE_WAYLAND_ONLY
+   else if (e_mod_pol_client_is_subsurface(ec))
+     {
+        pc = eina_hash_find(hash_pol_clients, &ec);
+        if (pc) _pol_client_del(pc);
+        return EINA_FALSE;
+     }
+#endif
 
    return EINA_FALSE;
 }
@@ -952,6 +960,23 @@ e_mod_pol_client_is_sysinfo(E_Client *ec)
 
    return EINA_FALSE;
 }
+
+#ifdef HAVE_WAYLAND_ONLY
+Eina_Bool
+e_mod_pol_client_is_subsurface(E_Client *ec)
+{
+   E_Comp_Wl_Client_Data *cd;
+
+   E_OBJECT_CHECK_RETURN(ec, EINA_FALSE);
+   E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, EINA_FALSE);
+
+   cd = (E_Comp_Wl_Client_Data *)ec->comp_data;
+   if (cd && cd->sub.data)
+     return EINA_TRUE;
+
+   return EINA_FALSE;
+}
+#endif
 
 #undef E_CLIENT_HOOK_APPEND
 #define E_CLIENT_HOOK_APPEND(l, t, cb, d) \
