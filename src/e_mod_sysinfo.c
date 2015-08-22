@@ -388,10 +388,10 @@ _win_hide(void)
 static void
 _btn_cb_mouse_up(void *data, Evas *evas EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event_info)
 {
-   if (e_sysinfo->show) _win_hide();
-   else _win_show();
-
    e_sysinfo->show = !e_sysinfo->show;
+
+   if (!e_sysinfo->show) _win_hide();
+   else _win_show();
 }
 
 void
