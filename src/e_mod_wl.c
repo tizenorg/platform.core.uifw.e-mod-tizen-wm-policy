@@ -1520,6 +1520,41 @@ _tzpol_iface_cb_opaque_state_set(struct wl_client *client, struct wl_resource *r
 }
 
 // --------------------------------------------------------
+// iconify
+// --------------------------------------------------------
+static void
+_tzpol_iface_cb_iconify(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol EINA_UNUSED, struct wl_resource *surf)
+{
+   E_Pixmap *cp;
+   E_Client *ec;
+
+   cp = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(cp);
+
+   ec = e_pixmap_client_get(cp);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
+   EINA_SAFETY_ON_NULL_RETURN(ec->frame);
+
+   e_client_iconify(ec);
+}
+
+static void
+_tzpol_iface_cb_uniconify(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol EINA_UNUSED, struct wl_resource *surf)
+{
+   E_Pixmap *cp;
+   E_Client *ec;
+
+   cp = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(cp);
+
+   ec = e_pixmap_client_get(cp);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
+   EINA_SAFETY_ON_NULL_RETURN(ec->frame);
+
+   e_client_uniconify(ec);
+}
+
+// --------------------------------------------------------
 // tizen_policy_interface
 // --------------------------------------------------------
 static const struct tizen_policy_interface _tzpol_iface =
@@ -1541,6 +1576,8 @@ static const struct tizen_policy_interface _tzpol_iface =
    _tzpol_iface_cb_win_scrmode_set,
    _tzpol_iface_cb_subsurf_place_below_parent,
    _tzpol_iface_cb_opaque_state_set,
+   _tzpol_iface_cb_iconify,
+   _tzpol_iface_cb_uniconify
 };
 
 static void
