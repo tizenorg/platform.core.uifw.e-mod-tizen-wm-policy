@@ -57,7 +57,6 @@ static Eina_List *handlers = NULL;
 static void
 _win_map_apply(E_Client *ec, double factor)
 {
-   Evas_Map *map;
    int cx, cy;
 
    if (!ec->frame) return;
