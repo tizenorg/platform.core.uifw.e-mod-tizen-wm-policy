@@ -234,12 +234,6 @@ _pol_client_normal_check(E_Client *ec)
         if (pc) _pol_client_del(pc);
         return EINA_FALSE;
      }
-
-   if ((ec->netwm.type == E_WINDOW_TYPE_NORMAL) ||
-       (ec->netwm.type == E_WINDOW_TYPE_UNKNOWN))
-     {
-        return EINA_TRUE;
-     }
 #ifdef HAVE_WAYLAND_ONLY
    else if (e_mod_pol_client_is_subsurface(ec))
      {
@@ -248,6 +242,12 @@ _pol_client_normal_check(E_Client *ec)
         return EINA_FALSE;
      }
 #endif
+
+   if ((ec->netwm.type == E_WINDOW_TYPE_NORMAL) ||
+       (ec->netwm.type == E_WINDOW_TYPE_UNKNOWN))
+     {
+        return EINA_TRUE;
+     }
 
    return EINA_FALSE;
 }
