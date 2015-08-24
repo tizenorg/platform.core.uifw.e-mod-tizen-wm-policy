@@ -197,6 +197,15 @@ _pol_client_normal_check(E_Client *ec)
         return EINA_FALSE;
      }
 
+   if (!e_util_strcmp(ec->netwm.name, "WMRotation"))
+     return EINA_FALSE;
+
+   if (!e_util_strcmp(ec->netwm.name, "WL vs X11"))
+     return EINA_FALSE;
+
+   if (!e_util_strcmp(ec->netwm.name, "E System Info"))
+     return EINA_FALSE;
+
    if (e_mod_pol_client_is_keyboard(ec) ||
        e_mod_pol_client_is_keyboard_sub(ec))
      {
@@ -355,6 +364,46 @@ _pol_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec)
              e_client_unmaximize(ec, E_MAXIMIZE_BOTH);
           }
         return;
+     }
+
+   if (!e_util_strcmp(ec->netwm.name, "WMRotation"))
+     {
+        Pol_Client *pc;
+        pc = eina_hash_find(hash_pol_clients, &ec);
+        if (pc)
+          {
+             _pol_client_del(pc);
+             e_client_unmaximize(ec, E_MAXIMIZE_BOTH);
+          }
+        return ;
+     }
+
+   if (!e_util_strcmp(ec->netwm.name, "WL vs X11"))
+     {
+        Pol_Client *pc;
+        int x = 0, y = 0;
+        pc = eina_hash_find(hash_pol_clients, &ec);
+        if (pc)
+          {
+             _pol_client_del(pc);
+             e_client_unmaximize(ec, E_MAXIMIZE_BOTH);
+          }
+        return;
+     }
+
+   if (!e_util_strcmp(ec->netwm.name, "E System Info"))
+     {
+        Pol_Client *pc;
+        pc = eina_hash_find(hash_pol_clients, &ec);
+        if (pc)
+          {
+             _pol_client_del(pc);
+             e_client_unmaximize(ec, E_MAXIMIZE_BOTH);
+          }
+
+        evas_object_move(ec->frame, 0, 0);
+        evas_object_resize(ec->frame, 500, 1080);
+        return ;
      }
 
    if (!_pol_client_normal_check(ec)) return;
