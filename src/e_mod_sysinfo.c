@@ -12,6 +12,8 @@
 #define SCR_WIDTH    1920
 #define SCR_HEIGHT   1080
 #define SCR_MARGIN_W 30
+#define BTN_ALPHA    155
+#define BTN_SIZE     42
 
 typedef struct _E_Sysinfo
 {
@@ -128,7 +130,7 @@ static void
 _win_effect_cb_trans(Elm_Transit_Effect *eff EINA_UNUSED, Elm_Transit *trans EINA_UNUSED, double progress)
 {
    E_Client *ec;
-   double curr, col, fps_y;
+   double curr, col, fps_y, btn_x, btn_alpha;
 
    ec = e_sysinfo->ec;
    EINA_SAFETY_ON_NULL_RETURN(ec);
@@ -144,6 +146,9 @@ _win_effect_cb_trans(Elm_Transit_Effect *eff EINA_UNUSED, Elm_Transit *trans EIN
         if (col <= 0) col = 0;
 
         fps_y = 10 + (60 * progress);
+
+        btn_x = (WIN_WIDTH - BTN_SIZE - 10) * progress;
+        btn_alpha = 255 - (255 - BTN_ALPHA) * progress;
      }
    else
      {
@@ -152,10 +157,16 @@ _win_effect_cb_trans(Elm_Transit_Effect *eff EINA_UNUSED, Elm_Transit *trans EIN
         if (col <= 0) col = 0;
 
         fps_y = 70 - (60 * progress);
+
+        btn_x = (WIN_WIDTH - BTN_SIZE - 10) - (WIN_WIDTH - BTN_SIZE - 10) * progress;
+        btn_alpha = BTN_ALPHA + (255 - BTN_ALPHA) * progress;
      }
 
    evas_object_color_set(ec->frame, col, col, col, col);
    evas_object_move(ec->frame, curr, 0);
+
+   evas_object_color_set(e_sysinfo->btn, 255, 255, 255, btn_alpha);
+   evas_object_move(e_sysinfo->btn, btn_x, 0);
 
    evas_object_color_set(e_sysinfo->fps_unit, col, col, col, col);
    evas_object_move(e_sysinfo->fps_unit, 155, fps_y - 5);
@@ -573,9 +584,30 @@ e_mod_pol_sysinfo_init(void)
    evas_object_layer_set(comp_obj, E_LAYER_POPUP);
    e_sysinfo->fps_unit = comp_obj;
 
-   o = evas_object_rectangle_add(e_comp->evas);
-   evas_object_color_set(o, 0, 0, 0, 0);
-   evas_object_resize(o, 64, 64);
+   o = evas_object_image_add(e_comp->evas);
+
+   char path[PATH_MAX];
+   snprintf(path, sizeof(path), "%s/icon_list.png",
+            e_module_dir_get(_pol_mod->module));
+
+   evas_object_image_file_set(o, path, NULL);
+
+   Evas_Load_Error err = evas_object_image_load_error_get(o);
+   if (err != EVAS_LOAD_ERROR_NONE)
+     {
+        ELOGF("SYSINFO",
+         "could not load image", NULL, NULL);
+        o = evas_object_rectangle_add(e_comp->evas);
+        evas_object_color_set(o, 255, 0, 0, 255);
+     }
+   else
+    {
+       ELOGF("SYSINFO",
+         "load image success!", NULL, NULL);
+       evas_object_image_fill_set(o, 0, 0, BTN_SIZE, BTN_SIZE);
+       evas_object_image_alpha_set(o, EINA_TRUE);
+     }
+   evas_object_resize(o, BTN_SIZE, BTN_SIZE);
    evas_object_move(o, 0, 0);
    comp_obj = e_comp_object_util_add(o, E_COMP_OBJECT_TYPE_NONE);
    evas_object_layer_set(comp_obj, E_LAYER_POPUP);
