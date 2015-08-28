@@ -12,7 +12,6 @@
 #define SCR_WIDTH    1920
 #define SCR_HEIGHT   1080
 #define SCR_MARGIN_W 30
-#define BTN_ALPHA    155
 #define BTN_SIZE     42
 
 typedef struct _E_Sysinfo
@@ -130,7 +129,7 @@ static void
 _win_effect_cb_trans(Elm_Transit_Effect *eff EINA_UNUSED, Elm_Transit *trans EINA_UNUSED, double progress)
 {
    E_Client *ec;
-   double curr, col, fps_y, btn_x, btn_alpha;
+   double curr, col, fps_y, btn_x;
 
    ec = e_sysinfo->ec;
    EINA_SAFETY_ON_NULL_RETURN(ec);
@@ -148,7 +147,6 @@ _win_effect_cb_trans(Elm_Transit_Effect *eff EINA_UNUSED, Elm_Transit *trans EIN
         fps_y = 10 + (60 * progress);
 
         btn_x = (WIN_WIDTH - BTN_SIZE - 10) * progress;
-        btn_alpha = 255 - (255 - BTN_ALPHA) * progress;
      }
    else
      {
@@ -159,13 +157,10 @@ _win_effect_cb_trans(Elm_Transit_Effect *eff EINA_UNUSED, Elm_Transit *trans EIN
         fps_y = 70 - (60 * progress);
 
         btn_x = (WIN_WIDTH - BTN_SIZE - 10) - (WIN_WIDTH - BTN_SIZE - 10) * progress;
-        btn_alpha = BTN_ALPHA + (255 - BTN_ALPHA) * progress;
      }
 
    evas_object_color_set(ec->frame, col, col, col, col);
    evas_object_move(ec->frame, curr, 0);
-
-   evas_object_color_set(e_sysinfo->btn, 255, 255, 255, btn_alpha);
    evas_object_move(e_sysinfo->btn, btn_x, 0);
 
    evas_object_color_set(e_sysinfo->fps_unit, col, col, col, col);
@@ -416,6 +411,9 @@ e_mod_pol_sysinfo_client_add(E_Client *ec)
 
    if (e_mod_pol_client_is_sysinfo(ec))
      {
+        if (e_sysinfo->btn && !evas_object_visible_get(e_sysinfo->btn))
+          evas_object_show(e_sysinfo->btn);
+
         e_sysinfo->ec = ec;
         if (e_sysinfo->show) _win_show();
      }
@@ -429,6 +427,10 @@ e_mod_pol_sysinfo_client_del(E_Client *ec)
          ec->pixmap, ec, ec->w, ec->h,
          (unsigned int)ec->frame,
          ec->frame ? evas_object_visible_get(ec->frame) : 0);
+
+   if (e_mod_pol_client_is_sysinfo(ec))
+     if (e_sysinfo->btn && evas_object_visible_get(e_sysinfo->btn))
+       evas_object_hide(e_sysinfo->btn);
 
    if (e_sysinfo->ec == ec)
      {
@@ -584,35 +586,21 @@ e_mod_pol_sysinfo_init(void)
    evas_object_layer_set(comp_obj, E_LAYER_POPUP);
    e_sysinfo->fps_unit = comp_obj;
 
-   o = evas_object_image_add(e_comp->evas);
+   char path[PATH_MAX], group[PATH_MAX];
+   o = edje_object_add(e_comp->evas);
 
-   char path[PATH_MAX];
-   snprintf(path, sizeof(path), "%s/icon_list.png",
+   snprintf(group, sizeof(group), "e/modules/policy/sysinfo");
+   snprintf(path, sizeof(path), "%s/e-module-policy-sysinfo.edj",
             e_module_dir_get(_pol_mod->module));
 
-   evas_object_image_file_set(o, path, NULL);
+   if (!e_theme_edje_object_set(o, NULL, group))
+     edje_object_file_set(o, path, group);
 
-   Evas_Load_Error err = evas_object_image_load_error_get(o);
-   if (err != EVAS_LOAD_ERROR_NONE)
-     {
-        ELOGF("SYSINFO",
-         "could not load image", NULL, NULL);
-        o = evas_object_rectangle_add(e_comp->evas);
-        evas_object_color_set(o, 255, 0, 0, 255);
-     }
-   else
-    {
-       ELOGF("SYSINFO",
-         "load image success!", NULL, NULL);
-       evas_object_image_fill_set(o, 0, 0, BTN_SIZE, BTN_SIZE);
-       evas_object_image_alpha_set(o, EINA_TRUE);
-     }
    evas_object_resize(o, BTN_SIZE, BTN_SIZE);
    evas_object_move(o, 0, 0);
    comp_obj = e_comp_object_util_add(o, E_COMP_OBJECT_TYPE_NONE);
    evas_object_layer_set(comp_obj, E_LAYER_POPUP);
    evas_object_event_callback_add(comp_obj, EVAS_CALLBACK_MOUSE_UP, _btn_cb_mouse_up, NULL);
-   evas_object_show(comp_obj);
    e_sysinfo->btn = comp_obj;
 
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_COMPOSITOR_FPS_UPDATE, _sysinfo_cb_comp_fps_update, NULL);

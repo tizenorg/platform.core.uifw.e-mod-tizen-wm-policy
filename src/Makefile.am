@@ -4,7 +4,7 @@ MODULE = e-mod-tizen-wm-policy
 # data files for the module
 filesdir = $(libdir)/enlightenment/modules/$(MODULE)
 files_DATA = e-module-policy.edj \
-             icon_list.png
+             e-module-policy-sysinfo.edj
 
 pkgdir                 = $(libdir)/enlightenment/modules/$(MODULE)/$(MODULE_ARCH)
 pkg_LTLIBRARIES        = module.la
