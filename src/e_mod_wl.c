@@ -1164,6 +1164,7 @@ _tzpol_iface_cb_role_set(struct wl_client *client EINA_UNUSED, struct wl_resourc
    else if (!e_util_strcmp("e_demo", role))
      {
         evas_object_layer_set(ec->frame, E_LAYER_CLIENT_NOTIFICATION_HIGH);
+        e_client_screen_limit_set(ec, E_CLIENT_OFFSCREEN_LIMIT_ALLOW_NONE);
         ec->lock_client_location = 1;
      }
    else if (!e_util_strcmp("e_sysinfo", role))
