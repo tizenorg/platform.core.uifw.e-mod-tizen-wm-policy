@@ -486,6 +486,7 @@ e_mod_pol_sysinfo_client_stack(E_Client *ec)
    if ((!e_sysinfo->ec) || (!e_sysinfo->ec->frame)) return;
 
    if (!e_mod_pol_client_is_sysinfo(ec) &&
+       (e_sysinfo->zoom.normal_factor < 1.0) &&
        (ec->w >= 300) && (ec->h >= 300) &&
        (ec->frame))
      {
