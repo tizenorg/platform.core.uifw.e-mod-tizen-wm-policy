@@ -234,6 +234,12 @@ _pol_client_normal_check(E_Client *ec)
         if (pc) _pol_client_del(pc);
         return EINA_FALSE;
      }
+   else if (e_mod_pol_client_is_noti(ec))
+     {
+        pc = eina_hash_find(hash_pol_clients, &ec);
+        if (pc) _pol_client_del(pc);
+        return EINA_FALSE;
+     }
 #ifdef HAVE_WAYLAND_ONLY
    else if (e_mod_pol_client_is_subsurface(ec))
      {
@@ -956,6 +962,18 @@ e_mod_pol_client_is_sysinfo(E_Client *ec)
    E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, EINA_FALSE);
 
    if (!e_util_strcmp(ec->icccm.window_role, "e_sysinfo"))
+     return EINA_TRUE;
+
+   return EINA_FALSE;
+}
+
+Eina_Bool
+e_mod_pol_client_is_noti(E_Client *ec)
+{
+   E_OBJECT_CHECK_RETURN(ec, EINA_FALSE);
+   E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, EINA_FALSE);
+
+   if (!e_util_strcmp(ec->icccm.title, "noti_win"))
      return EINA_TRUE;
 
    return EINA_FALSE;
