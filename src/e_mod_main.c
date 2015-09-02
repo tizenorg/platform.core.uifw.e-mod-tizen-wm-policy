@@ -344,6 +344,13 @@ _pol_cb_hook_client_eval_pre_new_client(void *d EINA_UNUSED, E_Client *ec)
         if (ec->layer != E_LAYER_CLIENT_ABOVE)
           evas_object_layer_set(ec->frame, E_LAYER_CLIENT_ABOVE);
      }
+   if (e_mod_pol_client_is_noti(ec))
+     {
+        ec->lock_client_location = 1;
+        EINA_SAFETY_ON_NULL_RETURN(ec->frame);
+        if (ec->layer != E_LAYER_CLIENT_NOTIFICATION_HIGH)
+          evas_object_layer_set(ec->frame, E_LAYER_CLIENT_NOTIFICATION_HIGH);
+     }
 }
 
 static void
@@ -402,6 +409,8 @@ _pol_cb_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec)
           }
         return;
      }
+   if (e_mod_pol_client_is_noti(ec))
+     e_client_util_move_without_frame(ec, 0, 0);
 
    if (!_pol_client_normal_check(ec)) return;
 
