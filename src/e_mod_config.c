@@ -311,13 +311,10 @@ e_mod_pol_conf_init(Mod *mod)
         conf->launcher.type = E_WINDOW_TYPE_NORMAL;
         conf->use_softkey = 1;
         conf->softkey_size = 42;
-     }
 
-   if (!mod->conf->desks)
-     {
         zone = e_zone_current_get(e_comp);
         desk = e_desk_current_get(zone);
-        _pol_conf_desk_add(mod->conf, desk);
+        _pol_conf_desk_add(conf, desk);
      }
 }
 
