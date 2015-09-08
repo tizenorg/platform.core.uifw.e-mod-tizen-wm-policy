@@ -711,6 +711,8 @@ _pol_cb_client_resize(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
      {
         e_zone_useful_geometry_get(ec->zone, NULL, NULL, NULL, &zh);
         evas_object_move(ec->frame, 0, (zh / 2) - (ec->h / 2));
+
+        evas_object_pass_events_set(ec->frame, 1);
      }
 
    /* calculate e_client visibility */
