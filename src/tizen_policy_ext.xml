@@ -28,16 +28,11 @@
         <event name="angle_change">
             <description summary="suggest a angle_change"/>
             <arg name="angle" type="uint"/>
-            <arg name="width" type="int"/>
-            <arg name="height" type="int"/>
             <arg name="serial" type="uint"/>
         </event>
         <request name="ack_angle_change">
             <description summary="ack a  angle_change"/>
             <arg name="serial" type="uint" summary="a serial to angle_change for"/>
-        </request>
-        <request name="set_geometry_hints">
-            <arg name="geometry_hints" type="array"/>
         </request>
      </interface>
 </protocol>

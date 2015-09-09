@@ -29,15 +29,8 @@
                                             (angle == TIZEN_ROTATION_ANGLE_180) ? 180 :    \
                                             (angle == TIZEN_ROTATION_ANGLE_270) ? 270 : -1)
 
-typedef struct _Geometry_Hint Geometry_Hint;
 typedef struct _Policy_Ext_Rotation Policy_Ext_Rotation;
 typedef struct _E_Client_Rotation E_Client_Rotation;
-
-struct _Geometry_Hint
-{
-   enum tizen_rotation_angle angle;
-   int x, y, w, h;
-};
 
 struct _Policy_Ext_Rotation
 {
@@ -46,16 +39,7 @@ struct _Policy_Ext_Rotation
    enum tizen_rotation_angle cur_angle, prev_angle;
    Eina_List *rotation_list;
    Eina_Bool angle_change_done;
-
-   struct
-   {
-      enum tizen_rotation_angle angle;
-      int x, y, w, h;
-      Eina_Bool valid;
-   } geometry_hint[4];
-
    uint32_t serial;
-
 };
 
 struct _E_Client_Rotation
@@ -99,7 +83,6 @@ static Policy_Ext_Rotation* _policy_ext_rotation_get(E_Pixmap *ep);
 static void _e_tizen_rotation_set_available_angles_cb(struct wl_client *client, struct wl_resource *resource, uint32_t angles);
 static void _e_tizen_rotation_set_preferred_angle_cb(struct wl_client *client, struct wl_resource *resource, uint32_t angle);
 static void _e_tizen_rotation_ack_angle_change_cb(struct wl_client *client, struct wl_resource *resource, uint32_t serial);
-static void _e_tizen_rotation_set_geometry_hints_cb(struct wl_client *client, struct wl_resource *resource, struct wl_array *geometry_hints);
 static void _e_tizen_rotation_destroy(struct wl_resource *resource);
 static void _e_tizen_rotation_send_angle_change(E_Client *ec, int angle);
 static void _e_tizen_policy_ext_get_rotation_cb(struct wl_client *client, struct wl_resource *resource, uint32_t id, struct wl_resource *surface);
@@ -111,7 +94,6 @@ static const struct tizen_rotation_interface _e_tizen_rotation_interface =
    _e_tizen_rotation_set_available_angles_cb,
    _e_tizen_rotation_set_preferred_angle_cb,
    _e_tizen_rotation_ack_angle_change_cb,
-   _e_tizen_rotation_set_geometry_hints_cb,
    /* need rotation destroy request? */
 };
 static const struct tizen_policy_ext_interface _e_tizen_policy_ext_interface =
@@ -284,72 +266,6 @@ _e_tizen_rotation_ack_angle_change_cb(struct wl_client *client,
 }
 
 static void
-_e_tizen_rotation_set_geometry_hints_cb(struct wl_client *client,
-                                        struct wl_resource *resource,
-                                        struct wl_array *geometry_hints)
-{
-   E_Client *ec;
-   E_Pixmap *ep;
-   Policy_Ext_Rotation *rot;
-   Geometry_Hint *geo_hint;
-   Eina_Bool geo_hint_change = EINA_FALSE;
-
-   ep = wl_resource_get_user_data(resource);
-   EINA_SAFETY_ON_NULL_RETURN(ep);
-
-   rot = _policy_ext_rotation_get(ep);
-   EINA_SAFETY_ON_NULL_RETURN(rot);
-
-   wl_array_for_each(geo_hint, geometry_hints)
-     {
-        Eina_Bool valid = EINA_FALSE;
-        int i;
-        switch(geo_hint->angle)
-          {
-             case TIZEN_ROTATION_ANGLE_0:
-               valid = EINA_TRUE;
-               i = 0;
-               break;
-             case TIZEN_ROTATION_ANGLE_90:
-               valid = EINA_TRUE;
-               i = 1;
-               break;
-             case TIZEN_ROTATION_ANGLE_180:
-               valid = EINA_TRUE;
-               i = 2;
-               break;
-             case TIZEN_ROTATION_ANGLE_270:
-               valid = EINA_TRUE;
-               i = 3;
-               break;
-             default:
-               break;
-          }
-
-        if (valid)
-          {
-             rot->geometry_hint[i].angle = geo_hint->angle;
-             rot->geometry_hint[i].x = geo_hint->x;
-             rot->geometry_hint[i].y = geo_hint->y;
-             rot->geometry_hint[i].w = geo_hint->w;
-             rot->geometry_hint[i].h = geo_hint->h;
-             rot->geometry_hint[i].valid = valid;
-             geo_hint_change = EINA_TRUE;
-          }
-     }
-
-   if (geo_hint_change)
-     {
-        ec = e_pixmap_client_get(ep);
-        if (ec)
-          {
-             ec->e.fetch.rot.geom_hint = 1;
-             EC_CHANGED(ec);
-          }
-     }
-}
-
-static void
 _e_tizen_rotation_destroy(struct wl_resource *resource)
 {
    E_Pixmap *ep;
@@ -430,7 +346,6 @@ _e_tizen_rotation_send_angle_change(E_Client *ec, int angle)
 {
    Eina_List *l;
    Policy_Ext_Rotation *rot;
-   int32_t width, height;
    uint32_t serial;
    struct wl_resource *resource;
    enum tizen_rotation_angle tz_angle = TIZEN_ROTATION_ANGLE_0;
@@ -467,25 +382,9 @@ _e_tizen_rotation_send_angle_change(E_Client *ec, int angle)
    rot->cur_angle = tz_angle;
    rot->serial = serial;
 
-   //set default width, height
-   width = ec->w;
-   height = ec->h;
-   //check geometry hint for resize
-   if (ec->e.state.rot.geom_hint)
-     {
-        int i = angle / 90;
-
-        if ((ec->e.state.rot.geom[i].w != 0) &&
-            (ec->e.state.rot.geom[i].h != 0))
-          {
-             width = ec->e.state.rot.geom[i].w;
-             height = ec->e.state.rot.geom[i].h;
-          }
-     }
-
    EINA_LIST_FOREACH(rot->rotation_list, l, resource)
      {
-        tizen_rotation_send_angle_change(resource, tz_angle, width, height, serial);
+        tizen_rotation_send_angle_change(resource, tz_angle, serial);
      }
 }
 
@@ -1136,15 +1035,6 @@ _rot_hook_new_client(void *d EINA_UNUSED, E_Client *ec)
 
    ec->e.fetch.rot.support = 1;
 
-   for (i = 0; i < 4; i++)
-      {
-         if (rot->geometry_hint[i].valid)
-           {
-              ec->e.fetch.rot.geom_hint = 1;
-              break;
-           }
-      }
-
    if (rot->preferred_angle)
      {
         ec->e.fetch.rot.app_set = 1;
@@ -1224,45 +1114,6 @@ _rot_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec)
 
         ec->e.fetch.rot.need_rotation = EINA_TRUE;
         ec->e.fetch.rot.support = 0;
-     }
-   if (ec->e.fetch.rot.geom_hint)
-     {
-        Eina_Rectangle r[4];
-        int i;
-        ec->e.state.rot.geom_hint = 0;
-        for (i = 0; i < 4; i++)
-          {
-             r[i].x = ec->e.state.rot.geom[i].x;
-             r[i].y = ec->e.state.rot.geom[i].y;
-             r[i].w = ec->e.state.rot.geom[i].w;
-             r[i].h = ec->e.state.rot.geom[i].h;
-
-             ec->e.state.rot.geom[i].x = 0;
-             ec->e.state.rot.geom[i].y = 0;
-             ec->e.state.rot.geom[i].w = 0;
-             ec->e.state.rot.geom[i].h = 0;
-          }
-
-        for (i = 0; i < 4; i++)
-          {
-             if (rot->geometry_hint[i].valid)
-               {
-                  ec->e.state.rot.geom_hint = 1;
-                  ec->e.state.rot.geom[i].x = rot->geometry_hint[i].x;
-                  ec->e.state.rot.geom[i].y = rot->geometry_hint[i].y;
-                  ec->e.state.rot.geom[i].w = rot->geometry_hint[i].w;
-                  ec->e.state.rot.geom[i].h = rot->geometry_hint[i].h;
-
-                  if (!((r[i].x == rot->geometry_hint[i].x) &&
-                        (r[i].y == rot->geometry_hint[i].y) &&
-                        (r[i].w == rot->geometry_hint[i].w) &&
-                        (r[i].h == rot->geometry_hint[i].h)))
-                    {
-                       ec->e.fetch.rot.need_rotation = EINA_TRUE;
-                    }
-               }
-          }
-        ec->e.fetch.rot.geom_hint = 0;
      }
    if (ec->e.fetch.rot.preferred_rot)
      {

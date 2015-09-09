@@ -66,13 +66,6 @@ struct tizen_rotation_interface {
 	void (*ack_angle_change)(struct wl_client *client,
 				 struct wl_resource *resource,
 				 uint32_t serial);
-	/**
-	 * set_geometry_hints - (none)
-	 * @geometry_hints: (none)
-	 */
-	void (*set_geometry_hints)(struct wl_client *client,
-				   struct wl_resource *resource,
-				   struct wl_array *geometry_hints);
 };
 
 #define TIZEN_ROTATION_AVAILABLE_ANGLES_DONE	0
@@ -96,9 +89,9 @@ tizen_rotation_send_preferred_angle_done(struct wl_resource *resource_, uint32_t
 }
 
 static inline void
-tizen_rotation_send_angle_change(struct wl_resource *resource_, uint32_t angle, int32_t width, int32_t height, uint32_t serial)
+tizen_rotation_send_angle_change(struct wl_resource *resource_, uint32_t angle, uint32_t serial)
 {
-	wl_resource_post_event(resource_, TIZEN_ROTATION_ANGLE_CHANGE, angle, width, height, serial);
+	wl_resource_post_event(resource_, TIZEN_ROTATION_ANGLE_CHANGE, angle, serial);
 }
 
 #ifdef  __cplusplus
