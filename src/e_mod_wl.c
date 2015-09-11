@@ -986,7 +986,15 @@ e_mod_pol_wl_position_send(E_Client *ec)
           if (e_pixmap_client_get(psurf->cp) != ec) continue;
 
           EINA_LIST_FOREACH(psurf->poslist, ll, res_tzpos)
-            tizen_position_send_changed(res_tzpos, ec->x, ec->y);
+            {
+               tizen_position_send_changed(res_tzpos, ec->client.x, ec->client.y);
+               ELOGF("TZPOS",
+                     "SEND     |res_tzpos:0x%08x|ec->x:%d, ec->y:%d, ec->client.x:%d, ec->client.y:%d",
+                     ec->pixmap, ec,
+                     (unsigned int)res_tzpos,
+                     ec->x, ec->y,
+                     ec->client.x, ec->client.y);
+            }
        }
    eina_iterator_free(it);
 }
