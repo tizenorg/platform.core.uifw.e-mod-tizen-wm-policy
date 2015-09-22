@@ -87,6 +87,11 @@ typedef struct _Pol_Wl
 } Pol_Wl;
 
 static Pol_Wl *polwl = NULL;
+static const char *supported_hints[] =
+{
+   "wm.policy.win.user.geometry",
+   "wm.policy.win.fixed.resize"
+};
 
 static void                _pol_wl_surf_del(Pol_Wl_Surface *psurf);
 static void                _pol_wl_tzsh_srv_register_handle(Pol_Wl_Tzsh_Srv *tzsh_srv);
@@ -1562,6 +1567,231 @@ _tzpol_iface_cb_uniconify(struct wl_client *client EINA_UNUSED, struct wl_resour
    e_client_uniconify(ec);
 }
 
+void
+e_mod_pol_wl_allowed_aux_hint_send(E_Client *ec, int id)
+{
+   Pol_Wl_Tzpol *tzpol;
+   Pol_Wl_Surface *psurf;
+   Eina_List *l;
+   Eina_Iterator *it;
+
+   it = eina_hash_iterator_data_new(polwl->tzpols);
+   EINA_ITERATOR_FOREACH(it, tzpol)
+     EINA_LIST_FOREACH(tzpol->psurfs, l, psurf)
+       {
+          if (e_pixmap_client_get(psurf->cp) != ec) continue;
+          tizen_policy_send_allowed_aux_hint
+            (tzpol->res_tzpol,
+             psurf->surf,
+             id);
+          ELOGF("TZPOL",
+                "SEND     |res_tzpol:0x%08x|allowed hint->id:%d",
+                ec->pixmap, ec,
+                (unsigned int)tzpol->res_tzpol,
+                id);
+       }
+   eina_iterator_free(it);
+}
+
+void
+e_mod_pol_aux_hint_pre_new_client(E_Client *ec)
+{
+   E_Comp_Wl_Aux_Hint *hint;
+   Eina_List *l;
+   Eina_Bool send;
+
+   EINA_LIST_FOREACH(ec->comp_data->aux_hint.hints, l, hint)
+     {
+        send = EINA_FALSE;
+        if (!strcmp(hint->hint, supported_hints[0]))
+          {
+             if (!strcmp(hint->val, "1") && (ec->lock_client_location || ec->lock_client_size || !ec->placed))
+               {
+                  ec->lock_client_location = EINA_FALSE;
+                  ec->lock_client_size = EINA_FALSE;
+                  ec->placed = 1;
+                  ec->netwm.type = E_WINDOW_TYPE_UTILITY;
+                  send = EINA_TRUE;
+               }
+             else if (strcmp(hint->val, "1") && (!ec->lock_client_location || !ec->lock_client_size || ec->placed))
+               {
+                  ec->lock_client_location = EINA_TRUE;
+                  ec->lock_client_size = EINA_TRUE;
+                  ec->placed = 0;
+                  ec->netwm.type = E_WINDOW_TYPE_NORMAL;
+                  send = EINA_TRUE;
+               }
+          }
+        else if (!strcmp(hint->hint, supported_hints[1]))
+          {
+          }
+        if (send)
+          e_mod_pol_wl_allowed_aux_hint_send(ec, hint->id);
+     }
+}
+
+static Eina_Bool
+_tzpol_iface_aux_hint_add(Eina_List **hints, int id, const char *name, const char *val)
+{
+   Eina_List *l;
+   E_Comp_Wl_Aux_Hint *hint;
+   Eina_Bool found = EINA_FALSE;
+
+   EINA_LIST_FOREACH(*hints, l, hint)
+     {
+        if (hint->id == id)
+          {
+             if (strcmp(hint->val, val) != 0)
+               {
+                  eina_stringshare_del(hint->val);
+                  hint->val = eina_stringshare_add(val);
+               }
+             found = EINA_TRUE;
+          }
+     }
+   if (!found)
+     {
+        hint = E_NEW(E_Comp_Wl_Aux_Hint, 1);
+        if (hint)
+          {
+             hint->id = id;
+             hint->hint = eina_stringshare_add(name);
+             hint->val = eina_stringshare_add(val);
+             *hints = eina_list_append(*hints, hint);
+          }
+     }
+   return found;
+}
+
+static void
+_tzpol_iface_cb_aux_hints_add(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf, int32_t id, const char *name, const char *value)
+{
+   E_Pixmap *cp;
+   E_Comp_Wl_Client_Data *cdata;
+   Eina_Bool res = EINA_FALSE;
+
+   cp = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(cp);
+
+   cdata = e_pixmap_cdata_get(cp);
+   EINA_SAFETY_ON_NULL_RETURN(cdata);
+
+   res = _tzpol_iface_aux_hint_add(&cdata->aux_hint.hints, id, name, value);
+   ELOGF("TZPOL", "HINT_ADD|res_tzpol:0x%08x|id:%d, name:%s, val:%s, found:%d", NULL, NULL, (unsigned int)res_tzpol, id, name, value, res);
+}
+static Eina_Bool
+_tzpol_iface_aux_hint_change(Eina_List **hints, int id, const char *val)
+{
+   Eina_List *l;
+   E_Comp_Wl_Aux_Hint *hint;
+   Eina_Bool found = EINA_FALSE;
+
+   EINA_LIST_FOREACH(*hints, l, hint)
+     {
+        if (hint->id == id)
+          {
+             if (strcmp(hint->val, val) != 0)
+               {
+                  if (hint->val) eina_stringshare_del(hint->val);
+                  hint->val = eina_stringshare_add(val);
+               }
+             found = EINA_TRUE;
+          }
+     }
+   return found;
+}
+static void
+_tzpol_iface_cb_aux_hints_change(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf, int32_t id, const char *value)
+{
+   E_Pixmap *cp;
+   E_Comp_Wl_Client_Data *cdata;
+   Eina_Bool res = EINA_FALSE;
+
+   cp = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(cp);
+
+   cdata = e_pixmap_cdata_get(cp);
+   EINA_SAFETY_ON_NULL_RETURN(cdata);
+
+   res = _tzpol_iface_aux_hint_change(&cdata->aux_hint.hints, id, value);
+   ELOGF("TZPOL", "HINT_CHANGE|res_tzpol:0x%08x|id:%d, val:%s, result:%d", NULL, NULL,  (unsigned int)res_tzpol, id, value, res);
+
+}
+
+static Eina_Bool
+_tzpol_iface_aux_hint_del(Eina_List **hints, int id)
+{
+   Eina_List *l;
+   E_Comp_Wl_Aux_Hint *hint;
+   Eina_Bool found = EINA_FALSE;
+
+   EINA_LIST_FOREACH(*hints, l, hint)
+     {
+        if (hint->id == id)
+          {
+             if (hint->hint) eina_stringshare_del(hint->hint);
+             if (hint->val) eina_stringshare_del(hint->val);
+             *hints = eina_list_remove(*hints, hint);
+             found = EINA_TRUE;
+          }
+     }
+   return found;
+}
+
+static void
+_tzpol_iface_cb_aux_hint_del(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf, int32_t id)
+{
+   E_Pixmap *cp;
+   E_Comp_Wl_Client_Data *cdata;
+   Eina_Bool res = EINA_FALSE;
+
+   cp = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(cp);
+
+   cdata = e_pixmap_cdata_get(cp);
+   EINA_SAFETY_ON_NULL_RETURN(cdata);
+
+   res = _tzpol_iface_aux_hint_del(&cdata->aux_hint.hints, id);
+   ELOGF("TZPOL", "HINT_DEL|res_tzpol:0x%08x|id:%d, result:%d", NULL, NULL,  (unsigned int)res_tzpol, id, res);
+}
+
+static void
+_tzpol_iface_hint_add(struct wl_array *hints, const char *name)
+{
+   int len = strlen(name) + 1;
+   char *p;
+   p = wl_array_add(hints, len);
+
+   if (p == NULL)
+     return;
+   strncpy(p, name, len);
+}
+
+static void
+_tzpol_iface_cb_supported_aux_hints_get(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf)
+{
+   E_Pixmap *cp;
+   struct wl_array hints;
+   int i, n;
+
+   cp = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(cp);
+
+   wl_array_init(&hints);
+   n = (sizeof(supported_hints) / sizeof(char *));
+
+   for (i = 0; i < n; i++)
+     _tzpol_iface_hint_add(&hints, supported_hints[i]);
+
+   tizen_policy_send_supported_aux_hints(res_tzpol, surf, &hints, n);
+   ELOGF("TZPOL",
+         "SEND     |res_tzpol:0x%08x|supported_hints size:%d",
+         cp, NULL,
+         (unsigned int)res_tzpol,
+         n);
+   wl_array_release(&hints);
+}
+
 // --------------------------------------------------------
 // tizen_policy_interface
 // --------------------------------------------------------
@@ -1585,7 +1815,11 @@ static const struct tizen_policy_interface _tzpol_iface =
    _tzpol_iface_cb_subsurf_place_below_parent,
    _tzpol_iface_cb_opaque_state_set,
    _tzpol_iface_cb_iconify,
-   _tzpol_iface_cb_uniconify
+   _tzpol_iface_cb_uniconify,
+   _tzpol_iface_cb_aux_hints_add,
+   _tzpol_iface_cb_aux_hints_change,
+   _tzpol_iface_cb_aux_hint_del,
+   _tzpol_iface_cb_supported_aux_hints_get,
 };
 
 static void
