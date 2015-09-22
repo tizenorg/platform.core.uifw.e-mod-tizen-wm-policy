@@ -26,5 +26,9 @@ void      e_mod_pol_wl_keyboard_geom_broadcast(E_Client *ec);
 /* window screenmode */
 void      e_mod_pol_wl_win_scrmode_apply(void);
 
+/* aux_hint */
+void      e_mod_pol_wl_allowed_aux_hint_send(E_Client *ec, int id);
+void      e_mod_pol_aux_hint_pre_new_client(E_Client *ec);
+
 #endif /* HAVE_WAYLAND_ONLY */
 #endif /* E_MOD_WL_H */
