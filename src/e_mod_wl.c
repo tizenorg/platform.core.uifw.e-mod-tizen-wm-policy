@@ -1075,6 +1075,37 @@ _tzpol_iface_cb_lower(struct wl_client *client EINA_UNUSED, struct wl_resource *
    evas_object_focus_set(below->frame, 1);
 }
 
+static void
+_tzpol_iface_cb_lower_by_res_id(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol,  uint32_t res_id)
+{
+   E_Client *ec, *below = NULL;
+
+   ELOGF("TZPOL",
+         "LOWER_RES|res_tzpol:0x%08x|res_id:%d",
+         NULL, NULL, (unsigned int)res_tzpol, res_id);
+
+   ec = e_pixmap_find_client_by_res_id(res_id);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
+   EINA_SAFETY_ON_NULL_RETURN(ec->frame);
+
+   below = ec;
+   while ((below = e_client_below_get(below)))
+     {
+        if ((e_client_util_ignored_get(below)) ||
+            (below->iconic))
+          continue;
+
+        break;
+     }
+
+   evas_object_lower(ec->frame);
+
+   if ((!below) || (!ec->focused)) return;
+
+   if ((below->icccm.accepts_focus) ||(below->icccm.take_focus))
+     evas_object_focus_set(below->frame, 1);
+}
+
 // --------------------------------------------------------
 // focus
 // --------------------------------------------------------
@@ -1789,6 +1820,7 @@ static const struct tizen_policy_interface _tzpol_iface =
    _tzpol_iface_cb_activate,
    _tzpol_iface_cb_raise,
    _tzpol_iface_cb_lower,
+   _tzpol_iface_cb_lower_by_res_id,
    _tzpol_iface_cb_focus_skip_set,
    _tzpol_iface_cb_focus_skip_unset,
    _tzpol_iface_cb_role_set,
