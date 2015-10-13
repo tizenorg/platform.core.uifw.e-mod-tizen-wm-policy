@@ -48,6 +48,8 @@ _visibility_add(E_Client *ec, int visibility)
    if (pv) return NULL;
 
    pv = E_NEW(Pol_Visibility, 1);
+   if (!pv) return NULL;
+
    pv->ec = ec;
    pv->visibility = visibility;
 
@@ -139,6 +141,8 @@ _win_opaque_add(E_Client *ec, int opaque)
    if (pwo) return NULL;
 
    pwo = E_NEW(Pol_Win_Opaque, 1);
+   if (!pwo) return NULL;
+
    pwo->ec = ec;
    pwo->opaque = opaque;
 
