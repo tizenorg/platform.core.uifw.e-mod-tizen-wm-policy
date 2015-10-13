@@ -2036,9 +2036,12 @@ _tzsh_reg_cb_shell_destroy(struct wl_listener *listener, void *data)
    Pol_Wl_Tzsh_Region *tzsh_reg;
 
    tzsh_reg = container_of(listener, Pol_Wl_Tzsh_Region, destroy_listener);
-   if (!tzsh_reg) return;
 
-   wl_resource_destroy(tzsh_reg->res_tzsh_reg);
+   if (tzsh_reg->res_tzsh_reg)
+     {
+        wl_resource_destroy(tzsh_reg->res_tzsh_reg);
+        tzsh_reg->res_tzsh_reg = NULL;
+     }
 }
 
 static void
@@ -2111,6 +2114,7 @@ _tzsh_iface_cb_reg_create(struct wl_client *client, struct wl_resource *res_tzsh
 {
    Pol_Wl_Tzsh *tzsh;
    Pol_Wl_Tzsh_Region *tzsh_reg = NULL;
+   Eina_Tiler *tz = NULL;
    struct wl_resource *res_tzsh_reg;
    int zw = 0, zh = 0;
 
@@ -2130,8 +2134,9 @@ _tzsh_iface_cb_reg_create(struct wl_client *client, struct wl_resource *res_tzsh
    e_zone_useful_geometry_get(e_zone_current_get(e_comp),
                               NULL, NULL, &zw, &zh);
 
-   tzsh_reg->tiler = eina_tiler_new(zw, zh);
-   EINA_SAFETY_ON_NULL_GOTO(tzsh_reg->tiler, err);
+   tz = eina_tiler_new(zw, zh);
+   EINA_SAFETY_ON_NULL_GOTO(tz, err);
+   tzsh_reg->tiler = tz;
 
    eina_tiler_tile_size_set(tzsh_reg->tiler, 1, 1);
 
@@ -2159,11 +2164,8 @@ _tzsh_iface_cb_reg_create(struct wl_client *client, struct wl_resource *res_tzsh
    return;
 
 err:
-   if (tzsh_reg)
-     {
-        if (tzsh_reg->tiler) eina_tiler_free(tzsh_reg->tiler);
-        E_FREE(tzsh_reg);
-     }
+   if (tzsh_reg->tiler) eina_tiler_free(tzsh_reg->tiler);
+   E_FREE(tzsh_reg);
 }
 
 // --------------------------------------------------------
