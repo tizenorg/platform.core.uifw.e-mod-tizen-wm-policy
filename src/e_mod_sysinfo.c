@@ -531,7 +531,7 @@ _sysinfo_cb_fps_anim(void *data EINA_UNUSED)
    else
      e_sysinfo->fps_curr = e_sysinfo->fps_src + ((e_sysinfo->fps_target - e_sysinfo->fps_src) * (dt));
 
-   sprintf(buf, "%.1f", e_sysinfo->fps_curr);
+   snprintf(buf, sizeof(buf), "%.1f", e_sysinfo->fps_curr);
    evas_object_text_text_set(e_sysinfo->fps_text, buf);
 
    return ECORE_CALLBACK_RENEW;
