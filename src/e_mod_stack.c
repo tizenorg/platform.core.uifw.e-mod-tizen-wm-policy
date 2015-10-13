@@ -33,6 +33,8 @@ _pol_stack_data_add(E_Client *ec)
      return ps;
 
    ps = E_NEW(Pol_Stack, 1);
+   if (!ps) return NULL;
+
    ps->ec = ec;
    eina_hash_add(hash_pol_stack, &ec, ps);
 
