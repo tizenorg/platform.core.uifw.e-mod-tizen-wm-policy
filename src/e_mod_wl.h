@@ -28,7 +28,7 @@ void      e_mod_pol_wl_win_scrmode_apply(void);
 
 /* aux_hint */
 void      e_mod_pol_wl_aux_hint_init(void);
-void      e_mod_pol_wl_pre_new_client(E_Client *ec);
+void      e_mod_pol_wl_eval_pre_new_client(E_Client *ec);
 
 #endif /* HAVE_WAYLAND_ONLY */
 #endif /* E_MOD_WL_H */

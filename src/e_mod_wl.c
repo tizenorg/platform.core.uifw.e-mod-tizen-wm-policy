@@ -1217,6 +1217,54 @@ _tzpol_iface_cb_role_set(struct wl_client *client EINA_UNUSED, struct wl_resourc
      }
 }
 
+static void
+_tzpol_iface_cb_type_set(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf, uint32_t type)
+{
+   E_Pixmap *cp;
+   E_Client *ec;
+   E_Comp_Wl_Client_Data *cdata;
+   E_Window_Type  win_type;
+
+   cp = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(cp);
+
+   switch (type)
+     {
+        /* TODO: support other types */
+        case TIZEN_POLICY_WIN_TYPE_NOTIFICATION:
+          win_type = E_WINDOW_TYPE_NOTIFICATION;
+          break;
+        default:
+          return;
+     }
+
+   ec = e_pixmap_client_get(cp);
+   if (ec)
+     {
+        ELOGF("TZPOL",
+        "TYPE_SET |s:0x%08x|res_tzpol:0x%08x|tizen_win_type:%d, e_win_type:%d",
+        cp, ec,
+        (unsigned int)surf,
+        (unsigned int)res_tzpol,
+        type,
+        win_type);
+        ec->netwm.type = win_type;
+        EC_CHANGED(ec);
+     }
+   else
+     {
+        ELOGF("TZPOL",
+        "TYPE_SET |s:0x%08x|res_tzpol:0x%08x|tizen_win_type:%d, e_win_type:%d",
+        cp, NULL,
+        (unsigned int)surf,
+        (unsigned int)res_tzpol,
+        type,
+        win_type);
+        cdata = e_pixmap_cdata_get(cp);
+        EINA_SAFETY_ON_NULL_RETURN(cdata);
+        cdata->win_type = win_type;
+     }
+}
 // --------------------------------------------------------
 // conformant
 // --------------------------------------------------------
@@ -1625,7 +1673,7 @@ _pol_wl_allowed_aux_hint_send(E_Client *ec, int id)
 }
 
 void
-e_mod_pol_wl_pre_new_client(E_Client *ec)
+e_mod_pol_wl_eval_pre_new_client(E_Client *ec)
 {
    E_Comp_Wl_Aux_Hint *hint;
    Eina_List *l;
@@ -1638,11 +1686,15 @@ e_mod_pol_wl_pre_new_client(E_Client *ec)
           {
              if (!strcmp(hint->val, "1") && (ec->lock_client_location || ec->lock_client_size || !ec->placed))
                {
-                  ec->lock_client_location = EINA_FALSE;
+                  if (!e_mod_pol_client_is_noti(ec))
+                    {
+                       ec->netwm.type = E_WINDOW_TYPE_UTILITY;
+                       ec->lock_client_location = EINA_FALSE;
+                    }
                   ec->lock_client_size = EINA_FALSE;
                   ec->placed = 1;
-                  ec->netwm.type = E_WINDOW_TYPE_UTILITY;
                   send = EINA_TRUE;
+                  EC_CHANGED(ec);
                }
              else if (strcmp(hint->val, "1") && (!ec->lock_client_location || !ec->lock_client_size || ec->placed))
                {
@@ -1651,6 +1703,7 @@ e_mod_pol_wl_pre_new_client(E_Client *ec)
                   ec->placed = 0;
                   ec->netwm.type = E_WINDOW_TYPE_NORMAL;
                   send = EINA_TRUE;
+                  EC_CHANGED(ec);
                }
           }
         else if (!strcmp(hint->hint, hint_names[1]))
@@ -1824,6 +1877,7 @@ static const struct tizen_policy_interface _tzpol_iface =
    _tzpol_iface_cb_focus_skip_set,
    _tzpol_iface_cb_focus_skip_unset,
    _tzpol_iface_cb_role_set,
+   _tzpol_iface_cb_type_set,
    _tzpol_iface_cb_conformant_set,
    _tzpol_iface_cb_conformant_unset,
    _tzpol_iface_cb_conformant_get,
