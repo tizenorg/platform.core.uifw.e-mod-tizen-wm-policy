@@ -6,9 +6,9 @@
 /* wm-policy notification level */
 enum
 {
-   E_POL_NOTIFICATION_LEVEL_LOW = 50,
-   E_POL_NOTIFICATION_LEVEL_NORMAL = 100,
-   E_POL_NOTIFICATION_LEVEL_HIGH = 150,
+   E_POL_NOTIFICATION_LEVEL_LOW = 0,
+   E_POL_NOTIFICATION_LEVEL_NORMAL = 1,
+   E_POL_NOTIFICATION_LEVEL_HIGH = 2,
 };
 
 EINTERN void      e_mod_pol_notification_init(void);

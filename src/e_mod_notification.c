@@ -219,8 +219,7 @@ e_mod_pol_notification_level_apply(E_Client *ec, int level)
    if (!_pol_notification_is_notification(ec))
      return EINA_FALSE;
 #endif
-   /* 2. Get and Set level */
-   level = _pol_notification_get_level(ec);
+   /* 2. Set level */
    layer = _pol_notification_level_to_layer(level);
 
    if ((level == pn->level) &&

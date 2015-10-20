@@ -345,12 +345,7 @@ _pol_cb_hook_client_eval_pre_new_client(void *d EINA_UNUSED, E_Client *ec)
           evas_object_layer_set(ec->frame, E_LAYER_CLIENT_ABOVE);
      }
    if (e_mod_pol_client_is_noti(ec))
-     {
-        ec->lock_client_location = 1;
-        EINA_SAFETY_ON_NULL_RETURN(ec->frame);
-        if (ec->layer != E_LAYER_CLIENT_NOTIFICATION_HIGH)
-          evas_object_layer_set(ec->frame, E_LAYER_CLIENT_NOTIFICATION_HIGH);
-     }
+     ec->lock_client_location = 1;
    e_mod_pol_wl_pre_new_client(ec);
 }
 
@@ -986,6 +981,9 @@ e_mod_pol_client_is_noti(E_Client *ec)
    E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, EINA_FALSE);
 
    if (!e_util_strcmp(ec->icccm.title, "noti_win"))
+     return EINA_TRUE;
+
+   if (ec->netwm.type == E_WINDOW_TYPE_NOTIFICATION)
      return EINA_TRUE;
 
    return EINA_FALSE;
