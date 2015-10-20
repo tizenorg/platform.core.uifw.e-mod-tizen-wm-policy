@@ -93,14 +93,24 @@ _pol_notification_level_to_layer(int level)
 {
    switch (level)
      {
+      case E_POL_NOTIFICATION_LEVEL_1:
+         return E_LAYER_CLIENT_NOTIFICATION_LOW;
+      case E_POL_NOTIFICATION_LEVEL_2:
+         return E_LAYER_CLIENT_NOTIFICATION_NORMAL;
+      case E_POL_NOTIFICATION_LEVEL_3:
+         return E_LAYER_CLIENT_NOTIFICATION_TOP;
+      case E_POL_NOTIFICATION_LEVEL_NONE:
+         return E_LAYER_CLIENT_NORMAL;
+      case E_POL_NOTIFICATION_LEVEL_DEFAULT:
+         return E_LAYER_CLIENT_NOTIFICATION_LOW;
+      case E_POL_NOTIFICATION_LEVEL_MEDIUM:
+         return E_LAYER_CLIENT_NOTIFICATION_NORMAL;
       case E_POL_NOTIFICATION_LEVEL_HIGH:
          return E_LAYER_CLIENT_NOTIFICATION_HIGH;
-      case E_POL_NOTIFICATION_LEVEL_NORMAL:
-         return E_LAYER_CLIENT_NOTIFICATION_NORMAL;
-      case E_POL_NOTIFICATION_LEVEL_LOW:
-         return E_LAYER_CLIENT_NOTIFICATION_LOW;
+      case E_POL_NOTIFICATION_LEVEL_TOP:
+         return E_LAYER_CLIENT_NOTIFICATION_TOP;
       default:
-         return E_LAYER_CLIENT_ABOVE;
+         return E_LAYER_CLIENT_NORMAL;
      }
 }
 
@@ -219,8 +229,7 @@ e_mod_pol_notification_level_apply(E_Client *ec, int level)
    if (!_pol_notification_is_notification(ec))
      return EINA_FALSE;
 #endif
-   /* 2. Get and Set level */
-   level = _pol_notification_get_level(ec);
+   /* 2. Set level */
    layer = _pol_notification_level_to_layer(level);
 
    if ((level == pn->level) &&
