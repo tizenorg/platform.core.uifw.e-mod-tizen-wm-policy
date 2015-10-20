@@ -234,12 +234,6 @@ _pol_client_normal_check(E_Client *ec)
         if (pc) _pol_client_del(pc);
         return EINA_FALSE;
      }
-   else if (e_mod_pol_client_is_noti(ec))
-     {
-        pc = eina_hash_find(hash_pol_clients, &ec);
-        if (pc) _pol_client_del(pc);
-        return EINA_FALSE;
-     }
 #ifdef HAVE_WAYLAND_ONLY
    else if (e_mod_pol_client_is_subsurface(ec))
      {
@@ -250,7 +244,8 @@ _pol_client_normal_check(E_Client *ec)
 #endif
 
    if ((ec->netwm.type == E_WINDOW_TYPE_NORMAL) ||
-       (ec->netwm.type == E_WINDOW_TYPE_UNKNOWN))
+       (ec->netwm.type == E_WINDOW_TYPE_UNKNOWN) ||
+       (ec->netwm.type == E_WINDOW_TYPE_NOTIFICATION))
      {
         return EINA_TRUE;
      }
@@ -344,14 +339,21 @@ _pol_cb_hook_client_eval_pre_new_client(void *d EINA_UNUSED, E_Client *ec)
         if (ec->layer != E_LAYER_CLIENT_ABOVE)
           evas_object_layer_set(ec->frame, E_LAYER_CLIENT_ABOVE);
      }
+   e_mod_pol_wl_pre_new_client(ec);
    if (e_mod_pol_client_is_noti(ec))
      {
         ec->lock_client_location = 1;
-        EINA_SAFETY_ON_NULL_RETURN(ec->frame);
-        if (ec->layer != E_LAYER_CLIENT_NOTIFICATION_HIGH)
-          evas_object_layer_set(ec->frame, E_LAYER_CLIENT_NOTIFICATION_HIGH);
+        if (!ec->lock_client_size)
+          {
+             Pol_Client *pc;
+             pc = eina_hash_find(hash_pol_clients, &ec);
+             if (pc)
+               {
+                  _pol_client_del(pc);
+                  e_client_unmaximize(ec, E_MAXIMIZE_BOTH);
+               }
+          }
      }
-   e_mod_pol_wl_pre_new_client(ec);
 }
 
 static void
@@ -986,6 +988,9 @@ e_mod_pol_client_is_noti(E_Client *ec)
    E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, EINA_FALSE);
 
    if (!e_util_strcmp(ec->icccm.title, "noti_win"))
+     return EINA_TRUE;
+
+   if (ec->netwm.type == E_WINDOW_TYPE_NOTIFICATION)
      return EINA_TRUE;
 
    return EINA_FALSE;
