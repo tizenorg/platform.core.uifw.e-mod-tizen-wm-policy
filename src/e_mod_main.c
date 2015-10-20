@@ -1,7 +1,6 @@
 #include "e_mod_main.h"
 #include "e_mod_rotation.h"
 #include "e_mod_keyboard.h"
-#include "e_mod_notification.h"
 #ifdef HAVE_WAYLAND_ONLY
 #include "e_mod_wl.h"
 #include "e_mod_sysinfo.h"
@@ -234,12 +233,6 @@ _pol_client_normal_check(E_Client *ec)
         if (pc) _pol_client_del(pc);
         return EINA_FALSE;
      }
-   else if (e_mod_pol_client_is_noti(ec))
-     {
-        pc = eina_hash_find(hash_pol_clients, &ec);
-        if (pc) _pol_client_del(pc);
-        return EINA_FALSE;
-     }
 #ifdef HAVE_WAYLAND_ONLY
    else if (e_mod_pol_client_is_subsurface(ec))
      {
@@ -250,7 +243,8 @@ _pol_client_normal_check(E_Client *ec)
 #endif
 
    if ((ec->netwm.type == E_WINDOW_TYPE_NORMAL) ||
-       (ec->netwm.type == E_WINDOW_TYPE_UNKNOWN))
+       (ec->netwm.type == E_WINDOW_TYPE_UNKNOWN) ||
+       (ec->netwm.type == E_WINDOW_TYPE_NOTIFICATION))
      {
         return EINA_TRUE;
      }
@@ -335,6 +329,8 @@ _pol_client_update(Pol_Client *pc)
 static void
 _pol_cb_hook_client_eval_pre_new_client(void *d EINA_UNUSED, E_Client *ec)
 {
+   short ly;
+
    if (e_object_is_del(E_OBJECT(ec))) return;
 
    if (e_mod_pol_client_is_keyboard_sub(ec))
@@ -346,12 +342,15 @@ _pol_cb_hook_client_eval_pre_new_client(void *d EINA_UNUSED, E_Client *ec)
      }
    if (e_mod_pol_client_is_noti(ec))
      {
-        ec->lock_client_location = 1;
-        EINA_SAFETY_ON_NULL_RETURN(ec->frame);
-        if (ec->layer != E_LAYER_CLIENT_NOTIFICATION_HIGH)
-          evas_object_layer_set(ec->frame, E_LAYER_CLIENT_NOTIFICATION_HIGH);
+        if (ec->frame)
+          {
+             ly = evas_object_layer_get(ec->frame);
+             ELOGF("NOTI", "         |ec->layer:%d object->layer:%d", ec->pixmap, ec, ec->layer, ly);
+             if (ly != ec->layer)
+               evas_object_layer_set(ec->frame, ec->layer);
+          }
      }
-   e_mod_pol_wl_pre_new_client(ec);
+   e_mod_pol_wl_eval_pre_new_client(ec);
 }
 
 static void
@@ -360,7 +359,6 @@ _pol_cb_hook_client_eval_pre_fetch(void *d EINA_UNUSED, E_Client *ec)
    if (e_object_is_del(E_OBJECT(ec))) return;
 
    e_mod_pol_stack_hook_pre_fetch(ec);
-   e_mod_pol_notification_hook_pre_fetch(ec);
 }
 
 static void
@@ -369,7 +367,9 @@ _pol_cb_hook_client_eval_pre_post_fetch(void *d EINA_UNUSED, E_Client *ec)
    if (e_object_is_del(E_OBJECT(ec))) return;
 
    e_mod_pol_stack_hook_pre_post_fetch(ec);
-   e_mod_pol_notification_hook_pre_post_fetch(ec);
+#ifdef HAVE_WAYLAND_ONLY
+   e_mod_pol_wl_notification_level_fetch(ec);
+#endif
 }
 
 static void
@@ -410,6 +410,7 @@ _pol_cb_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec)
           }
         return;
      }
+
    if (e_mod_pol_client_is_noti(ec))
      e_client_util_move_without_frame(ec, 0, 0);
 
@@ -639,7 +640,6 @@ _pol_cb_client_remove(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    e_mod_pol_wl_client_del(ev->ec);
 #endif
    e_mod_pol_stack_cb_client_remove(ev->ec);
-   e_mod_pol_notification_client_del(ev->ec);
    e_mod_pol_client_visibility_del(ev->ec);
    e_mod_pol_visibility_calc();
 
@@ -988,6 +988,9 @@ e_mod_pol_client_is_noti(E_Client *ec)
    if (!e_util_strcmp(ec->icccm.title, "noti_win"))
      return EINA_TRUE;
 
+   if (ec->netwm.type == E_WINDOW_TYPE_NOTIFICATION)
+     return EINA_TRUE;
+
    return EINA_FALSE;
 }
 
@@ -1054,7 +1057,6 @@ e_modapi_init(E_Module *m)
 #ifndef HAVE_WAYLAND_ONLY
    e_mod_pol_atoms_init();
 #endif
-   e_mod_pol_notification_init();
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_init();
    e_mod_pol_sysinfo_init();
@@ -1139,7 +1141,6 @@ e_modapi_shutdown(E_Module *m)
    E_FREE_FUNC(hash_pol_clients, eina_hash_free);
 
    e_mod_pol_stack_shutdonw();
-   e_mod_pol_notification_shutdown();
    e_mod_pol_visibility_shutdown();
    e_mod_pol_rotation_shutdown();
 #ifdef HAVE_WAYLAND_ONLY

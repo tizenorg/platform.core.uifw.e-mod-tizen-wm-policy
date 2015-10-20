@@ -1,6 +1,5 @@
 #include "e_mod_wl.h"
 #include "e_mod_main.h"
-#include "e_mod_notification.h"
 
 #include <wayland-server.h>
 #include <tizen-extension-server-protocol.h>
@@ -1217,6 +1216,49 @@ _tzpol_iface_cb_role_set(struct wl_client *client EINA_UNUSED, struct wl_resourc
      }
 }
 
+static void
+_tzpol_iface_cb_type_set(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf, uint32_t type)
+{
+   E_Pixmap *cp;
+   E_Client *ec;
+   E_Comp_Wl_Client_Data *cdata;
+   E_Window_Type win_type;
+
+   cp = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(cp);
+
+   switch (type)
+     {
+      /* TODO: support other types */
+      case TIZEN_POLICY_WIN_TYPE_NOTIFICATION: win_type = E_WINDOW_TYPE_NOTIFICATION; break;
+      default: return;
+     }
+
+   ec = e_pixmap_client_get(cp);
+
+   ELOGF("TZPOL",
+         "TYPE_SET |s:0x%08x|res_tzpol:0x%08x|tizen_win_type:%d, e_win_type:%d NOTI",
+         cp, ec, (unsigned int)surf, (unsigned int)res_tzpol, type, win_type);
+
+   if (ec)
+     {
+        ec->netwm.type = win_type;
+        if (win_type == E_WINDOW_TYPE_NOTIFICATION)
+          ec->layer = E_LAYER_CLIENT_NOTIFICATION_LOW;
+        EC_CHANGED(ec);
+     }
+   else
+     {
+        cdata = e_pixmap_cdata_get(cp);
+        EINA_SAFETY_ON_NULL_RETURN(cdata);
+
+        cdata->win_type = win_type;
+        cdata->fetch.win_type = 1;
+
+        cdata->layer = E_LAYER_CLIENT_NOTIFICATION_LOW;
+        cdata->fetch.layer = 1;
+     }
+}
 // --------------------------------------------------------
 // conformant
 // --------------------------------------------------------
@@ -1348,6 +1390,33 @@ e_mod_pol_wl_keyboard_geom_broadcast(E_Client *ec)
 // notification level
 // --------------------------------------------------------
 static void
+_tzpol_notilv_set(E_Client *ec, int lv)
+{
+   short ly;
+
+   switch (lv)
+     {
+      case  0: ly = E_LAYER_CLIENT_NOTIFICATION_LOW;    break;
+      case  1: ly = E_LAYER_CLIENT_NOTIFICATION_NORMAL; break;
+      case  2: ly = E_LAYER_CLIENT_NOTIFICATION_TOP;    break;
+      case -1: ly = E_LAYER_CLIENT_NORMAL;              break;
+      case 10: ly = E_LAYER_CLIENT_NOTIFICATION_LOW;    break;
+      case 20: ly = E_LAYER_CLIENT_NOTIFICATION_NORMAL; break;
+      case 30: ly = E_LAYER_CLIENT_NOTIFICATION_HIGH;   break;
+      case 40: ly = E_LAYER_CLIENT_NOTIFICATION_TOP;    break;
+      default: ly = E_LAYER_CLIENT_NOTIFICATION_LOW;    break;
+     }
+
+   if (ly != evas_object_layer_get(ec->frame))
+     {
+        evas_object_layer_set(ec->frame, ly);
+        ELOGF("NOTI", "         |ec->layer:%d object->layer:%d", ec->pixmap, ec, ec->layer, ly);
+     }
+
+   ec->layer = ly;
+}
+
+static void
 _tzpol_iface_cb_notilv_set(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf, int32_t lv)
 {
    E_Pixmap *cp;
@@ -1362,7 +1431,7 @@ _tzpol_iface_cb_notilv_set(struct wl_client *client EINA_UNUSED, struct wl_resou
 
    ec = e_pixmap_client_get(cp);
    if (ec)
-     e_mod_pol_notification_level_apply(ec, lv);
+     _tzpol_notilv_set(ec, lv);
    else
      psurf->pending_notilv = EINA_TRUE;
 
@@ -1403,7 +1472,7 @@ e_mod_pol_wl_notification_level_fetch(E_Client *ec)
           if (!psurf->pending_notilv) continue;
 
           psurf->pending_notilv = EINA_FALSE;
-          e_mod_pol_notification_level_apply(ec, psurf->notilv);
+          _tzpol_notilv_set(ec, psurf->notilv);
        }
    eina_iterator_free(it);
 }
@@ -1625,7 +1694,7 @@ _pol_wl_allowed_aux_hint_send(E_Client *ec, int id)
 }
 
 void
-e_mod_pol_wl_pre_new_client(E_Client *ec)
+e_mod_pol_wl_eval_pre_new_client(E_Client *ec)
 {
    E_Comp_Wl_Aux_Hint *hint;
    Eina_List *l;
@@ -1638,11 +1707,15 @@ e_mod_pol_wl_pre_new_client(E_Client *ec)
           {
              if (!strcmp(hint->val, "1") && (ec->lock_client_location || ec->lock_client_size || !ec->placed))
                {
-                  ec->lock_client_location = EINA_FALSE;
+                  if (!e_mod_pol_client_is_noti(ec))
+                    {
+                       ec->netwm.type = E_WINDOW_TYPE_UTILITY;
+                       ec->lock_client_location = EINA_FALSE;
+                    }
                   ec->lock_client_size = EINA_FALSE;
                   ec->placed = 1;
-                  ec->netwm.type = E_WINDOW_TYPE_UTILITY;
                   send = EINA_TRUE;
+                  EC_CHANGED(ec);
                }
              else if (strcmp(hint->val, "1") && (!ec->lock_client_location || !ec->lock_client_size || ec->placed))
                {
@@ -1651,6 +1724,7 @@ e_mod_pol_wl_pre_new_client(E_Client *ec)
                   ec->placed = 0;
                   ec->netwm.type = E_WINDOW_TYPE_NORMAL;
                   send = EINA_TRUE;
+                  EC_CHANGED(ec);
                }
           }
         else if (!strcmp(hint->hint, hint_names[1]))
@@ -1824,6 +1898,7 @@ static const struct tizen_policy_interface _tzpol_iface =
    _tzpol_iface_cb_focus_skip_set,
    _tzpol_iface_cb_focus_skip_unset,
    _tzpol_iface_cb_role_set,
+   _tzpol_iface_cb_type_set,
    _tzpol_iface_cb_conformant_set,
    _tzpol_iface_cb_conformant_unset,
    _tzpol_iface_cb_conformant_get,
