@@ -27,7 +27,11 @@ module_la_SOURCES += e_mod_wl.c \
 					 e_mod_rotation_wl.c \
 					 e_mod_rotation_wl.h \
 					 tizen_policy_ext-protocol.c \
-					 tizen_policy_ext-server-protocol.h
+					 tizen_policy_ext-server-protocol.h \
+					 e_mod_quickpanel.c \
+					 e_mod_quickpanel.h \
+					 e_mod_indicator.c \
+					 e_mod_indicator.h
 else
 module_la_SOURCES += e_mod_atoms.c \
                      e_mod_atoms.h

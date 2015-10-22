@@ -946,7 +946,7 @@ e_mod_pol_client_is_quickpanel(E_Client *ec)
    E_OBJECT_CHECK_RETURN(ec, EINA_FALSE);
    E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, EINA_FALSE);
 
-   if (!e_util_strcmp(ec->icccm.title, "QUICKPANEL"))
+   if (!e_util_strcmp(ec->icccm.window_role, "quickpanel"))
      return EINA_TRUE;
 
    return EINA_FALSE;
