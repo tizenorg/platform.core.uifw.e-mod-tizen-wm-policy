@@ -58,6 +58,16 @@ AC_DEFINE_UNQUOTED(MODULE_ARCH, "$MODULE_ARCH", "Module architecture")
 
 datadir=$(pkg-config --variable=modules enlightenment)/${PACKAGE}
 
+# for Tzsh
+PKG_CHECK_MODULES([TZSH], [tzsh-common])
+TZSH_PROTOCOL_DIR=$(pkg-config --variable=pkgdatadir tzsh-common)
+AC_SUBST(TZSH_PROTOCOL_DIR)
+
+AC_PATH_PROG([wayland_scanner], [wayland-scanner])
+if test "x$wayland_scanner" = "x"; then
+   AC_MSG_ERROR([wayland-scanner is needed for Tzsh])
+fi
+
 AC_CONFIG_FILES([Makefile
 		 src/Makefile])
 AC_OUTPUT
