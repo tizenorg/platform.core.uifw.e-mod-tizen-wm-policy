@@ -1,5 +1,7 @@
 #include "e_mod_wl.h"
 #include "e_mod_main.h"
+#include "e_mod_quickpanel.h"
+#include "e_mod_indicator.h"
 
 #include <wayland-server.h>
 #include <tizen-extension-server-protocol.h>
@@ -1984,6 +1986,8 @@ _tzsh_srv_iface_cb_region_set(struct wl_client *client, struct wl_resource *res_
 {
    Pol_Wl_Tzsh_Srv *tzsh_srv;
    Pol_Wl_Tzsh_Region *tzsh_reg;
+   Eina_Iterator *it;
+   Eina_Rectangle *r;
 
    tzsh_srv = wl_resource_get_user_data(res_tzsh_srv);
    EINA_SAFETY_ON_NULL_RETURN(tzsh_srv);
@@ -1994,14 +1998,101 @@ _tzsh_srv_iface_cb_region_set(struct wl_client *client, struct wl_resource *res_
    tzsh_reg = wl_resource_get_user_data(res_reg);
    EINA_SAFETY_ON_NULL_RETURN(tzsh_reg);
 
-   /* TODO: process region set */
-   ;
+   if (tzsh_srv->role == TZSH_SRV_ROLE_QUICKPANEL)
+     {
+        it = eina_tiler_iterator_new(tzsh_reg->tiler);
+        // FIXME should consider rotation.
+        EINA_ITERATOR_FOREACH(it, r)
+          {
+             e_mod_quickpanel_handler_region_set(r->x, r->y, r->w, r->h);
+             e_mod_indicator_create(r->w, r->h);
+             /* NOTE: supported single rectangle as a handler region for now. */
+             break;
+          }
+     }
+}
+
+static void
+_tzsh_srv_iface_cb_indicator_get(struct wl_client *client, struct wl_resource *res_tzsh_srv, uint32_t id)
+{
+   Pol_Wl_Tzsh_Srv *tzsh_srv;
+
+   tzsh_srv = wl_resource_get_user_data(res_tzsh_srv);
+
+   if (!eina_list_data_find(polwl->tzsh_srvs, tzsh_srv))
+     return;
+
+   /* TODO: create tws_indicator_service resource. */
+}
+
+static void
+_tzsh_srv_qp_cb_destroy(struct wl_client *client EINA_UNUSED, struct wl_resource *resource)
+{
+   wl_resource_destroy(resource);
+}
+
+static void
+_tzsh_srv_qp_cb_msg(struct wl_client *client EINA_UNUSED, struct wl_resource *resource, uint32_t msg)
+{
+   Pol_Wl_Tzsh_Srv *tzsh_srv;
+
+   tzsh_srv = wl_resource_get_user_data(resource);
+
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_srv);
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_srv->tzsh);
+
+#define EC  tzsh_srv->tzsh->ec
+   EINA_SAFETY_ON_NULL_RETURN(EC);
+
+   switch (msg)
+     {
+      case TWS_SERVICE_QUICKPANEL_MSG_SHOW:
+         e_mod_quickpanel_show();
+         break;
+      case TWS_SERVICE_QUICKPANEL_MSG_HIDE:
+         e_mod_quickpanel_hide();
+         break;
+      default:
+         ERR("Unknown message!! msg %d", msg);
+         break;
+     }
+#undef EC
+}
+
+static const struct tws_service_quickpanel_interface _tzsh_srv_qp_iface =
+{
+   _tzsh_srv_qp_cb_destroy,
+   _tzsh_srv_qp_cb_msg
+};
+
+static void
+_tzsh_srv_iface_cb_quickpanel_get(struct wl_client *client, struct wl_resource *res_tzsh_srv, uint32_t id)
+{
+   Pol_Wl_Tzsh_Srv *tzsh_srv;
+   struct wl_resource *res;
+
+   tzsh_srv = wl_resource_get_user_data(res_tzsh_srv);
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_srv);
+
+   if (!eina_list_data_find(polwl->tzsh_srvs, tzsh_srv))
+     return;
+
+   res = wl_resource_create(client, &tws_service_quickpanel_interface, 1, id);
+   if (!res)
+     {
+        wl_resource_post_no_memory(res);
+        return;
+     }
+
+   wl_resource_set_implementation(res, &_tzsh_srv_qp_iface, tzsh_srv, NULL);
 }
 
 static const struct tws_service_interface _tzsh_srv_iface =
 {
    _tzsh_srv_iface_cb_destroy,
-   _tzsh_srv_iface_cb_region_set
+   _tzsh_srv_iface_cb_region_set,
+   _tzsh_srv_iface_cb_indicator_get,
+   _tzsh_srv_iface_cb_quickpanel_get
 };
 
 static void
@@ -2100,6 +2191,9 @@ _tzsh_iface_cb_srv_create(struct wl_client *client, struct wl_resource *res_tzsh
                                   &_tzsh_srv_iface,
                                   tzsh_srv,
                                   _tzsh_cb_srv_destroy);
+
+   if (role == TZSH_SRV_ROLE_QUICKPANEL)
+     e_mod_quickpanel_client_set(tzsh->ec);
 }
 
 // --------------------------------------------------------
