@@ -58,6 +58,9 @@ AC_DEFINE_UNQUOTED(MODULE_ARCH, "$MODULE_ARCH", "Module architecture")
 
 datadir=$(pkg-config --variable=modules enlightenment)/${PACKAGE}
 
+# for Tzsh
+PKG_CHECK_MODULES([TZSH_SERVER], [tzsh-server])
+
 AC_CONFIG_FILES([Makefile
 		 src/Makefile])
 AC_OUTPUT

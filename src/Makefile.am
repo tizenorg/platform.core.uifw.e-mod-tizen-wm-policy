@@ -28,15 +28,13 @@ module_la_SOURCES += e_mod_wl.c \
 					 e_mod_rotation_wl.c \
 					 e_mod_rotation_wl.h \
 					 tizen_policy_ext-protocol.c \
-					 tizen_policy_ext-server-protocol.h \
-					 tizen_ws_shell-protocol.c \
-					 tizen_ws_shell-server-protocol.h
+					 tizen_policy_ext-server-protocol.h
 else
 module_la_SOURCES += e_mod_atoms.c \
                      e_mod_atoms.h
 endif
 
 module_la_LIBADD       =
-module_la_CFLAGS       = @ENLIGHTENMENT_CFLAGS@
-module_la_LDFLAGS      = -module -avoid-version @ENLIGHTENMENT_LIBS@
+module_la_CFLAGS       = @ENLIGHTENMENT_CFLAGS@ @TZSH_SERVER_CFLAGS@
+module_la_LDFLAGS      = -module -avoid-version @ENLIGHTENMENT_LIBS@ @TZSH_SERVER_LIBS@
 module_la_DEPENDENCIES = $(top_builddir)/config.h

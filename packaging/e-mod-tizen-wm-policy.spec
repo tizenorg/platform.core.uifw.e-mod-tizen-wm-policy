@@ -17,6 +17,7 @@ BuildRequires: pkgconfig(tizen-extension-server)
 BuildRequires: pkgconfig(eina)
 BuildRequires: pkgconfig(ecore)
 BuildRequires: pkgconfig(edje)
+BuildRequires: pkgconfig(tzsh-server)
 %endif
 
 %description

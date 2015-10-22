@@ -4,7 +4,7 @@
 
 #include <wayland-server.h>
 #include <tizen-extension-server-protocol.h>
-#include "tizen_ws_shell-server-protocol.h"
+#include <tzsh_server.h>
 
 typedef enum _Tzsh_Srv_Role
 {
