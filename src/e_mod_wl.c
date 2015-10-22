@@ -1923,10 +1923,87 @@ _tzsh_srv_iface_cb_region_set(struct wl_client *client, struct wl_resource *res_
    ;
 }
 
+static void
+_tzsh_srv_iface_cb_indicator_get(struct wl_client *client, struct wl_resource *res_tzsh_srv, uint32_t id)
+{
+   Pol_Wl_Tzsh_Srv *tzsh_srv;
+
+   tzsh_srv = wl_resource_get_user_data(res_tzsh_srv);
+
+   if (!eina_list_data_find(polwl->tzsh_srvs, tzsh_srv))
+     return;
+
+   /* TODO: create tws_indicator_service resource. */
+}
+
+static void
+_tzsh_srv_qp_cb_destroy(struct wl_client *client EINA_UNUSED, struct wl_resource *resource)
+{
+   wl_resource_destroy(resource);
+}
+
+static void
+_tzsh_srv_qp_cb_msg(struct wl_client *client EINA_UNUSED, struct wl_resource *resource, uint32_t msg)
+{
+   Pol_Wl_Tzsh_Srv *tzsh_srv;
+
+   tzsh_srv = wl_resource_get_user_data(resource);
+
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_srv);
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_srv->tzsh);
+
+#define EC  tzsh_srv->tzsh->ec
+   EINA_SAFETY_ON_NULL_RETURN(EC);
+
+   switch (msg)
+     {
+      case TWS_SERVICE_QUICKPANEL_MSG_SHOW:
+         evas_object_show(EC->frame);
+         break;
+      case TWS_SERVICE_QUICKPANEL_MSG_HIDE:
+         evas_object_hide(EC->frame);
+         break;
+      default:
+         ERR("Unknown message!! msg %d", msg);
+         break;
+     }
+#undef EC
+}
+
+static const struct tws_service_quickpanel_interface _tzsh_srv_qp_iface =
+{
+   _tzsh_srv_qp_cb_destroy,
+   _tzsh_srv_qp_cb_msg
+};
+
+static void
+_tzsh_srv_iface_cb_quickpanel_get(struct wl_client *client, struct wl_resource *res_tzsh_srv, uint32_t id)
+{
+   Pol_Wl_Tzsh_Srv *tzsh_srv;
+   struct wl_resource *res;
+
+   tzsh_srv = wl_resource_get_user_data(res_tzsh_srv);
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_srv);
+
+   if (!eina_list_data_find(polwl->tzsh_srvs, tzsh_srv))
+     return;
+
+   res = wl_resource_create(client, &tws_service_quickpanel_interface, 1, id);
+   if (!res)
+     {
+        wl_resource_post_no_memory(res);
+        return;
+     }
+
+   wl_resource_set_implementation(res, &_tzsh_srv_qp_iface, tzsh_srv, NULL);
+}
+
 static const struct tws_service_interface _tzsh_srv_iface =
 {
    _tzsh_srv_iface_cb_destroy,
-   _tzsh_srv_iface_cb_region_set
+   _tzsh_srv_iface_cb_region_set,
+   _tzsh_srv_iface_cb_indicator_get,
+   _tzsh_srv_iface_cb_quickpanel_get
 };
 
 static void
