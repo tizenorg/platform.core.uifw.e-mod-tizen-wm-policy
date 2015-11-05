@@ -41,6 +41,7 @@ static Eina_Bool   _pol_cb_zone_add(void *data EINA_UNUSED, int type EINA_UNUSED
 static Eina_Bool   _pol_cb_zone_del(void *data EINA_UNUSED, int type EINA_UNUSED, void *event);
 static Eina_Bool   _pol_cb_zone_move_resize(void *data EINA_UNUSED, int type EINA_UNUSED, void *event);
 static Eina_Bool   _pol_cb_zone_desk_count_set(void *data EINA_UNUSED, int type EINA_UNUSED, void *event);
+static Eina_Bool   _pol_cb_zone_display_state_change(void *data EINA_UNUSED, int type EINA_UNUSED, void *event);
 static Eina_Bool   _pol_cb_desk_show(void *data EINA_UNUSED, int type EINA_UNUSED, void *event);
 static Eina_Bool   _pol_cb_client_remove(void *data EINA_UNUSED, int type, void *event);
 static Eina_Bool   _pol_cb_client_add(void *data EINA_UNUSED, int type, void *event);
@@ -49,6 +50,7 @@ static Eina_Bool   _pol_cb_client_resize(void *data EINA_UNUSED, int type, void 
 static Eina_Bool   _pol_cb_client_stack(void *data EINA_UNUSED, int type, void *event);
 static Eina_Bool   _pol_cb_client_property(void *data EINA_UNUSED, int type EINA_UNUSED, void *event);
 static Eina_Bool   _pol_cb_client_vis_change(void *data EINA_UNUSED, int type EINA_UNUSED, void *event EINA_UNUSED);
+
 #ifndef HAVE_WAYLAND_ONLY
 static Eina_Bool   _pol_cb_window_property(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Property *ev);
 static Eina_Bool   _pol_cb_window_configure_request(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Configure_Request *ev);
@@ -607,6 +609,20 @@ _pol_cb_zone_desk_count_set(void *data EINA_UNUSED, int type EINA_UNUSED, void *
 }
 
 static Eina_Bool
+_pol_cb_zone_display_state_change(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
+{
+   E_Event_Zone_Display_State_Change *ev;
+
+   ev = event;
+   if (!ev) return ECORE_CALLBACK_PASS_ON;
+
+   ELOGF("TZVIS","LCD state:%d    |zone:%d", NULL, NULL, ev->zone->display_state, ev->zone->id);
+   e_mod_pol_zone_visibility_calc(ev->zone);
+
+   return ECORE_CALLBACK_PASS_ON;
+}
+
+static Eina_Bool
 _pol_cb_desk_show(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 {
    E_Event_Desk_Show *ev;
@@ -1091,6 +1107,7 @@ e_modapi_init(E_Module *m)
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_DEL,                       _pol_cb_zone_del,                        NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_MOVE_RESIZE,               _pol_cb_zone_move_resize,                NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_DESK_COUNT_SET,            _pol_cb_zone_desk_count_set,             NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_DISPLAY_STATE_CHANGE,	  _pol_cb_zone_display_state_change,	   NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_DESK_SHOW,                      _pol_cb_desk_show,                       NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_REMOVE,                  _pol_cb_client_remove,                   NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_ADD,                     _pol_cb_client_add,                      NULL);
@@ -1099,7 +1116,6 @@ e_modapi_init(E_Module *m)
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_STACK,                   _pol_cb_client_stack,                    NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_PROPERTY,                _pol_cb_client_property,                 NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_VISIBILITY_CHANGE,       _pol_cb_client_vis_change,               NULL);
-
 
 #ifndef HAVE_WAYLAND_ONLY
    E_LIST_HANDLER_APPEND(handlers, ECORE_X_EVENT_WINDOW_PROPERTY,          _pol_cb_window_property,                 NULL);
