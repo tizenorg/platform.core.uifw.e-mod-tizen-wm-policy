@@ -208,8 +208,11 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
    t = eina_tiler_new(zone->w + edge, zone->h + edge);
    eina_tiler_tile_size_set(t, 1, 1);
 
-   EINA_RECTANGLE_SET(&r, zone->x, zone->y, zone->w, zone->h);
-   eina_tiler_rect_add(t, &r);
+   if (zone->display_state != E_ZONE_DISPLAY_STATE_OFF)
+     {
+        EINA_RECTANGLE_SET(&r, zone->x, zone->y, zone->w, zone->h);
+        eina_tiler_rect_add(t, &r);
+     }
 
    E_CLIENT_REVERSE_FOREACH(zone->comp, ec)
      {
