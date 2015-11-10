@@ -59,7 +59,9 @@ AC_DEFINE_UNQUOTED(MODULE_ARCH, "$MODULE_ARCH", "Module architecture")
 datadir=$(pkg-config --variable=modules enlightenment)/${PACKAGE}
 
 # for Tzsh
-PKG_CHECK_MODULES([TZSH_SERVER], [tzsh-server])
+if test "x${have_wayland_only}" = "xyes"; then
+  PKG_CHECK_MODULES([TZSH_SERVER], [tzsh-server])
+fi
 
 AC_CONFIG_FILES([Makefile
 		 src/Makefile])
