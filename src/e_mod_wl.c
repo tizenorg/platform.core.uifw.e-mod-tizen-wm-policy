@@ -120,12 +120,6 @@ _pol_wl_tzpol_add(struct wl_resource *res_tzpol)
 
    tzpol->res_tzpol = res_tzpol;
 
-   ELOGF("TZPOL",
-         "HASH_ADD |res:0x%08x|tzpol:0x%08x",
-         NULL, NULL,
-         (unsigned int)res_tzpol,
-         (unsigned int)tzpol);
-
    return tzpol;
 }
 
@@ -141,12 +135,6 @@ _pol_wl_tzpol_del(void *data)
      {
         _pol_wl_surf_del(psurf);
      }
-
-   ELOGF("TZPOL",
-         "HASH_DEL |res:0x%08x|tzpol:0x%08x",
-         NULL, NULL,
-         (unsigned int)tzpol->res_tzpol,
-         (unsigned int)tzpol);
 
    memset(tzpol, 0x0, sizeof(Pol_Wl_Tzpol));
    E_FREE(tzpol);
@@ -210,10 +198,6 @@ _pol_wl_tzsh_add(struct wl_resource *res_tzsh)
    tzsh->res_tzsh = res_tzsh;
    tzsh->type = TZSH_TYPE_UNKNOWN;
 
-   ELOGF("TZSH",
-         "LIST_ADD |tzsh:0x%08x",
-         NULL, NULL, (unsigned int)tzsh);
-
    polwl->tzshs = eina_list_append(polwl->tzshs, tzsh);
 
    return tzsh;
@@ -246,10 +230,6 @@ _pol_wl_tzsh_del(Pol_Wl_Tzsh *tzsh)
              break;
           }
      }
-
-   ELOGF("TZSH",
-         "LIST_DEL |tzsh:0x%08x",
-         NULL, NULL, (unsigned int)tzsh);
 
    memset(tzsh, 0x0, sizeof(Pol_Wl_Tzsh));
    E_FREE(tzsh);
@@ -393,13 +373,6 @@ _pol_wl_tzsh_srv_add(Pol_Wl_Tzsh *tzsh, Tzsh_Srv_Role role, struct wl_resource *
    tzsh_srv->role = role;
    tzsh_srv->name = eina_stringshare_add(name);
 
-   ELOGF("TZSH",
-         "SRV_ADD  |res:0x%08x|tzsh_srv:0x%08x|name:%s",
-         tzsh->cp, tzsh->ec,
-         (unsigned int)res_tzsh_srv,
-         (unsigned int)tzsh_srv,
-         name);
-
    polwl->srvs[role] = tzsh_srv;
    polwl->tzsh_srvs = eina_list_append(polwl->tzsh_srvs, tzsh_srv);
 
@@ -412,8 +385,6 @@ _pol_wl_tzsh_srv_add(Pol_Wl_Tzsh *tzsh, Tzsh_Srv_Role role, struct wl_resource *
 static void
 _pol_wl_tzsh_srv_del(Pol_Wl_Tzsh_Srv *tzsh_srv)
 {
-   Pol_Wl_Tzsh *tzsh;
-
    polwl->tzsh_srvs = eina_list_remove(polwl->tzsh_srvs, tzsh_srv);
 
    if (polwl->srvs[tzsh_srv->role] == tzsh_srv)
@@ -421,16 +392,6 @@ _pol_wl_tzsh_srv_del(Pol_Wl_Tzsh_Srv *tzsh_srv)
 
    _pol_wl_tzsh_srv_state_broadcast(tzsh_srv, EINA_TRUE);
    _pol_wl_tzsh_srv_unregister_handle(tzsh_srv);
-
-   tzsh = tzsh_srv->tzsh;
-
-   ELOGF("TZSH",
-         "SRV_DEL  |res:0x%08x|tzsh_srv:0x%08x|name:%s",
-         tzsh ? tzsh->cp : NULL,
-         tzsh ? tzsh->ec : NULL,
-         (unsigned int)tzsh_srv->res_tzsh_srv,
-         (unsigned int)tzsh_srv,
-         tzsh_srv->name);
 
    if (tzsh_srv->name)
      eina_stringshare_del(tzsh_srv->name);
@@ -500,8 +461,8 @@ _pol_wl_tzsh_srv_tvsrv_bind_update(void)
         ELOGF("TZSH",
               "TR_SET   |parent_ec:0x%08x|child_ec:0x%08x",
               NULL, NULL,
-              (unsigned int)tzsh_client_ec,
-              (unsigned int)tzsh_srv_ec);
+              (unsigned int)e_client_util_win_get(tzsh_client_ec),
+              (unsigned int)e_client_util_win_get(tzsh_srv_ec));
 
         e_mod_pol_stack_transient_for_set(tzsh_srv_ec, tzsh_client_ec);
         evas_object_stack_below(tzsh_srv_ec->frame, tzsh_client_ec->frame);
@@ -513,7 +474,7 @@ _pol_wl_tzsh_srv_tvsrv_bind_update(void)
              ELOGF("TZSH",
                    "TR_UNSET |                    |child_ec:0x%08x",
                    NULL, NULL,
-                   (unsigned int)tzsh_srv_ec);
+                   (unsigned int)e_client_util_win_get(tzsh_srv_ec));
 
              e_mod_pol_stack_transient_for_set(tzsh_srv_ec, NULL);
           }
@@ -599,12 +560,6 @@ _pol_wl_tzsh_client_add(Pol_Wl_Tzsh *tzsh, struct wl_resource *res_tzsh_client)
 
    /* TODO: add tzsh_client to list or hash */
 
-   ELOGF("TZSH",
-         "CL_ADD   |res:0x%08x|tzsh_client:0x%08x",
-         tzsh->cp, tzsh->ec,
-         (unsigned int)res_tzsh_client,
-         (unsigned int)tzsh_client);
-
    polwl->tzsh_clients = eina_list_append(polwl->tzsh_clients, tzsh_client);
 
    return tzsh_client;
@@ -617,12 +572,6 @@ _pol_wl_tzsh_client_del(Pol_Wl_Tzsh_Client *tzsh_client)
 
    polwl->tzsh_clients = eina_list_remove(polwl->tzsh_clients, tzsh_client);
    polwl->tvsrv_bind_list = eina_list_remove(polwl->tvsrv_bind_list, tzsh_client);
-
-   ELOGF("TZSH",
-         "CL_DEL   |res:0x%08x|tzsh_client:0x%08x",
-         NULL, NULL,
-         (unsigned int)tzsh_client->res_tzsh_client,
-         (unsigned int)tzsh_client);
 
    memset(tzsh_client, 0x0, sizeof(Pol_Wl_Tzsh_Client));
    E_FREE(tzsh_client);
@@ -658,14 +607,6 @@ _pol_wl_surf_add(E_Pixmap *cp, struct wl_resource *res_tzpol)
    psurf->cp = cp;
    psurf->ec = e_pixmap_client_get(cp);
 
-   ELOGF("POLSURF",
-         "LIST_ADD |s:0x%08x|tzpol:0x%08x|ps:0x%08x",
-         psurf->cp,
-         psurf->ec,
-         (unsigned int)surf,
-         (unsigned int)tzpol,
-         (unsigned int)psurf);
-
    tzpol->psurfs = eina_list_append(tzpol->psurfs, psurf);
 
    return psurf;
@@ -674,15 +615,6 @@ _pol_wl_surf_add(E_Pixmap *cp, struct wl_resource *res_tzpol)
 static void
 _pol_wl_surf_del(Pol_Wl_Surface *psurf)
 {
-   ELOGF("POLSURF",
-         "LIST_DEL |s:0x%08x|tzpol:0x%08x|ps:0x%08x|pending_notilv:%d",
-         psurf->cp,
-         psurf->ec,
-         (unsigned int)psurf->surf,
-         (unsigned int)psurf->tzpol,
-         (unsigned int)psurf,
-         psurf->pending_notilv);
-
    eina_list_free(psurf->vislist);
    eina_list_free(psurf->poslist);
 
@@ -779,10 +711,6 @@ _pol_wl_e_client_is_valid(E_Client *ec)
           }
      }
 
-   ELOGF("POLWL",
-         "CHK_EC   |ec_valid:%d|ec_deleted:%d",
-         ec->pixmap, ec, found, del);
-
    return ((!del) && (found));
 }
 
@@ -813,11 +741,6 @@ _tzvis_iface_cb_vis_destroy(struct wl_resource *res_tzvis)
    if (!r) return;
 
    psurf->vislist = eina_list_remove(psurf->vislist, res_tzvis);
-
-   ELOGF("TZVIS",
-         "DEL      |res_tzvis:0x%08x",
-         psurf->cp, psurf->ec,
-         (unsigned int)res_tzvis);
 }
 
 static void
@@ -849,11 +772,6 @@ _tzpol_iface_cb_vis_get(struct wl_client *client, struct wl_resource *res_tzpol,
                                   _tzvis_iface_cb_vis_destroy);
 
    psurf->vislist = eina_list_append(psurf->vislist, res_tzvis);
-
-   ELOGF("TZVIS",
-         "ADD      |res_tzvis:0x%08x",
-         psurf->cp, psurf->ec,
-         (unsigned int)res_tzvis);
 }
 
 void
@@ -865,6 +783,9 @@ e_mod_pol_wl_visibility_send(E_Client *ec, int vis)
    Eina_List *l, *ll;
    Eina_Iterator *it;
    E_Client *ec2;
+   Ecore_Window win;
+
+   win = e_client_util_win_get(ec);
 
    it = eina_hash_iterator_data_new(polwl->tzpols);
    EINA_ITERATOR_FOREACH(it, tzpol)
@@ -877,8 +798,9 @@ e_mod_pol_wl_visibility_send(E_Client *ec, int vis)
             {
                tizen_visibility_send_notify(res_tzvis, vis);
                ELOGF("TZVIS",
-                     "SEND     |res_tzvis:0x%08x|v:%d",
+                     "SEND     |win:0x%08x|res_tzvis:0x%08x|v:%d",
                      ec->pixmap, ec,
+                     (unsigned int)win,
                      (unsigned int)res_tzvis,
                      vis);
             }
@@ -984,6 +906,9 @@ e_mod_pol_wl_position_send(E_Client *ec)
    struct wl_resource *res_tzpos;
    Eina_List *l, *ll;
    Eina_Iterator *it;
+   Ecore_Window win;
+
+   win = e_client_util_win_get(ec);
 
    it = eina_hash_iterator_data_new(polwl->tzpols);
    EINA_ITERATOR_FOREACH(it, tzpol)
@@ -995,8 +920,9 @@ e_mod_pol_wl_position_send(E_Client *ec)
             {
                tizen_position_send_changed(res_tzpos, ec->client.x, ec->client.y);
                ELOGF("TZPOS",
-                     "SEND     |res_tzpos:0x%08x|ec->x:%d, ec->y:%d, ec->client.x:%d, ec->client.y:%d",
+                     "SEND     |win:0x%08x|res_tzpos:0x%08x|ec->x:%d, ec->y:%d, ec->client.x:%d, ec->client.y:%d",
                      ec->pixmap, ec,
+					 (unsigned int)win,
                      (unsigned int)res_tzpos,
                      ec->x, ec->y,
                      ec->client.x, ec->client.y);
@@ -1239,8 +1165,12 @@ _tzpol_iface_cb_type_set(struct wl_client *client EINA_UNUSED, struct wl_resourc
    ec = e_pixmap_client_get(cp);
 
    ELOGF("TZPOL",
-         "TYPE_SET |s:0x%08x|res_tzpol:0x%08x|tizen_win_type:%d, e_win_type:%d NOTI",
-         cp, ec, (unsigned int)surf, (unsigned int)res_tzpol, type, win_type);
+         "TYPE_SET |win:0x%08x|s:0x%08x|res_tzpol:0x%08x|tizen_win_type:%d, e_win_type:%d NOTI",
+         cp, ec,
+		 (unsigned int)e_client_util_win_get(ec),
+		 (unsigned int)surf,
+		 (unsigned int)res_tzpol,
+		 type, win_type);
 
    if (ec)
      {
@@ -1412,7 +1342,6 @@ _tzpol_notilv_set(E_Client *ec, int lv)
    if (ly != evas_object_layer_get(ec->frame))
      {
         evas_object_layer_set(ec->frame, ly);
-        ELOGF("NOTI", "         |ec->layer:%d object->layer:%d", ec->pixmap, ec, ec->layer, ly);
      }
 
    ec->layer = ly;
@@ -1438,14 +1367,6 @@ _tzpol_iface_cb_notilv_set(struct wl_client *client EINA_UNUSED, struct wl_resou
      psurf->pending_notilv = EINA_TRUE;
 
    psurf->notilv = lv;
-
-   ELOGF("TZPOL",
-         "NOTI_DONE|s:0x%08x|res_tzpol:0x%08x|psurf:0x%08x|lv%d",
-         cp, ec,
-         (unsigned int)surf,
-         (unsigned int)res_tzpol,
-         (unsigned int)psurf,
-         lv);
 
    tizen_policy_send_notification_done
      (res_tzpol, surf, lv, TIZEN_POLICY_ERROR_STATE_NONE);
@@ -1529,12 +1450,15 @@ _tzpol_iface_cb_transient_for_set(struct wl_client *client EINA_UNUSED, struct w
    _pol_wl_parent_surf_set(ec, parent_surf);
 
    ELOGF("TZPOL",
-         "         |parent|s:0x%08x",
-         pc->pixmap, pc, (unsigned int)parent_surf);
+         "         |win:0x%08x|parent|s:0x%08x",
+         pc->pixmap, pc,
+		 (unsigned int)e_client_util_win_get(pc),
+		 (unsigned int)parent_surf);
 
    ELOGF("TZPOL",
-         "         |child |s:0x%08x",
+         "         |win:0x%08x|child |s:0x%08x",
          ec->pixmap, ec,
+		 (unsigned int)e_client_util_win_get(ec),
          (unsigned int)(ec->comp_data ? ec->comp_data->surface : NULL));
 
    tizen_policy_send_transient_for_done(res_tzpol, child_id);
@@ -1922,18 +1846,9 @@ static void
 _tzpol_cb_unbind(struct wl_resource *res_tzpol)
 {
    Pol_Wl_Tzpol *tzpol;
-   struct wl_client *client;
 
    tzpol = _pol_wl_tzpol_get(res_tzpol);
    EINA_SAFETY_ON_NULL_RETURN(tzpol);
-
-   client = wl_resource_get_client(res_tzpol);
-
-   ELOGF("TZPOL",
-         "UNBIND   |client:0x%08x|tzpol:0x%08x",
-         NULL, NULL,
-         (unsigned int)client,
-         (unsigned int)tzpol);
 
    eina_hash_del_by_key(polwl->tzpols, &res_tzpol);
 }
@@ -1954,12 +1869,6 @@ _tzpol_cb_bind(struct wl_client *client, void *data EINA_UNUSED, uint32_t ver, u
 
    tzpol = _pol_wl_tzpol_add(res_tzpol);
    EINA_SAFETY_ON_NULL_GOTO(tzpol, err);
-
-   ELOGF("TZPOL",
-         "BIND     |client:0x%08x|tzpol:0x%08x",
-         NULL, NULL,
-         (unsigned int)client,
-         (unsigned int)tzpol);
 
    wl_resource_set_implementation(res_tzpol,
                                   &_tzpol_iface,
@@ -2620,18 +2529,9 @@ static void
 _tzsh_cb_unbind(struct wl_resource *res_tzsh)
 {
    Pol_Wl_Tzsh *tzsh;
-   struct wl_client *client;
 
    tzsh = wl_resource_get_user_data(res_tzsh);
    EINA_SAFETY_ON_NULL_RETURN(tzsh);
-
-   client = wl_resource_get_client(res_tzsh);
-
-   ELOGF("TZSH",
-         "UNBIND   |client:0x%08x|tzsh:0x%08x",
-         NULL, NULL,
-         (unsigned int)client,
-         (unsigned int)tzsh);
 
    _pol_wl_tzsh_del(tzsh);
 }
@@ -2652,12 +2552,6 @@ _tzsh_cb_bind(struct wl_client *client, void *data EINA_UNUSED, uint32_t ver, ui
 
    tzsh = _pol_wl_tzsh_add(res_tzsh);
    EINA_SAFETY_ON_NULL_GOTO(tzsh, err);
-
-   ELOGF("TZSH",
-         "BIND     |client:0x%08x|tzsh:0x%08x",
-         NULL, NULL,
-         (unsigned int)client,
-         (unsigned int)tzsh);
 
    wl_resource_set_implementation(res_tzsh,
                                   &_tzsh_iface,

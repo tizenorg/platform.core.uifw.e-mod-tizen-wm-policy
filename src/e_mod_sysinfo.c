@@ -329,8 +329,6 @@ _win_show(void)
    _win_effect_init();
    EINA_SAFETY_ON_NULL_RETURN(e_sysinfo->effect.trans);
 
-   ELOGF("SYSINFO", "EFF SHOW |t:0x%08x", NULL, NULL, (unsigned int)e_sysinfo->effect.trans);
-
    if (!evas_object_visible_get(e_sysinfo->fps))
      {
         evas_object_color_set(e_sysinfo->fps, 0, 0, 0, 0);
@@ -378,8 +376,6 @@ _win_hide(void)
    _win_effect_init();
    EINA_SAFETY_ON_NULL_RETURN(e_sysinfo->effect.trans);
 
-   ELOGF("SYSINFO", "EFF HIDE |t:0x%08x", NULL, NULL, (unsigned int)e_sysinfo->effect.trans);
-
    e_sysinfo->zoom.noti_factor = 0.75;
    e_sysinfo->zoom.noti_factor_src = 0.75;
    e_sysinfo->zoom.noti_factor_target = 1.0;
@@ -403,12 +399,6 @@ _btn_cb_mouse_up(void *data, Evas *evas EINA_UNUSED, Evas_Object *obj EINA_UNUSE
 void
 e_mod_pol_sysinfo_client_add(E_Client *ec)
 {
-   ELOGF("SYSINFO",
-         "ADD      |%dx%d frame:0x%08x vis:%d",
-         ec->pixmap, ec, ec->w, ec->h,
-         (unsigned int)ec->frame,
-         ec->frame ? evas_object_visible_get(ec->frame) : 0);
-
    if (e_mod_pol_client_is_sysinfo(ec))
      {
         if (e_sysinfo->btn && !evas_object_visible_get(e_sysinfo->btn))
@@ -422,12 +412,6 @@ e_mod_pol_sysinfo_client_add(E_Client *ec)
 void
 e_mod_pol_sysinfo_client_del(E_Client *ec)
 {
-   ELOGF("SYSINFO",
-         "DEL      |%dx%d frame:0x%08x vis:%d",
-         ec->pixmap, ec, ec->w, ec->h,
-         (unsigned int)ec->frame,
-         ec->frame ? evas_object_visible_get(ec->frame) : 0);
-
    if (e_mod_pol_client_is_sysinfo(ec))
      if (e_sysinfo->btn && evas_object_visible_get(e_sysinfo->btn))
        evas_object_hide(e_sysinfo->btn);
@@ -448,12 +432,6 @@ e_mod_pol_sysinfo_client_del(E_Client *ec)
 void
 e_mod_pol_sysinfo_client_resize(E_Client *ec)
 {
-   ELOGF("SYSINFO",
-         "REZ      |%dx%d frame:0x%08x vis:%d",
-         ec->pixmap, ec, ec->w, ec->h,
-         (unsigned int)ec->frame,
-         ec->frame ? evas_object_visible_get(ec->frame) : 0);
-
    if ((!e_sysinfo->ec) || (!e_sysinfo->ec->frame)) return;
 
    if (!e_mod_pol_client_is_sysinfo(ec) &&
@@ -477,12 +455,6 @@ e_mod_pol_sysinfo_client_resize(E_Client *ec)
 void
 e_mod_pol_sysinfo_client_stack(E_Client *ec)
 {
-   ELOGF("SYSINFO",
-         "RESTACK  |%dx%d frame:0x%08x vis:%d",
-         ec->pixmap, ec, ec->w, ec->h,
-         (unsigned int)ec->frame,
-         ec->frame ? evas_object_visible_get(ec->frame) : 0);
-
    if ((!e_sysinfo->ec) || (!e_sysinfo->ec->frame)) return;
 
    if (!e_mod_pol_client_is_sysinfo(ec) &&
@@ -540,8 +512,6 @@ _sysinfo_cb_fps_anim(void *data EINA_UNUSED)
 static Eina_Bool
 _sysinfo_cb_comp_fps_update(void *data EINA_UNUSED, int type EINA_UNUSED, void *event EINA_UNUSED)
 {
-   ELOGF("SYSINFO", "FPS      |%.2f", NULL, NULL, e_comp->fps);
-
    if (!e_sysinfo->fps_anim)
      e_sysinfo->fps_anim = ecore_animator_add(_sysinfo_cb_fps_anim, NULL);
 
