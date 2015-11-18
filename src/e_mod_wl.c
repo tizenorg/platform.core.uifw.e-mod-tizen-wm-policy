@@ -1167,7 +1167,7 @@ _tzpol_iface_cb_type_set(struct wl_client *client EINA_UNUSED, struct wl_resourc
    ELOGF("TZPOL",
          "TYPE_SET |win:0x%08x|s:0x%08x|res_tzpol:0x%08x|tizen_win_type:%d, e_win_type:%d NOTI",
          cp, ec,
-         (unsigned int)e_client_util_win_get(ec),
+         ec ? (unsigned int)e_client_util_win_get(ec) : 0,
          (unsigned int)surf,
          (unsigned int)res_tzpol,
          type, win_type);
