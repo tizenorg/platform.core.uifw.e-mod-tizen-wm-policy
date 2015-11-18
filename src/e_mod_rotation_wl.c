@@ -1017,7 +1017,6 @@ static void
 _rot_hook_new_client(void *d EINA_UNUSED, E_Client *ec)
 {
    Policy_Ext_Rotation *rot;
-   int i = 0;
 
    ec->e.state.rot.preferred_rot = -1;
    ec->e.state.rot.type = E_CLIENT_ROTATION_TYPE_NORMAL;
