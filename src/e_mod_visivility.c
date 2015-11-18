@@ -9,33 +9,21 @@
 #endif
 
 typedef struct _Pol_Visibility Pol_Visibility;
-typedef struct _Pol_Win_Opaque Pol_Win_Opaque;
-
 struct _Pol_Visibility
 {
    E_Client *ec;
    int       visibility;
 };
 
-struct _Pol_Win_Opaque
-{
-   E_Client *ec;
-   int       opaque;
-};
-
 static Eina_Hash *hash_pol_visibilities = NULL;
-static Eina_Hash *hash_pol_win_opaques = NULL;
 
 static Pol_Visibility *_visibility_add(E_Client *ec, int visibility);
 static Pol_Visibility *_visibility_find(E_Client *ec);
 static void            _visibility_notify_send(E_Client *ec, int visibility);
 static void            _pol_cb_visibility_data_free(void *data);
-static Pol_Win_Opaque *_win_opaque_find(E_Client *ec);
-static void            _pol_cb_win_opaque_data_free(void *data);
 #ifndef HAVE_WAYLAND_ONLY
 static Eina_Bool       _win_opaque_prop_get(Ecore_X_Window win, int *opaque);
 #endif
-static Pol_Win_Opaque *_win_opaque_add(E_Client *ec, int opaque);
 
 static Pol_Visibility *
 _visibility_add(E_Client *ec, int visibility)
@@ -98,22 +86,6 @@ _pol_cb_visibility_data_free(void *data)
    free(data);
 }
 
-static Pol_Win_Opaque *
-_win_opaque_find(E_Client *ec)
-{
-   Pol_Win_Opaque *pwo;
-
-   pwo = eina_hash_find(hash_pol_win_opaques, &ec);
-
-   return pwo;
-}
-
-static void
-_pol_cb_win_opaque_data_free(void *data)
-{
-   free(data);
-}
-
 #ifndef HAVE_WAYLAND_ONLY
 static Eina_Bool
 _win_opaque_prop_get(Ecore_X_Window win, int *opaque)
@@ -130,39 +102,16 @@ _win_opaque_prop_get(Ecore_X_Window win, int *opaque)
 }
 #endif
 
-static Pol_Win_Opaque *
-_win_opaque_add(E_Client *ec, int opaque)
-{
-   Pol_Win_Opaque *pwo;
-
-   if (e_object_is_del(E_OBJECT(ec))) return NULL;
-
-   pwo = eina_hash_find(hash_pol_win_opaques, &ec);
-   if (pwo) return NULL;
-
-   pwo = E_NEW(Pol_Win_Opaque, 1);
-   if (!pwo) return NULL;
-
-   pwo->ec = ec;
-   pwo->opaque = opaque;
-
-   eina_hash_add(hash_pol_win_opaques, &ec, pwo);
-
-   return pwo;
-}
-
 void
 e_mod_pol_visibility_init(void)
 {
    hash_pol_visibilities = eina_hash_pointer_new(_pol_cb_visibility_data_free);
-   hash_pol_win_opaques = eina_hash_pointer_new(_pol_cb_win_opaque_data_free);
 }
 
 void
 e_mod_pol_visibility_shutdown(void)
 {
    E_FREE_FUNC(hash_pol_visibilities, eina_hash_free);
-   E_FREE_FUNC(hash_pol_win_opaques, eina_hash_free);
 }
 
 static Eina_Bool
@@ -229,7 +178,6 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
 
         if (_client_tiler_intersects(ec, t))
           {
-             Pol_Win_Opaque *pwo;
              Eina_Bool opaque = EINA_FALSE;
              /* unobscured case */
              pv = _visibility_find(ec);
@@ -255,8 +203,9 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
                }
 
              /* check alpha window is opaque or not. */
-             pwo = _win_opaque_find(ec);
-             if (pwo && pwo->opaque && ec->argb) opaque = EINA_TRUE;
+             if ((ec->argb) &&
+                 (ec->visibility.opaque == 1))
+               opaque = EINA_TRUE;
 
              /* if e_client is not alpha or opaque then delete intersect rect */
              if (!ec->argb || opaque)
@@ -312,12 +261,8 @@ void
 e_mod_pol_client_visibility_del(E_Client *ec)
 {
    Pol_Visibility *pv;
-   Pol_Win_Opaque *pwo;
 
    if (!ec) return;
-
-   pwo = eina_hash_find(hash_pol_win_opaques, &ec);
-   if (pwo) eina_hash_del_by_key(hash_pol_win_opaques, &ec);
 
    pv = eina_hash_find(hash_pol_visibilities, &ec);
    if (!pv) return;
@@ -345,7 +290,7 @@ e_mod_pol_client_window_opaque_set(E_Client *ec)
    opaque = cdata->opaque_state;
 #endif
 
-   _win_opaque_add(ec, opaque);
+   ec->visibility.opaque = opaque;
 }
 
 #ifndef HAVE_WAYLAND_ONLY
@@ -354,7 +299,6 @@ e_mod_pol_visibility_cb_window_property(Ecore_X_Event_Window_Property *ev)
 {
    Ecore_X_Window win;
    int opaque = 0;
-   Pol_Win_Opaque *pwo;
    E_Client *ec;
 
    if (!ev) return EINA_FALSE;
@@ -362,17 +306,15 @@ e_mod_pol_visibility_cb_window_property(Ecore_X_Event_Window_Property *ev)
    ec = e_pixmap_find_client(E_PIXMAP_TYPE_X, ev->win);
    if (!ec) return EINA_FALSE;
 
-   pwo = _win_opaque_find(ec);
    win = ev->win;
 
    if (_win_opaque_prop_get(win, &opaque))
      {
-        if (pwo) pwo->opaque = opaque;
-        else _win_opaque_add(ec, opaque);
+        ec->visibility.opaque = opaque;
      }
    else
      {
-        if (pwo) eina_hash_del_by_key(hash_pol_win_opaques, &ec);
+        ec->visibility.opaque = -1;
      }
 
    e_mod_pol_visibility_calc();
