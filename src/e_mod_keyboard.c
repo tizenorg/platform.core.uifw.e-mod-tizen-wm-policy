@@ -8,22 +8,6 @@ e_mod_pol_client_is_keyboard(E_Client *ec)
    E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, EINA_FALSE);
 
    if (ec->vkbd.vkbd) return EINA_TRUE;
-#ifndef HAVE_WAYLAND_ONLY
-   else
-     {
-       char *nname = NULL, *nclass = NULL;
-       Eina_Bool ret = EINA_FALSE;
-       ecore_x_icccm_name_class_get(e_client_util_win_get(ec), &nname, &nclass);
-       if ((nname) && (!strcmp(nname,"Virtual Keyboard")) &&
-           (nclass) && (!strcmp(nclass, "ISF")))
-         ret = EINA_TRUE;
-
-       if (nname) free(nname);
-       if (nclass) free(nclass);
-
-       if (ret) return ret;
-     }
-#endif
 
    return EINA_FALSE;
 }
@@ -42,23 +26,6 @@ e_mod_pol_client_is_keyboard_sub(E_Client *ec)
    if ((ec->icccm.title) &&
        (!strcmp(ec->icccm.title, "ISF Popup")))
      return EINA_TRUE;
-
-#ifndef HAVE_WAYLAND_ONLY
-   if (!ec->icccm.class)
-     {
-       char *nname = NULL, *nclass = NULL;
-       Eina_Bool ret = EINA_FALSE;
-       ecore_x_icccm_name_class_get(e_client_util_win_get(ec), &nname, &nclass);
-       if ((nname) && (!strcmp(nname,"Key Magnifier") || !strcmp(nname,"ISF Popup")) &&
-           (nclass) && (!strcmp(nclass, "ISF")))
-         ret = EINA_TRUE;
-
-       if (nname) free(nname);
-       if (nclass) free(nclass);
-
-       if (ret) return ret;
-     }
-#endif
 
    return EINA_FALSE;
 }
@@ -125,26 +92,3 @@ e_mod_pol_keyboard_layout_apply(E_Client *ec)
        ((ec->x != kbd_x) || (ec->y != kbd_y)))
      e_client_util_move_without_frame(ec, kbd_x, kbd_y);
 }
-
-#ifndef HAVE_WAYLAND_ONLY
-EINTERN void
-e_mod_pol_keyboard_configure(Ecore_X_Event_Window_Configure_Request *ev)
-{
-   E_Client *ec;
-
-   ec = e_pixmap_find_client(E_PIXMAP_TYPE_X, ev->win);
-   if (!ec)
-     {
-        char *name = NULL, *class = NULL;
-
-        ecore_x_icccm_name_class_get(ev->win, &name, &class);
-        if ((class) && (!strcmp(class, "ISF")))
-          {
-             /* pass through configure requests if it is a request for keyboard */
-             ecore_x_window_configure(ev->win, ev->value_mask,
-                                      ev->x, ev->y, ev->w, ev->h,
-                                      ev->border, ev->abovewin, ev->detail);
-          }
-     }
-}
-#endif

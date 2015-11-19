@@ -59,10 +59,6 @@ _pol_stack_transient_for_apply(E_Client *ec)
    E_Client *child, *top;
    Eina_List *l;
 
-#ifndef HAVE_WAYLAND_ONLY
-   ecore_x_window_shadow_tree_flush();
-#endif
-
    if (ec->parent->layer != ec->layer)
      {
         raise = e_config->transient.raise;
@@ -160,16 +156,11 @@ e_mod_pol_stack_hook_pre_fetch(E_Client *ec)
 
    if (ec->icccm.fetch.transient_for)
      {
-        Ecore_Window transient_for_win;
+        Ecore_Window transient_for_win = 0;
         E_Client *parent = NULL;
         Eina_Bool transient_each_other = EINA_FALSE;
 
-#ifndef HAVE_WAYLAND_ONLY
-        transient_for_win = ecore_x_icccm_transient_for_get(e_client_util_win_get(ec));
-        if (transient_for_win)
-          parent = e_pixmap_find_client(E_PIXMAP_TYPE_X, transient_for_win);
-#else
-        transient_for_win = 0;
+#ifdef HAVE_WAYLAND_ONLY
         parent = e_pixmap_find_client(E_PIXMAP_TYPE_WL, ec->icccm.transient_for);
 #endif
 
@@ -177,9 +168,7 @@ e_mod_pol_stack_hook_pre_fetch(E_Client *ec)
           {
              if (!ps) ps = _pol_stack_data_add(ec);
 
-#ifndef HAVE_WAYLAND_ONLY
-             ps->transient.win = transient_for_win;
-#else
+#ifdef HAVE_WAYLAND_ONLY
              ps->transient.win = e_client_util_win_get(parent);
 #endif
              ps->transient.fetched = 1;
@@ -193,22 +182,6 @@ e_mod_pol_stack_hook_pre_fetch(E_Client *ec)
                   ps->transient.fetched = 0;
                   parent = NULL;
                }
-
-#ifndef HAVE_WAYLAND_ONLY
-             /* already set by requested window */
-             if ((parent) && (ec->icccm.transient_for == transient_for_win))
-               {
-                  if (!ec->parent) ec->parent = parent;
-                  if ((ec->parent) && (!e_object_is_del(E_OBJECT(ec->parent))))
-                    {
-                       ec->parent->transients = eina_list_remove(ec->parent->transients, ec);
-                       ec->parent->transients = eina_list_append(ec->parent->transients, ec);
-                    }
-                  ec->icccm.fetch.transient_for = 0;
-                  ps->transient.fetched = 0;
-                  parent = NULL;
-               }
-#endif
           }
      }
 }

@@ -49,10 +49,6 @@ static Eina_Bool   _pol_cb_client_resize(void *data EINA_UNUSED, int type, void 
 static Eina_Bool   _pol_cb_client_stack(void *data EINA_UNUSED, int type, void *event);
 static Eina_Bool   _pol_cb_client_property(void *data EINA_UNUSED, int type EINA_UNUSED, void *event);
 static Eina_Bool   _pol_cb_client_vis_change(void *data EINA_UNUSED, int type EINA_UNUSED, void *event EINA_UNUSED);
-#ifndef HAVE_WAYLAND_ONLY
-static Eina_Bool   _pol_cb_window_property(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Property *ev);
-static Eina_Bool   _pol_cb_window_configure_request(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Configure_Request *ev);
-#endif
 
 static void
 _pol_client_launcher_set(Pol_Client *pc)
@@ -351,7 +347,9 @@ _pol_cb_hook_client_eval_pre_new_client(void *d EINA_UNUSED, E_Client *ec)
                evas_object_layer_set(ec->frame, ec->layer);
           }
      }
+#ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_eval_pre_new_client(ec);
+#endif
 }
 
 static void
@@ -787,36 +785,6 @@ _pol_cb_client_vis_change(void *data EINA_UNUSED, int type EINA_UNUSED, void *ev
    return ECORE_CALLBACK_PASS_ON;
 }
 
-#ifndef HAVE_WAYLAND_ONLY
-static Eina_Bool
-_pol_cb_window_property(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Property *ev)
-{
-   if (ev->atom == E_MOD_POL_ATOM_WINDOW_OPAQUE)
-     {
-        e_mod_pol_visibility_cb_window_property(ev);
-     }
-   else if (ev->atom == E_MOD_POL_ATOM_NOTIFICATION_LEVEL)
-     {
-        E_Client *ec = e_pixmap_find_client(E_PIXMAP_TYPE_X, ev->win);
-
-        /* Before maprequet, ec is NULL. notification level will be updated in
-         * pre_post_fetch which is called after e_hints setting. */
-        if (ec)
-           e_mod_pol_notification_level_update(ec);
-     }
-
-   return ECORE_CALLBACK_PASS_ON;
-}
-
-static Eina_Bool
-_pol_cb_window_configure_request(void *data EINA_UNUSED, int type EINA_UNUSED, Ecore_X_Event_Window_Configure_Request *ev)
-{
-   e_mod_pol_keyboard_configure(ev);
-
-   return ECORE_CALLBACK_PASS_ON;
-}
-#endif
-
 void
 e_mod_pol_desk_add(E_Desk *desk)
 {
@@ -1116,12 +1084,6 @@ e_modapi_init(E_Module *m)
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_STACK,                   _pol_cb_client_stack,                    NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_PROPERTY,                _pol_cb_client_property,                 NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_VISIBILITY_CHANGE,       _pol_cb_client_vis_change,               NULL);
-
-
-#ifndef HAVE_WAYLAND_ONLY
-   E_LIST_HANDLER_APPEND(handlers, ECORE_X_EVENT_WINDOW_PROPERTY,          _pol_cb_window_property,                 NULL);
-   E_LIST_HANDLER_APPEND(handlers, ECORE_X_EVENT_WINDOW_CONFIGURE_REQUEST, _pol_cb_window_configure_request,        NULL);
-#endif
 
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_PRE_NEW_CLIENT,      _pol_cb_hook_client_eval_pre_new_client, NULL);
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_PRE_FETCH,           _pol_cb_hook_client_eval_pre_fetch,      NULL);
