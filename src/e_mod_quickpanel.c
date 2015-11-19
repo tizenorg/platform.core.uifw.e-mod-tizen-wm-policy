@@ -506,6 +506,9 @@ e_mod_quickpanel_client_set(E_Client *ec)
     * so we should unmaximize it to move object to out of screen. */
    e_client_unmaximize(ec, E_MAXIMIZE_BOTH);
 
+   /* stacking it on the lock_screen, set layer to notification-high. */
+   evas_object_layer_set(ec->frame, E_LAYER_CLIENT_NOTIFICATION_HIGH);
+
    /* since we unmaximized it,
     * so we should resize it directly as fullscreen. */
    evas_object_resize(ec->frame, ec->zone->w, ec->zone->h);
