@@ -32,9 +32,6 @@ static void            _visibility_notify_send(E_Client *ec, int visibility);
 static void            _pol_cb_visibility_data_free(void *data);
 static Pol_Win_Opaque *_win_opaque_find(E_Client *ec);
 static void            _pol_cb_win_opaque_data_free(void *data);
-#ifndef HAVE_WAYLAND_ONLY
-static Eina_Bool       _win_opaque_prop_get(Ecore_X_Window win, int *opaque);
-#endif
 static Pol_Win_Opaque *_win_opaque_add(E_Client *ec, int opaque);
 
 static Pol_Visibility *
@@ -73,22 +70,6 @@ _visibility_notify_send(E_Client *ec, int visibility)
 {
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_visibility_send(ec, visibility);
-#else
-   XEvent event;
-
-   if (!ec) return;
-
-   event.type = VisibilityNotify;
-   event.xvisibility.display = ecore_x_display_get();
-   event.xvisibility.send_event = EINA_TRUE;
-   event.xvisibility.state = visibility;
-   event.xvisibility.window = e_client_util_win_get(ec);
-
-   //printf("[e-mod-tizen-wm-policy] visibility_send: win:0x%x, visibility:%s\n", event.xvisibility.window,(event.xvisibility.state?"OBSCURED":"UNOBSCURED"));
-   XSendEvent(event.xvisibility.display,
-              event.xvisibility.window,
-              False,
-              VisibilityChangeMask, &event);
 #endif
 }
 
@@ -113,22 +94,6 @@ _pol_cb_win_opaque_data_free(void *data)
 {
    free(data);
 }
-
-#ifndef HAVE_WAYLAND_ONLY
-static Eina_Bool
-_win_opaque_prop_get(Ecore_X_Window win, int *opaque)
-{
-   int ret = -1;
-   unsigned int val = 0;
-   if (!opaque) return EINA_FALSE;
-
-   ret = ecore_x_window_prop_card32_get(win, E_MOD_POL_ATOM_WINDOW_OPAQUE, &val, 1);
-   if (ret == -1 ) return EINA_FALSE;
-
-   *opaque = (int)val;
-   return EINA_TRUE;
-}
-#endif
 
 static Pol_Win_Opaque *
 _win_opaque_add(E_Client *ec, int opaque)
@@ -199,7 +164,7 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
    Eina_Tiler *t;
    Eina_Rectangle r;
    const int edge = 1;
-   const int OBSCURED = 2; // 2: Fully Obscured, Currently Ecore_X treats Fully Obscured only.
+   const int OBSCURED = 2; // 2: Fully Obscured
    const int UNOBSCURED  = 0;
    Pol_Visibility *pv;
 
@@ -332,51 +297,12 @@ e_mod_pol_client_window_opaque_set(E_Client *ec)
 
    if (!ec) return;
 
-#ifndef HAVE_WAYLAND_ONLY
-   Ecore_X_Window win = e_client_util_win_get(ec);
-
-   if (!_win_opaque_prop_get(win, &opaque)) return;
-#else
    E_Comp_Wl_Client_Data *cdata;
 
    if (!ec->pixmap) return;
    if (!(cdata = (E_Comp_Wl_Client_Data *)e_pixmap_cdata_get(ec->pixmap))) return;
 
    opaque = cdata->opaque_state;
-#endif
 
    _win_opaque_add(ec, opaque);
 }
-
-#ifndef HAVE_WAYLAND_ONLY
-Eina_Bool
-e_mod_pol_visibility_cb_window_property(Ecore_X_Event_Window_Property *ev)
-{
-   Ecore_X_Window win;
-   int opaque = 0;
-   Pol_Win_Opaque *pwo;
-   E_Client *ec;
-
-   if (!ev) return EINA_FALSE;
-
-   ec = e_pixmap_find_client(E_PIXMAP_TYPE_X, ev->win);
-   if (!ec) return EINA_FALSE;
-
-   pwo = _win_opaque_find(ec);
-   win = ev->win;
-
-   if (_win_opaque_prop_get(win, &opaque))
-     {
-        if (pwo) pwo->opaque = opaque;
-        else _win_opaque_add(ec, opaque);
-     }
-   else
-     {
-        if (pwo) eina_hash_del_by_key(hash_pol_win_opaques, &ec);
-     }
-
-   e_mod_pol_visibility_calc();
-
-   return EINA_TRUE;
-}
-#endif
