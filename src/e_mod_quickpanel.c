@@ -481,8 +481,11 @@ e_mod_quickpanel_client_set(E_Client *ec)
 {
    Pol_Quickpanel *pol_qp = NULL;
 
-   if ((!ec) && (_pol_quickpanel))
-     _quickpanel_data_free();
+   if (EINA_UNLIKELY(!ec))
+     {
+        _quickpanel_data_free();
+        return;
+     }
 
    /* check for client being deleted */
    if (e_object_is_del(E_OBJECT(ec))) return;

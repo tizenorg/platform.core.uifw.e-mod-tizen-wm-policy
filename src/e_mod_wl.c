@@ -1989,7 +1989,7 @@ _tzsh_srv_iface_cb_quickpanel_get(struct wl_client *client, struct wl_resource *
    res = wl_resource_create(client, &tws_service_quickpanel_interface, 1, id);
    if (!res)
      {
-        wl_resource_post_no_memory(res);
+        wl_client_post_no_memory(client);
         return;
      }
 
