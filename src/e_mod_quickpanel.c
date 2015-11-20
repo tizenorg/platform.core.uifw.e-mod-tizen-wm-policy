@@ -1,9 +1,11 @@
 #include "e_mod_main.h"
 #include "e_mod_quickpanel.h"
+#include "e_mod_gesture.h"
 
-#define SMART_NAME      "quickpanel_object"
-#define QP_DATA_KEY     "qp_mover"
-#define QP_EC           _pol_quickpanel->ec
+#define SMART_NAME            "quickpanel_object"
+#define QP_DATA_KEY           "qp_mover_data"
+#define GESTURE_DATA_KEY      "gesture_data"
+#define QP_EC                 _pol_quickpanel->ec
 #define INTERNAL_ENTRY                    \
    Mover_Data *md;                        \
    md = evas_object_smart_data_get(obj);
@@ -346,6 +348,7 @@ _quickpanel_mover_effect_data_free(Elm_Transit_Effect *effect, Elm_Transit *tran
    ec = evas_object_data_get(ed->mover, "E_Client");
    pos = (ed->visible) ? 0 : -10000;
    evas_object_move(ec->frame, pos, pos);
+   evas_object_data_del(ec->frame, QP_DATA_KEY);
 
    evas_object_hide(ed->mover);
    evas_object_del(ed->mover);
@@ -531,12 +534,18 @@ e_mod_quickpanel_client_get(void)
 }
 
 static void
-_quickpanel_client_evas_cb_mouse_down(void *data, Evas *evas EINA_UNUSED, Evas_Object *handler, void *event)
+_quickpanel_handler_cb_gesture_start(void *data EINA_UNUSED, Evas_Object *handler, int x, int y, unsigned int timestamp)
 {
-   Evas_Event_Mouse_Down *ev = event;
    Evas_Object *mover;
 
-   mover = _quickpanel_mover_begin(QP_EC, 0, ev->canvas.y, ev->timestamp);
+   mover = evas_object_data_get(handler, QP_DATA_KEY);
+   if (mover)
+     {
+        DBG("Mover object already existed");
+        _quickpanel_mover_free(mover);
+     }
+
+   mover = _quickpanel_mover_begin(QP_EC, 0, y, timestamp);
    if (!mover)
      return;
 
@@ -544,25 +553,20 @@ _quickpanel_client_evas_cb_mouse_down(void *data, Evas *evas EINA_UNUSED, Evas_O
 }
 
 static void
-_quickpanel_client_evas_cb_mouse_move(void *data EINA_UNUSED, Evas *evas EINA_UNUSED, Evas_Object *handler, void *event)
+_quickpanel_handler_cb_gesture_move(void *data EINA_UNUSED, Evas_Object *handler, int x, int y, unsigned int timestamp)
 {
-   Evas_Event_Mouse_Move *ev = event;
    Evas_Object *mover;
 
    mover = evas_object_data_get(handler, QP_DATA_KEY);
    if (!mover)
-     {
-        DBG("Could not find quickpanel mover object");
-        return;
-     }
+     return;
 
-   _quickpanel_mover_move(mover, 0, ev->cur.canvas.y, ev->timestamp);
+   _quickpanel_mover_move(mover, 0, y, timestamp);
 }
 
 static void
-_quickpanel_client_evas_cb_mouse_up(void *data, Evas *evas EINA_UNUSED, Evas_Object *handler, void *event)
+_quickpanel_handler_cb_gesture_end(void *data EINA_UNUSED, Evas_Object *handler, int x, int y, unsigned int timestamp)
 {
-   Evas_Event_Mouse_Up *ev = event;
    Evas_Object *mover;
 
    mover = evas_object_data_get(handler, QP_DATA_KEY);
@@ -572,13 +576,15 @@ _quickpanel_client_evas_cb_mouse_up(void *data, Evas *evas EINA_UNUSED, Evas_Obj
         return;
      }
 
-   _quickpanel_mover_end(mover, 0, ev->canvas.y, ev->timestamp);
+   _quickpanel_mover_end(mover, 0, y, timestamp);
+
    evas_object_data_del(handler, QP_DATA_KEY);
 }
 
 EINTERN Evas_Object *
 e_mod_quickpanel_handler_object_add(int x, int y, int w, int h)
 {
+   Pol_Gesture *gesture;
    Evas_Object *handler;
 
    EINA_SAFETY_ON_NULL_RETURN_VAL(_pol_quickpanel, NULL);
@@ -588,15 +594,19 @@ e_mod_quickpanel_handler_object_add(int x, int y, int w, int h)
    /* make it transparent */
    evas_object_color_set(handler, 0, 0, 0, 0);
 
+   evas_object_repeat_events_set(handler, EINA_TRUE);
+
    evas_object_move(handler, x, y);
    evas_object_resize(handler, w, h);
 
-   evas_object_event_callback_add(handler, EVAS_CALLBACK_MOUSE_DOWN,
-                                  _quickpanel_client_evas_cb_mouse_down, NULL);
-   evas_object_event_callback_add(handler, EVAS_CALLBACK_MOUSE_MOVE,
-                                  _quickpanel_client_evas_cb_mouse_move, NULL);
-   evas_object_event_callback_add(handler, EVAS_CALLBACK_MOUSE_UP,
-                                  _quickpanel_client_evas_cb_mouse_up, NULL);
+   gesture = e_mod_gesture_add(handler, POL_GESTURE_TYPE_LINE);
+   e_mod_gesture_cb_set(gesture,
+                        _quickpanel_handler_cb_gesture_start,
+                        _quickpanel_handler_cb_gesture_move,
+                        _quickpanel_handler_cb_gesture_end,
+                        NULL);
+
+   evas_object_data_set(handler, GESTURE_DATA_KEY, gesture);
 
    return handler;
 }
@@ -604,11 +614,22 @@ e_mod_quickpanel_handler_object_add(int x, int y, int w, int h)
 EINTERN void
 e_mod_quickpanel_handler_object_del(Evas_Object *handler)
 {
+   Pol_Gesture *gesture;
    Evas_Object *mover;
 
    mover = evas_object_data_get(handler, QP_DATA_KEY);
    if (mover)
-     _quickpanel_mover_free(mover);
+     {
+        _quickpanel_mover_free(mover);
+        evas_object_data_del(handler, QP_DATA_KEY);
+     }
+
+   gesture = evas_object_data_get(handler, GESTURE_DATA_KEY);
+   if (gesture)
+     {
+        e_mod_gesture_del(gesture);
+        evas_object_data_del(handler, GESTURE_DATA_KEY);
+     }
 
    evas_object_del(handler);
 }
@@ -640,6 +661,7 @@ _quickpanel_client_evas_cb_move(void *data, Evas *evas, Evas_Object *qp_obj, voi
 
    evas_object_geometry_get(qp_obj, &x, &y, NULL, NULL);
    evas_object_move(handler, x + hx, y + hy);
+   evas_object_raise(handler);
 }
 
 EINTERN Eina_Bool

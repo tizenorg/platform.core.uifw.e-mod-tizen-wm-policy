@@ -28,7 +28,9 @@ module_la_SOURCES += e_mod_wl.c \
 					 e_mod_quickpanel.c \
 					 e_mod_quickpanel.h \
 					 e_mod_indicator.c \
-					 e_mod_indicator.h
+					 e_mod_indicator.h \
+					 e_mod_gesture.c \
+					 e_mod_gesture.h
 endif
 
 module_la_LIBADD       =
