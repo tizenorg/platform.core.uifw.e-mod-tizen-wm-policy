@@ -3,9 +3,6 @@
 #include "e_mod_keyboard.h"
 #ifdef HAVE_WAYLAND_ONLY
 #include "e_mod_wl.h"
-#include "e_mod_sysinfo.h"
-#else
-#include "e_mod_atoms.h"
 #endif
 
 EAPI E_Module_Api e_modapi = { E_MODULE_API_VERSION, "Policy-Mobile" };
@@ -219,12 +216,6 @@ _pol_client_normal_check(E_Client *ec)
         return EINA_FALSE;
      }
    else if (!e_util_strcmp("e_demo", ec->icccm.window_role))
-     {
-        pc = eina_hash_find(hash_pol_clients, &ec);
-        if (pc) _pol_client_del(pc);
-        return EINA_FALSE;
-     }
-   else if (e_mod_pol_client_is_sysinfo(ec))
      {
         pc = eina_hash_find(hash_pol_clients, &ec);
         if (pc) _pol_client_del(pc);
@@ -648,7 +639,6 @@ _pol_cb_client_remove(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    EINA_SAFETY_ON_NULL_RETURN_VAL(ev, ECORE_CALLBACK_PASS_ON);
 
 #ifdef HAVE_WAYLAND_ONLY
-   e_mod_pol_sysinfo_client_del(ev->ec);
    e_mod_pol_wl_client_del(ev->ec);
 #endif
    e_mod_pol_stack_cb_client_remove(ev->ec);
@@ -674,7 +664,6 @@ _pol_cb_client_add(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    e_mod_pol_client_window_opaque_set(ev->ec);
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_client_add(ev->ec);
-   e_mod_pol_sysinfo_client_add(ev->ec);
 #endif
 
    return ECORE_CALLBACK_PASS_ON;
@@ -731,10 +720,6 @@ _pol_cb_client_resize(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    /* calculate e_client visibility */
    e_mod_pol_visibility_calc();
 
-#ifdef HAVE_WAYLAND_ONLY
-   e_mod_pol_sysinfo_client_resize(ec);
-#endif
-
    return ECORE_CALLBACK_PASS_ON;
 }
 
@@ -747,10 +732,6 @@ _pol_cb_client_stack(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    if (!ev) return ECORE_CALLBACK_PASS_ON;
    /* calculate e_client visibility */
    e_mod_pol_visibility_calc();
-
-#ifdef HAVE_WAYLAND_ONLY
-   e_mod_pol_sysinfo_client_stack(ev->ec);
-#endif
 
    return ECORE_CALLBACK_PASS_ON;
 }
@@ -950,18 +931,6 @@ e_mod_pol_client_is_volume(E_Client *ec)
 }
 
 Eina_Bool
-e_mod_pol_client_is_sysinfo(E_Client *ec)
-{
-   E_OBJECT_CHECK_RETURN(ec, EINA_FALSE);
-   E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, EINA_FALSE);
-
-   if (!e_util_strcmp(ec->icccm.window_role, "e_sysinfo"))
-     return EINA_TRUE;
-
-   return EINA_FALSE;
-}
-
-Eina_Bool
 e_mod_pol_client_is_noti(E_Client *ec)
 {
    E_OBJECT_CHECK_RETURN(ec, EINA_FALSE);
@@ -1036,12 +1005,8 @@ e_modapi_init(E_Module *m)
 
    e_mod_pol_stack_init();
    e_mod_pol_visibility_init();
-#ifndef HAVE_WAYLAND_ONLY
-   e_mod_pol_atoms_init();
-#endif
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_init();
-   e_mod_pol_sysinfo_init();
    e_mod_pol_wl_aux_hint_init();
 #endif
 
@@ -1121,7 +1086,6 @@ e_modapi_shutdown(E_Module *m)
    e_mod_pol_visibility_shutdown();
    e_mod_pol_rotation_shutdown();
 #ifdef HAVE_WAYLAND_ONLY
-   e_mod_pol_sysinfo_shutdown();
    e_mod_pol_wl_shutdown();
 #endif
 

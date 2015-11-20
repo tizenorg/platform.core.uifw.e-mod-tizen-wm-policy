@@ -3,9 +3,6 @@
 #define E_COMP_WL
 #include "e_comp_wl.h"
 #include "e_mod_wl.h"
-#else
-#include "e_mod_atoms.h"
-#include <X11/Xlib.h>
 #endif
 
 typedef struct _Pol_Visibility Pol_Visibility;
