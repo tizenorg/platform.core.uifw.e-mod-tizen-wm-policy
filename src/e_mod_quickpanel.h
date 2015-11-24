@@ -1,6 +1,9 @@
 #ifndef E_MOD_QUICKPANEL_H
 #define E_MOD_QUICKPANEL_H
 
+#define E_COMP_WL
+#include <e.h>
+
 EINTERN void          e_mod_quickpanel_client_set(E_Client *ec);
 EINTERN E_Client     *e_mod_quickpanel_client_get(void);
 EINTERN void          e_mod_quickpanel_show(void);

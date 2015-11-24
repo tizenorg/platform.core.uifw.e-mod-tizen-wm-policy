@@ -1,5 +1,5 @@
-#include "e_mod_main.h"
 #include "e_mod_quickpanel.h"
+#include "e_mod_main.h"
 
 #define SMART_NAME      "quickpanel_object"
 #define QP_DATA_KEY     "qp_mover"
@@ -552,6 +552,10 @@ _quickpanel_handler_cb_mouse_move(void *data EINA_UNUSED, Evas *evas EINA_UNUSED
    float vel = 0.0;
    /* FIXME: hard coded, it sould be configurable. */
    const float sensitivity = 0.25;
+   Eina_List *l;
+   struct wl_client *wc;
+   struct wl_resource *res;
+   uint32_t serial, btn = BTN_LEFT;
 
    if (!fi->active)
      {
@@ -567,21 +571,38 @@ _quickpanel_handler_cb_mouse_move(void *data EINA_UNUSED, Evas *evas EINA_UNUSED
           return;
 
         fi->active = EINA_TRUE;
-     }
 
-   mover = evas_object_data_get(handler, QP_DATA_KEY);
-   if (!mover)
-     {
-        mover = _quickpanel_mover_begin(QP_EC, 0, ev->cur.canvas.y, ev->timestamp);
-        if (!mover)
-          goto fin_ev;
+        /* display quickpanel */
+        evas_object_move(QP_EC->frame, 0, 0);
 
-        evas_object_data_set(handler, QP_DATA_KEY, mover);
+        /* send button press */
 
+        wc = wl_resource_get_client(QP_EC->comp_data->surface);
+        serial = wl_display_next_serial(QP_EC->comp->wl_comp_data->wl.disp);
+
+        EINA_LIST_FOREACH(QP_EC->comp->wl_comp_data->ptr.resources, l, res)
+          {
+             if (wl_resource_get_client(res) != wc) continue;
+             wl_pointer_send_enter(res, serial, QP_EC->comp_data->surface,
+                                   wl_fixed_from_int(ev->cur.canvas.x),
+                                   wl_fixed_from_int(ev->cur.canvas.y));
+             wl_pointer_send_button(res, serial, ev->timestamp, btn,
+                                    WL_POINTER_BUTTON_STATE_PRESSED);
+          }
         return;
      }
 
-   _quickpanel_mover_move(mover, 0, ev->cur.canvas.y, ev->timestamp);
+   /* send button move */
+   wc = wl_resource_get_client(QP_EC->comp_data->surface);
+   serial = wl_display_next_serial(QP_EC->comp->wl_comp_data->wl.disp);
+
+   EINA_LIST_FOREACH(QP_EC->comp->wl_comp_data->ptr.resources, l, res)
+     {
+        if (wl_resource_get_client(res) != wc) continue;
+        wl_pointer_send_motion(res, ev->timestamp,
+                               wl_fixed_from_int(ev->cur.canvas.x),
+                               wl_fixed_from_int(ev->cur.canvas.y));
+     }
 
    return;
 fin_ev:
@@ -599,17 +620,23 @@ _quickpanel_handler_cb_mouse_up(void *data, Evas *evas EINA_UNUSED, Evas_Object 
    Evas_Event_Mouse_Up *ev = event;
    Evas_Object *mover;
    Flick_Info *fi = data;
+   Eina_List *l;
+   struct wl_client *wc;
+   struct wl_resource *res;
+   uint32_t serial, btn = BTN_LEFT;
 
-   mover = evas_object_data_get(handler, QP_DATA_KEY);
-   if (!mover)
+   /* send button release */
+   wc = wl_resource_get_client(QP_EC->comp_data->surface);
+   serial = wl_display_next_serial(QP_EC->comp->wl_comp_data->wl.disp);
+
+   EINA_LIST_FOREACH(QP_EC->comp->wl_comp_data->ptr.resources, l, res)
      {
-        DBG("Could not find quickpanel mover object");
-        goto end;
+        if (wl_resource_get_client(res) != wc) continue;
+        wl_pointer_send_button(res, serial, ev->timestamp, btn,
+                               WL_POINTER_BUTTON_STATE_RELEASED);
+        wl_pointer_send_leave(res, serial, QP_EC->comp_data->surface);
      }
 
-   _quickpanel_mover_end(mover, 0, ev->canvas.y, ev->timestamp);
-
-   evas_object_data_del(handler, QP_DATA_KEY);
 end:
    evas_object_event_callback_del(handler, EVAS_CALLBACK_MOUSE_MOVE,
                                   _quickpanel_handler_cb_mouse_move);
