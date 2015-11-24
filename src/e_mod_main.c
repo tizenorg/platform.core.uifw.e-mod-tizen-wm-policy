@@ -1036,29 +1036,29 @@ e_modapi_init(E_Module *m)
           }
      }
 
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_ADD,                       _pol_cb_zone_add,                        NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_DEL,                       _pol_cb_zone_del,                        NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_MOVE_RESIZE,               _pol_cb_zone_move_resize,                NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_DESK_COUNT_SET,            _pol_cb_zone_desk_count_set,             NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_DISPLAY_STATE_CHANGE,      _pol_cb_zone_display_state_change,       NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_DESK_SHOW,                      _pol_cb_desk_show,                       NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_REMOVE,                  _pol_cb_client_remove,                   NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_ADD,                     _pol_cb_client_add,                      NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_MOVE,                    _pol_cb_client_move,                     NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_RESIZE,                  _pol_cb_client_resize,                   NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_STACK,                   _pol_cb_client_stack,                    NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_PROPERTY,                _pol_cb_client_property,                 NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_VISIBILITY_CHANGE,       _pol_cb_client_vis_change,               NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_ADD,                  _pol_cb_zone_add,                        NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_DEL,                  _pol_cb_zone_del,                        NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_MOVE_RESIZE,          _pol_cb_zone_move_resize,                NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_DESK_COUNT_SET,       _pol_cb_zone_desk_count_set,             NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_DISPLAY_STATE_CHANGE, _pol_cb_zone_display_state_change,       NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_DESK_SHOW,                 _pol_cb_desk_show,                       NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_REMOVE,             _pol_cb_client_remove,                   NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_ADD,                _pol_cb_client_add,                      NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_MOVE,               _pol_cb_client_move,                     NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_RESIZE,             _pol_cb_client_resize,                   NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_STACK,              _pol_cb_client_stack,                    NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_PROPERTY,           _pol_cb_client_property,                 NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_VISIBILITY_CHANGE,  _pol_cb_client_vis_change,               NULL);
 
-   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_PRE_NEW_CLIENT,      _pol_cb_hook_client_eval_pre_new_client, NULL);
-   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_PRE_FETCH,           _pol_cb_hook_client_eval_pre_fetch,      NULL);
-   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_PRE_POST_FETCH,      _pol_cb_hook_client_eval_pre_post_fetch, NULL);
-   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_POST_FETCH,          _pol_cb_hook_client_eval_post_fetch,     NULL);
-   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_DESK_SET,                 _pol_cb_hook_client_desk_set,            NULL);
-   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_END,                 _pol_cb_hook_client_eval_end,            NULL);
-   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_FULLSCREEN_PRE,           _pol_cb_hook_client_fullscreen_pre,      NULL);
+   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_PRE_NEW_CLIENT, _pol_cb_hook_client_eval_pre_new_client, NULL);
+   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_PRE_FETCH,      _pol_cb_hook_client_eval_pre_fetch,      NULL);
+   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_PRE_POST_FETCH, _pol_cb_hook_client_eval_pre_post_fetch, NULL);
+   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_POST_FETCH,     _pol_cb_hook_client_eval_post_fetch,     NULL);
+   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_DESK_SET,            _pol_cb_hook_client_desk_set,            NULL);
+   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_END,            _pol_cb_hook_client_eval_end,            NULL);
+   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_FULLSCREEN_PRE,      _pol_cb_hook_client_fullscreen_pre,      NULL);
 
-   E_PIXMAP_HOOK_APPEND(hooks_cp,  E_PIXMAP_HOOK_DEL,                      _pol_cb_hook_pixmap_del,                 NULL);
+   E_PIXMAP_HOOK_APPEND(hooks_cp,  E_PIXMAP_HOOK_DEL,                 _pol_cb_hook_pixmap_del,                 NULL);
 
    e_mod_pol_rotation_init();
 
