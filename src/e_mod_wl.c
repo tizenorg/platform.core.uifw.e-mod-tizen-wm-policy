@@ -808,6 +808,36 @@ e_mod_pol_wl_visibility_send(E_Client *ec, int vis)
    eina_iterator_free(it);
 }
 
+void
+e_mod_pol_wl_iconify_state_change_send(E_Client *ec, int iconic)
+{
+   Pol_Wl_Tzpol *tzpol;
+   Pol_Wl_Surface *psurf;
+   E_Client *ec2;
+   Eina_List *l;
+   Eina_Iterator *it;
+   Ecore_Window win;
+
+   win = e_client_util_win_get(ec);
+
+   it = eina_hash_iterator_data_new(polwl->tzpols);
+   EINA_ITERATOR_FOREACH(it, tzpol)
+     EINA_LIST_FOREACH(tzpol->psurfs, l, psurf)
+       {
+          ec2 = e_pixmap_client_get(psurf->cp);
+          if (ec2 != ec) continue;
+
+          tizen_policy_send_iconify_state_changed(tzpol->res_tzpol, psurf->surf, iconic, 1);
+          ELOGF("ICONIFY",
+                "SEND     |win:0x%08x|iconic:%d |sur:%x",
+                ec->pixmap, ec,
+                (unsigned int)win,
+                iconic, psurf->surf);
+          break;
+       }
+   eina_iterator_free(it);
+}
+
 // --------------------------------------------------------
 // position
 // --------------------------------------------------------
