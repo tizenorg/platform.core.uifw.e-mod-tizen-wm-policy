@@ -808,6 +808,36 @@ e_mod_pol_wl_visibility_send(E_Client *ec, int vis)
    eina_iterator_free(it);
 }
 
+void
+e_mod_pol_wl_iconify_state_change_send(E_Client *ec, int iconic)
+{
+   Pol_Wl_Tzpol *tzpol;
+   Pol_Wl_Surface *psurf;
+   E_Client *ec2;
+   Eina_List *l;
+   Eina_Iterator *it;
+   Ecore_Window win;
+
+   win = e_client_util_win_get(ec);
+
+   it = eina_hash_iterator_data_new(polwl->tzpols);
+   EINA_ITERATOR_FOREACH(it, tzpol)
+     EINA_LIST_FOREACH(tzpol->psurfs, l, psurf)
+       {
+          ec2 = e_pixmap_client_get(psurf->cp);
+          if (ec2 != ec) continue;
+
+          tizen_policy_send_iconify_state_changed(tzpol->res_tzpol, psurf->surf, iconic, 1);
+          ELOGF("ICONIFY",
+                "SEND     |win:0x%08x|iconic:%d |sur:%x",
+                ec->pixmap, ec,
+                (unsigned int)win,
+                iconic, psurf->surf);
+          break;
+       }
+   eina_iterator_free(it);
+}
+
 // --------------------------------------------------------
 // position
 // --------------------------------------------------------
@@ -1569,6 +1599,8 @@ _tzpol_iface_cb_iconify(struct wl_client *client EINA_UNUSED, struct wl_resource
    EINA_SAFETY_ON_NULL_RETURN(ec);
    EINA_SAFETY_ON_NULL_RETURN(ec->frame);
 
+   ELOG("Set ICONIFY BY CLIENT", ec->pixmap, ec);
+   ec->exp_iconify.by_client = 1;
    e_client_iconify(ec);
 }
 
@@ -1585,6 +1617,8 @@ _tzpol_iface_cb_uniconify(struct wl_client *client EINA_UNUSED, struct wl_resour
    EINA_SAFETY_ON_NULL_RETURN(ec);
    EINA_SAFETY_ON_NULL_RETURN(ec->frame);
 
+   ELOG("Un-Set ICONIFY BY CLIENT", ec->pixmap, ec);
+   ec->exp_iconify.by_client = 0;
    e_client_uniconify(ec);
 }
 

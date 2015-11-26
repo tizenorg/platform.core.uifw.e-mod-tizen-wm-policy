@@ -104,6 +104,29 @@ _client_tiler_intersects(E_Client *ec, Eina_Tiler *t)
    return ret;
 }
 
+static void
+_e_mod_pol_client_iconify_by_visibility(E_Client *ec)
+{
+   if (!ec) return;
+   if (ec->iconic) return;
+   if (ec->exp_iconify.by_client) return;
+
+   e_mod_pol_wl_iconify_state_change_send(ec, 1);
+   e_client_iconify(ec);
+}
+
+static void
+_e_mod_pol_client_uniconify_by_visibility(E_Client *ec)
+{
+   if (!ec) return;
+   if (!ec->iconic) return;
+   if (ec->exp_iconify.by_client) return;
+
+   ec->exp_iconify.not_raise = 1;
+   e_client_uniconify(ec);
+   e_mod_pol_wl_iconify_state_change_send(ec, 0);
+}
+
 void
 e_mod_pol_zone_visibility_calc(E_Zone *zone)
 {
@@ -134,7 +157,15 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
         if (ec->zone != zone) continue;
         /* check e_client and skip e_clients not visible */
         if (!ec->frame) continue;
-        if (!evas_object_visible_get(ec->frame)) continue;
+        if (!evas_object_visible_get(ec->frame))
+          {
+             if (!ec->iconic) continue;
+             else
+               {
+                  if (ec->exp_iconify.by_client)
+                    continue;
+               }
+          }
         /* check e_client and skip e_clinets not intersects with zone */
         if (!E_INTERSECTS(ec->x, ec->y, ec->w, ec->h, zone->x, zone->y, zone->w, zone->h))
           continue;
@@ -154,6 +185,7 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
                   else
                     {
                        /* previous state is obscured */
+                       _e_mod_pol_client_uniconify_by_visibility(ec);
                        pv->visibility = UNOBSCURED;
                        _visibility_notify_send(ec, UNOBSCURED);
                     }
@@ -161,6 +193,7 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
              else
                {
                   /* previous state is none */
+                  _e_mod_pol_client_uniconify_by_visibility(ec);
                   _visibility_add(ec, UNOBSCURED);
                   _visibility_notify_send(ec, UNOBSCURED);
                }
@@ -189,6 +222,8 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
                        /* previous state is unobscured */
                        pv->visibility = OBSCURED;
                        _visibility_notify_send(ec, OBSCURED);
+                       if (zone->display_state != E_ZONE_DISPLAY_STATE_OFF)
+                         _e_mod_pol_client_iconify_by_visibility(ec);
                     }
                   else
                     {
@@ -201,6 +236,8 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
                   /* previous state is none */
                   _visibility_add(ec, OBSCURED);
                   _visibility_notify_send(ec, OBSCURED);
+                  if (zone->display_state != E_ZONE_DISPLAY_STATE_OFF)
+                    _e_mod_pol_client_iconify_by_visibility(ec);
                }
           }
      }

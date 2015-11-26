@@ -16,6 +16,9 @@ void      e_mod_pol_wl_pixmap_del(E_Pixmap *cp);
 /* visibility */
 void      e_mod_pol_wl_visibility_send(E_Client *ec, int vis);
 
+/* iconify */
+void      e_mod_pol_wl_iconify_state_change_send(E_Client *ec, int iconic);
+
 /* position */
 void      e_mod_pol_wl_position_send(E_Client *ec);
 
