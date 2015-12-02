@@ -1938,14 +1938,21 @@ _tzsh_srv_iface_cb_region_set(struct wl_client *client, struct wl_resource *res_
 
    if (tzsh_srv->role == TZSH_SRV_ROLE_QUICKPANEL)
      {
-        it = eina_tiler_iterator_new(tzsh_reg->tiler);
         // FIXME should consider rotation.
-        EINA_ITERATOR_FOREACH(it, r)
+        if (angle != 0)
+          return;
+
+        // FIXME: region type
+        if (type == 0)
           {
-             e_mod_quickpanel_handler_region_set(r->x, r->y, r->w, r->h);
-             e_mod_indicator_create(r->w, r->h);
-             /* NOTE: supported single rectangle as a handler region for now. */
-             break;
+             it = eina_tiler_iterator_new(tzsh_reg->tiler);
+             EINA_ITERATOR_FOREACH(it, r)
+               {
+                  e_mod_quickpanel_handler_region_set(r->x, r->y, r->w, r->h);
+                  e_mod_indicator_create(r->w, r->h);
+                  /* NOTE: supported single rectangle as a handler region for now. */
+                  break;
+               }
           }
      }
 }
