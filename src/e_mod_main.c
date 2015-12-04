@@ -209,7 +209,7 @@ _pol_client_normal_check(E_Client *ec)
         e_mod_pol_keyboard_layout_apply(ec);
         return EINA_FALSE;
      }
-   else if (e_mod_pol_client_is_volume(ec))
+   else if (e_mod_pol_client_is_volume_tv(ec))
      {
         pc = eina_hash_find(hash_pol_clients, &ec);
         if (pc) _pol_client_del(pc);
@@ -403,6 +403,9 @@ _pol_cb_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec)
 
    if (e_mod_pol_client_is_noti(ec))
      e_client_util_move_without_frame(ec, 0, 0);
+
+   if (e_mod_pol_client_is_volume(ec))
+     ec->exp_iconify.skip_iconify = 1;
 
    if (!_pol_client_normal_check(ec)) return;
 
@@ -709,7 +712,7 @@ _pol_cb_client_resize(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
      }
 
    /* re-calculate window's position with changed size */
-   if (e_mod_pol_client_is_volume(ec))
+   if (e_mod_pol_client_is_volume_tv(ec))
      {
         e_zone_useful_geometry_get(ec->zone, NULL, NULL, NULL, &zh);
         evas_object_move(ec->frame, 0, (zh / 2) - (ec->h / 2));
@@ -920,6 +923,21 @@ e_mod_pol_client_is_conformant(E_Client *ec)
 
 Eina_Bool
 e_mod_pol_client_is_volume(E_Client *ec)
+{
+   E_OBJECT_CHECK_RETURN(ec, EINA_FALSE);
+   E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, EINA_FALSE);
+
+   if (!e_util_strcmp(ec->netwm.name, "volume"))
+     return EINA_TRUE;
+
+   if (!e_util_strcmp(ec->icccm.title, "volume"))
+     return EINA_TRUE;
+
+   return EINA_FALSE;
+}
+
+Eina_Bool
+e_mod_pol_client_is_volume_tv(E_Client *ec)
 {
    E_OBJECT_CHECK_RETURN(ec, EINA_FALSE);
    E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, EINA_FALSE);

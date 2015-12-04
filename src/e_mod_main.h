@@ -112,6 +112,7 @@ EINTERN Eina_Bool        e_mod_pol_client_is_home_screen(E_Client *ec);
 EINTERN Eina_Bool        e_mod_pol_client_is_quickpanel(E_Client *ec);
 EINTERN Eina_Bool        e_mod_pol_client_is_conformant(E_Client *ec);
 EINTERN Eina_Bool        e_mod_pol_client_is_volume(E_Client *ec);
+EINTERN Eina_Bool        e_mod_pol_client_is_volume_tv(E_Client *ec);
 EINTERN Eina_Bool        e_mod_pol_client_is_noti(E_Client *ec);
 #ifdef HAVE_WAYLAND_ONLY
 EINTERN Eina_Bool        e_mod_pol_client_is_subsurface(E_Client *ec);
