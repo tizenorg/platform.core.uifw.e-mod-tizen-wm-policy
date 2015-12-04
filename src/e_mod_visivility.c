@@ -110,6 +110,7 @@ _e_mod_pol_client_iconify_by_visibility(E_Client *ec)
    if (!ec) return;
    if (ec->iconic) return;
    if (ec->exp_iconify.by_client) return;
+   if (ec->exp_iconify.skip_iconify) return;
 
    e_mod_pol_wl_iconify_state_change_send(ec, 1);
    e_client_iconify(ec);
@@ -121,6 +122,7 @@ _e_mod_pol_client_uniconify_by_visibility(E_Client *ec)
    if (!ec) return;
    if (!ec->iconic) return;
    if (ec->exp_iconify.by_client) return;
+   if (ec->exp_iconify.skip_iconify) return;
 
    ec->exp_iconify.not_raise = 1;
    e_client_uniconify(ec);
