@@ -1953,6 +1953,7 @@ _tzsh_srv_iface_cb_region_set(struct wl_client *client, struct wl_resource *res_
                   /* NOTE: supported single rectangle as a handler region for now. */
                   break;
                }
+             eina_iterator_free(it);
           }
      }
 }
