@@ -11,7 +11,7 @@ module_la_SOURCES      = e_mod_config.c \
                          e_mod_main.c \
                          e_mod_main.h \
                          e_mod_softkey.c \
-                         e_mod_visivility.c \
+                         e_mod_visibility.c \
                          e_mod_rotation.c \
                          e_mod_rotation.h \
                          e_mod_utils.h \
