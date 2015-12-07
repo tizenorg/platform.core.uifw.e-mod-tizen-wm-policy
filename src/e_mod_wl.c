@@ -2,6 +2,7 @@
 #include "e_mod_main.h"
 #include "e_mod_quickpanel.h"
 #include "e_mod_indicator.h"
+#include "e_mod_volume.h"
 
 #include <wayland-server.h>
 #include <tizen-extension-server-protocol.h>
@@ -1956,6 +1957,8 @@ _tzsh_srv_iface_cb_region_set(struct wl_client *client, struct wl_resource *res_
              eina_iterator_free(it);
           }
      }
+   else if (tzsh_srv->role == TZSH_SRV_ROLE_VOLUME)
+     e_mod_volume_region_set(type, angle, tzsh_reg->tiler);
 }
 
 static void
@@ -2140,6 +2143,8 @@ _tzsh_iface_cb_srv_create(struct wl_client *client, struct wl_resource *res_tzsh
 
    if (role == TZSH_SRV_ROLE_QUICKPANEL)
      e_mod_quickpanel_client_set(tzsh->ec);
+   else if (role == TZSH_SRV_ROLE_VOLUME)
+     e_mod_volume_client_set(tzsh->ec);
 }
 
 // --------------------------------------------------------
