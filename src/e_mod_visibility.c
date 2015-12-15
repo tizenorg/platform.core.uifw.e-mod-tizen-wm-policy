@@ -107,11 +107,34 @@ _client_tiler_intersects(E_Client *ec, Eina_Tiler *t)
 static void
 _e_mod_pol_client_iconify_by_visibility(E_Client *ec)
 {
+   Eina_Bool do_iconify = EINA_TRUE;
+
    if (!ec) return;
    if (ec->iconic) return;
    if (ec->exp_iconify.by_client) return;
    if (ec->exp_iconify.skip_iconify) return;
 
+   if (e_config->transient.iconify)
+     {
+        E_Client *child;
+        Eina_List *list = eina_list_clone(ec->transients);
+
+        EINA_LIST_FREE(list, child)
+          {
+             if (child->visibility.obscured == E_VISIBILITY_UNOBSCURED)
+               {
+                  do_iconify = EINA_FALSE;
+               }
+          }
+     }
+
+   if (!do_iconify)
+     {
+        ELOGF("SKIP.. ICONIFY_BY_WM", "win:0x%08x", ec->pixmap, ec, (unsigned int)win);
+        return;
+     }
+
+   ELOGF("ICONIFY_BY_WM", "win:0x%08x", ec->pixmap, ec, e_client_util_win_get(ec));
    e_mod_pol_wl_iconify_state_change_send(ec, 1);
    e_client_iconify(ec);
 }
@@ -124,6 +147,7 @@ _e_mod_pol_client_uniconify_by_visibility(E_Client *ec)
    if (ec->exp_iconify.by_client) return;
    if (ec->exp_iconify.skip_iconify) return;
 
+   ELOGF("UNICONIFY_BY_WM", "win:0x%08x", ec->pixmap, ec, e_client_util_win_get(ec));
    ec->exp_iconify.not_raise = 1;
    e_client_uniconify(ec);
    e_mod_pol_wl_iconify_state_change_send(ec, 0);
@@ -139,6 +163,9 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
    const int OBSCURED = 2; // 2: Fully Obscured
    const int UNOBSCURED  = 0;
    Pol_Visibility *pv;
+#ifdef HAVE_WAYLAND_ONLY
+   E_Comp_Wl_Client_Data *cdata;
+#endif
 
    if (!zone) return;
 
@@ -159,6 +186,11 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
         if (ec->zone != zone) continue;
         /* check e_client and skip e_clients not visible */
         if (!ec->frame) continue;
+#ifdef HAVE_WAYLAND_ONLY
+        /* if ec is subsurface, skip this */
+        cdata = (E_Comp_Wl_Client_Data *)ec->comp_data;
+        if (cdata->sub.data) continue;
+#endif
         if (!evas_object_visible_get(ec->frame))
           {
              if (!ec->iconic) continue;
@@ -231,6 +263,8 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
                     {
                        /* previous state is obscured */
                        /* do nothing */
+                       if (zone->display_state != E_ZONE_DISPLAY_STATE_OFF)
+                         _e_mod_pol_client_iconify_by_visibility(ec);
                     }
                }
              else
