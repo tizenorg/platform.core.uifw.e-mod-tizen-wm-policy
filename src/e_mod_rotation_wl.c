@@ -923,6 +923,78 @@ end:
 }
 
 /* e_zone_roation functions */
+static void
+_e_zone_rotation_set_internal(E_Zone *zone, int rot)
+{
+   E_Event_Zone_Rotation_Change_Begin *ev;
+
+   E_OBJECT_CHECK(zone);
+   E_OBJECT_TYPE_CHECK(zone, E_ZONE_TYPE);
+
+   if (!e_config->wm_win_rotation) return;
+
+   ELOGF("ROTATION", "ZONE_ROT |zone:%d|rot curr:%d, rot:%d",
+         NULL, NULL, zone->num, zone->rot.curr, rot);
+
+   if ((zone->rot.wait_for_done) ||
+       (zone->rot.block_count > 0))
+     {
+        zone->rot.next = rot;
+        zone->rot.pending = EINA_TRUE;
+        return;
+     }
+
+   if (zone->rot.curr == rot) return;
+
+   zone->rot.prev = zone->rot.curr;
+   zone->rot.curr = rot;
+   zone->rot.wait_for_done = EINA_TRUE;
+
+   ev = E_NEW(E_Event_Zone_Rotation_Change_Begin, 1);
+   if (ev)
+     {
+        ev->zone = zone;
+        e_object_ref(E_OBJECT(ev->zone));
+        ecore_event_add(E_EVENT_ZONE_ROTATION_CHANGE_BEGIN,
+                        ev, _e_zone_event_rotation_change_begin_free, NULL);
+     }
+}
+
+EINTERN void
+e_zone_rotation_set(E_Zone *zone, int rotation)
+{
+   E_OBJECT_CHECK(zone);
+   E_OBJECT_TYPE_CHECK(zone, E_ZONE_TYPE);
+
+   if (rotation == -1)
+     {
+        zone->rot.unknown_state = EINA_TRUE;
+        ELOGF("ROTATION", "ZONE_ROT |UNKOWN SET|zone:%d|rot curr:%d, rot:%d",
+              NULL, NULL, zone->num, zone->rot.curr, rotation);
+        return;
+     }
+   else
+     zone->rot.unknown_state = EINA_FALSE;
+
+   _e_zone_rotation_set_internal(zone, rotation);
+}
+
+static void
+e_zone_rotation_sub_set(E_Zone *zone, int rotation)
+{
+   E_OBJECT_CHECK(zone);
+   E_OBJECT_TYPE_CHECK(zone, E_ZONE_TYPE);
+
+   ELOGF("ROTATION", "SUB_SET  |zone:%d|rot curr:%d, rot:%d",
+         NULL, NULL, zone->num, zone->rot.curr, rotation);
+
+   zone->rot.sub = rotation;
+
+   if ((zone->rot.unknown_state) &&
+       (zone->rot.curr != rotation))
+     _e_zone_rotation_set_internal(zone, rotation);
+}
+
 static int
 e_zone_rotation_get(E_Zone *zone)
 {
@@ -932,6 +1004,48 @@ e_zone_rotation_get(E_Zone *zone)
    else return zone->rot.sub;
 }
 
+EINTERN Eina_Bool
+e_zone_rotation_block_set(E_Zone *zone, const char *name_hint, Eina_Bool set)
+{
+   E_Event_Zone_Rotation_Change_Begin *ev;
+
+   E_OBJECT_CHECK_RETURN(zone, EINA_FALSE);
+   E_OBJECT_TYPE_CHECK_RETURN(zone, E_ZONE_TYPE, EINA_FALSE);
+
+   if (set) zone->rot.block_count++;
+   else     zone->rot.block_count--;
+
+   ELOGF("ROTATION", "ROT_BLOCK|%s|zone:%d|count:%d|from:%s", NULL, NULL,
+         set ? "PAUSE" : "RESUME", zone->num, zone->rot.block_count, name_hint);
+
+   if (zone->rot.block_count <= 0)
+     {
+        zone->rot.block_count = 0;
+
+        if (zone->rot.pending)
+          {
+             zone->rot.prev = zone->rot.curr;
+             zone->rot.curr = zone->rot.next;
+             zone->rot.wait_for_done = EINA_TRUE;
+             zone->rot.pending = EINA_FALSE;
+
+             ev = E_NEW(E_Event_Zone_Rotation_Change_Begin, 1);
+             if (ev)
+               {
+                  ev->zone = zone;
+                  e_object_ref(E_OBJECT(ev->zone));
+                  ecore_event_add(E_EVENT_ZONE_ROTATION_CHANGE_BEGIN,
+                                  ev, _e_zone_event_rotation_change_begin_free, NULL);
+
+                  ELOGF("ROTATION", "ROT_SET(P|zone:%d|rot:%d",
+                        NULL, NULL, zone->num, zone->rot.curr);
+               }
+          }
+     }
+
+   return EINA_TRUE;
+}
+
 static void
 e_zone_rotation_update_done(E_Zone *zone)
 {
@@ -939,6 +1053,9 @@ e_zone_rotation_update_done(E_Zone *zone)
 
    E_OBJECT_CHECK(zone);
    E_OBJECT_TYPE_CHECK(zone, E_ZONE_TYPE);
+
+   ELOGF("ROTATION", "ROT_DONE |zone:%d|rot:%d",
+         NULL, NULL, zone->num, zone->rot.curr);
 
    ev = E_NEW(E_Event_Zone_Rotation_Change_End, 1);
    if (ev)
@@ -966,6 +1083,9 @@ e_zone_rotation_update_done(E_Zone *zone)
              e_object_ref(E_OBJECT(ev2->zone));
              ecore_event_add(E_EVENT_ZONE_ROTATION_CHANGE_BEGIN,
                              ev2, _e_zone_event_rotation_change_begin_free, NULL);
+
+             ELOGF("ROTATION", "ROT_SET(P|zone:%d|rot:%d",
+                   NULL, NULL, zone->num, zone->rot.curr);
           }
      }
 }

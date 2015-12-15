@@ -24,6 +24,8 @@
 #include "e_mod_rotation_wl.h"
 #endif
 
+static Eina_List *_event_handlers = NULL;
+
 /* externally accessible functions */
 /**
  * @describe
@@ -64,12 +66,69 @@ e_client_rotation_curr_angle_get(const E_Client *ec)
   while (0)
 #endif
 
+static Eina_Bool
+_e_mod_pol_rotation_cb_info_rotation_message(void *data EINA_UNUSED, int ev_type EINA_UNUSED, E_Event_Info_Rotation_Message *ev)
+{
+   Eina_Bool block;
+   const char *name_hint = "enlightenment_info";
+
+   if (EINA_UNLIKELY((ev == NULL) || (ev->zone == NULL)))
+     goto end;
+
+#ifdef HAVE_WAYLAND_ONLY
+   switch (ev->message)
+     {
+      case E_INFO_ROTATION_MESSAGE_SET:
+         e_zone_rotation_set(ev->zone, ev->rotation);
+         break;
+      case E_INFO_ROTATION_MESSAGE_ENABLE:
+      case E_INFO_ROTATION_MESSAGE_DISABLE:
+         block = (ev->message == E_INFO_ROTATION_MESSAGE_DISABLE);
+         e_zone_rotation_block_set(ev->zone, name_hint, block);
+         break;
+      default:
+         ERR("Unknown message");
+     }
+#endif
+
+end:
+   return ECORE_CALLBACK_RENEW;
+}
+
+static Eina_Bool
+_e_mod_pol_rotation_cb_idle_exiter(void *data EINA_UNUSED)
+{
+   if (E_EVENT_INFO_ROTATION_MESSAGE == -1)
+     return ECORE_CALLBACK_RENEW;
+
+   E_LIST_HANDLER_APPEND(_event_handlers, E_EVENT_INFO_ROTATION_MESSAGE,
+                         _e_mod_pol_rotation_cb_info_rotation_message, NULL);
+
+   return ECORE_CALLBACK_DONE;
+}
+
 EINTERN void
 e_mod_pol_rotation_init(void)
 {
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_rot_wl_init();
 #endif
+
+   if (E_EVENT_INFO_ROTATION_MESSAGE != -1)
+     {
+        E_LIST_HANDLER_APPEND(_event_handlers, E_EVENT_INFO_ROTATION_MESSAGE,
+                              _e_mod_pol_rotation_cb_info_rotation_message, NULL);
+     }
+   else
+     {
+        /* NOTE:
+         * If E_EVENT_INFO_ROTATION_MESSAGE is not initialized yet,
+         * we should add event handler for rotation message in idle exiter,
+         * becuase I expect that e_info_server will be initialized on idler
+         * by quick launching.
+         */
+        ecore_idle_exiter_add(_e_mod_pol_rotation_cb_idle_exiter, NULL);
+     }
 }
 
 EINTERN void
@@ -78,4 +137,6 @@ e_mod_pol_rotation_shutdown(void)
 #ifdef HAVE_WAYLAND_ONLY
   e_mod_rot_wl_shutdown();
 #endif
+
+  E_FREE_LIST(_event_handlers, ecore_event_handler_del);
 }
