@@ -107,10 +107,18 @@ _client_tiler_intersects(E_Client *ec, Eina_Tiler *t)
 static void
 _e_mod_pol_client_iconify_by_visibility(E_Client *ec)
 {
+#ifdef HAVE_WAYLAND_ONLY
+   E_Comp_Wl_Client_Data *cdata;
+#endif
    if (!ec) return;
    if (ec->iconic) return;
    if (ec->exp_iconify.by_client) return;
    if (ec->exp_iconify.skip_iconify) return;
+#ifdef HAVE_WAYLAND_ONLY
+   /* if ec is subsurface, it will be iconified when we iconify a parent */
+   cdata = (E_Comp_Wl_Client_Data *)ec->comp_data;
+   if (cdata->sub.data) return;
+#endif
 
    e_mod_pol_wl_iconify_state_change_send(ec, 1);
    e_client_iconify(ec);
@@ -119,10 +127,18 @@ _e_mod_pol_client_iconify_by_visibility(E_Client *ec)
 static void
 _e_mod_pol_client_uniconify_by_visibility(E_Client *ec)
 {
+#ifdef HAVE_WAYLAND_ONLY
+   E_Comp_Wl_Client_Data *cdata;
+#endif
    if (!ec) return;
    if (!ec->iconic) return;
    if (ec->exp_iconify.by_client) return;
    if (ec->exp_iconify.skip_iconify) return;
+#ifdef HAVE_WAYLAND_ONLY
+   /* if ec is subsurface, it will be uniconified when we uniconify a parent */
+   cdata = (E_Comp_Wl_Client_Data *)ec->comp_data;
+   if (cdata->sub.data) return;
+#endif
 
    ec->exp_iconify.not_raise = 1;
    e_client_uniconify(ec);
