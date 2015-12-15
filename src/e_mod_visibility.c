@@ -139,6 +139,9 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
    const int OBSCURED = 2; // 2: Fully Obscured
    const int UNOBSCURED  = 0;
    Pol_Visibility *pv;
+#ifdef HAVE_WAYLAND_ONLY
+   E_Comp_Wl_Client_Data *cdata;
+#endif
 
    if (!zone) return;
 
@@ -159,6 +162,11 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
         if (ec->zone != zone) continue;
         /* check e_client and skip e_clients not visible */
         if (!ec->frame) continue;
+#ifdef HAVE_WAYLAND_ONLY
+        /* if ec is subsurface, skip this */
+        cdata = (E_Comp_Wl_Client_Data *)ec->comp_data;
+        if (cdata->sub.data) continue;
+#endif
         if (!evas_object_visible_get(ec->frame))
           {
              if (!ec->iconic) continue;
