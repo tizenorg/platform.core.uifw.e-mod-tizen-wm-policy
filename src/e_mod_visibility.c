@@ -107,11 +107,36 @@ _client_tiler_intersects(E_Client *ec, Eina_Tiler *t)
 static void
 _e_mod_pol_client_iconify_by_visibility(E_Client *ec)
 {
+   Pol_Visibility *pv;
+   Eina_Bool do_iconify = EINA_TRUE;
+
    if (!ec) return;
    if (ec->iconic) return;
    if (ec->exp_iconify.by_client) return;
    if (ec->exp_iconify.skip_iconify) return;
 
+   if (e_config->transient.iconify)
+     {
+        E_Client *child;
+        Eina_List *list = eina_list_clone(ec->transients);
+
+        EINA_LIST_FREE(list, child)
+          {
+             pv = _visibility_find(child);
+             if (pv && (pv->visibility == E_VISIBILITY_UNOBSCURED))
+               {
+                  do_iconify = EINA_FALSE;
+               }
+          }
+     }
+
+   if (!do_iconify)
+     {
+        ELOGF("SKIP.. ICONIFY_BY_WM", "win:0x%08x", ec->pixmap, ec, e_client_util_win_get(ec));
+        return;
+     }
+
+   ELOGF("ICONIFY_BY_WM", "win:0x%08x", ec->pixmap, ec, e_client_util_win_get(ec));
    e_mod_pol_wl_iconify_state_change_send(ec, 1);
    e_client_iconify(ec);
 }
@@ -124,6 +149,7 @@ _e_mod_pol_client_uniconify_by_visibility(E_Client *ec)
    if (ec->exp_iconify.by_client) return;
    if (ec->exp_iconify.skip_iconify) return;
 
+   ELOGF("UNICONIFY_BY_WM", "win:0x%08x", ec->pixmap, ec, e_client_util_win_get(ec));
    ec->exp_iconify.not_raise = 1;
    e_client_uniconify(ec);
    e_mod_pol_wl_iconify_state_change_send(ec, 0);
@@ -136,8 +162,6 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
    Eina_Tiler *t;
    Eina_Rectangle r;
    const int edge = 1;
-   const int OBSCURED = 2; // 2: Fully Obscured
-   const int UNOBSCURED  = 0;
    Pol_Visibility *pv;
 #ifdef HAVE_WAYLAND_ONLY
    E_Comp_Wl_Client_Data *cdata;
@@ -187,7 +211,7 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
              pv = _visibility_find(ec);
              if (pv)
                {
-                  if (pv->visibility == UNOBSCURED)
+                  if (pv->visibility == E_VISIBILITY_UNOBSCURED)
                     {
                        /* previous state is unobscured */
                        /* do nothing */
@@ -196,16 +220,16 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
                     {
                        /* previous state is obscured */
                        _e_mod_pol_client_uniconify_by_visibility(ec);
-                       pv->visibility = UNOBSCURED;
-                       _visibility_notify_send(ec, UNOBSCURED);
+                       pv->visibility = E_VISIBILITY_UNOBSCURED;
+                       _visibility_notify_send(ec, E_VISIBILITY_UNOBSCURED);
                     }
                }
              else
                {
                   /* previous state is none */
                   _e_mod_pol_client_uniconify_by_visibility(ec);
-                  _visibility_add(ec, UNOBSCURED);
-                  _visibility_notify_send(ec, UNOBSCURED);
+                  _visibility_add(ec, E_VISIBILITY_UNOBSCURED);
+                  _visibility_notify_send(ec, E_VISIBILITY_UNOBSCURED);
                }
 
              /* check alpha window is opaque or not. */
@@ -227,11 +251,11 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
              pv = _visibility_find(ec);
              if (pv)
                {
-                  if (pv->visibility == UNOBSCURED)
+                  if (pv->visibility == E_VISIBILITY_UNOBSCURED)
                     {
                        /* previous state is unobscured */
-                       pv->visibility = OBSCURED;
-                       _visibility_notify_send(ec, OBSCURED);
+                       pv->visibility = E_VISIBILITY_FULLY_OBSCURED;
+                       _visibility_notify_send(ec, E_VISIBILITY_FULLY_OBSCURED);
                        if (zone->display_state != E_ZONE_DISPLAY_STATE_OFF)
                          _e_mod_pol_client_iconify_by_visibility(ec);
                     }
@@ -244,8 +268,8 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
              else
                {
                   /* previous state is none */
-                  _visibility_add(ec, OBSCURED);
-                  _visibility_notify_send(ec, OBSCURED);
+                  _visibility_add(ec, E_VISIBILITY_FULLY_OBSCURED);
+                  _visibility_notify_send(ec, E_VISIBILITY_FULLY_OBSCURED);
                   if (zone->display_state != E_ZONE_DISPLAY_STATE_OFF)
                     _e_mod_pol_client_iconify_by_visibility(ec);
                }
