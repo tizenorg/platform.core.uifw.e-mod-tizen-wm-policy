@@ -110,6 +110,8 @@ _e_mod_pol_client_iconify_by_visibility(E_Client *ec)
    Pol_Visibility *pv;
    Eina_Bool do_iconify = EINA_TRUE;
 
+   if (!e_config->iconify_if_obscured) return;
+
    if (!ec) return;
    if (ec->iconic) return;
    if (ec->exp_iconify.by_client) return;
@@ -144,6 +146,8 @@ _e_mod_pol_client_iconify_by_visibility(E_Client *ec)
 static void
 _e_mod_pol_client_uniconify_by_visibility(E_Client *ec)
 {
+   if (!e_config->iconify_if_obscured) return;
+
    if (!ec) return;
    if (!ec->iconic) return;
    if (ec->exp_iconify.by_client) return;
