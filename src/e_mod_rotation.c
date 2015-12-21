@@ -20,10 +20,6 @@
 #include "e_mod_rotation.h"
 #include "e_mod_utils.h"
 
-#ifdef HAVE_WAYLAND_ONLY
-#include "e_mod_rotation_wl.h"
-#endif
-
 static Eina_List *_event_handlers = NULL;
 
 /* externally accessible functions */
@@ -75,7 +71,6 @@ _e_mod_pol_rotation_cb_info_rotation_message(void *data EINA_UNUSED, int ev_type
    if (EINA_UNLIKELY((ev == NULL) || (ev->zone == NULL)))
      goto end;
 
-#ifdef HAVE_WAYLAND_ONLY
    switch (ev->message)
      {
       case E_INFO_ROTATION_MESSAGE_SET:
@@ -89,7 +84,6 @@ _e_mod_pol_rotation_cb_info_rotation_message(void *data EINA_UNUSED, int ev_type
       default:
          ERR("Unknown message");
      }
-#endif
 
 end:
    return ECORE_CALLBACK_RENEW;
