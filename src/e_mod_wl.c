@@ -979,7 +979,11 @@ _tzpol_iface_cb_activate(struct wl_client *client EINA_UNUSED, struct wl_resourc
    EINA_SAFETY_ON_NULL_RETURN(ec->frame);
 
    if ((!starting) && (!ec->focused))
-     e_client_activate(ec, EINA_TRUE);
+     {
+        if ((ec->iconic) && (!ec->exp_iconify.by_client))
+          e_mod_pol_wl_iconify_state_change_send(ec, 0);
+        e_client_activate(ec, EINA_TRUE);
+     }
    else
      evas_object_raise(ec->frame);
 }
@@ -1617,6 +1621,9 @@ _tzpol_iface_cb_uniconify(struct wl_client *client EINA_UNUSED, struct wl_resour
    ec = e_pixmap_client_get(cp);
    EINA_SAFETY_ON_NULL_RETURN(ec);
    EINA_SAFETY_ON_NULL_RETURN(ec->frame);
+
+   if ((ec->iconic) && (!ec->exp_iconify.by_client))
+     e_mod_pol_wl_iconify_state_change_send(ec, 0);
 
    ELOG("Un-Set ICONIFY BY CLIENT", ec->pixmap, ec);
    ec->exp_iconify.by_client = 0;
