@@ -450,7 +450,7 @@ _e_client_rotation_zone_set(E_Zone *zone)
 
         EINA_LIST_REVERSE_FOREACH(zone->comp->clients, l, ec)
           {
-             if(ec->zone != zone) continue;
+             if((!ec->zone) || (ec->zone != zone)) continue;
 
              // if this window has parent and window type isn't "E_WINDOW_TYPE_NORMAL",
              // it will be rotated when parent do rotate itself.

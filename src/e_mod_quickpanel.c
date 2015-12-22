@@ -413,6 +413,9 @@ _quickpanel_mover_end(Evas_Object *mover, int x, int y, unsigned int timestamp)
    md = evas_object_smart_data_get(mover);
    ec = evas_object_data_get(mover, "E_Client");
 
+   if (EINA_UNLIKELY((!ec) || (!ec->zone)))
+     return;
+
    if ((md->effect_info.accel > sensitivity) ||
        ((md->effect_info.accel > -sensitivity) && (y > ec->zone->h / 2)))
      visible = EINA_TRUE;
