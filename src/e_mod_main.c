@@ -701,8 +701,7 @@ _pol_cb_client_resize(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    ec = ev->ec;
    EINA_SAFETY_ON_NULL_RETURN_VAL(ec, ECORE_CALLBACK_PASS_ON);
 
-   if (e_mod_pol_client_is_keyboard(ec) ||
-       e_mod_pol_client_is_keyboard_sub(ec))
+   if (e_mod_pol_client_is_keyboard(ec))
      {
 #ifdef HAVE_WAYLAND_ONLY
         e_mod_pol_wl_keyboard_geom_broadcast(ec);
