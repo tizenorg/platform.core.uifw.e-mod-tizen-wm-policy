@@ -6,7 +6,7 @@ Summary:    The Enlightenment WM Policy Module for Tizen
 Version:    0.1.59
 Release:    1
 Group:      Graphics & UI Framework/Other
-License:    BSD 2-Clause and Flora-1.1
+License:    BSD-2-Clause and Flora-1.1
 Source0:    %{name}-%{version}.tar.bz2
 BuildRequires: pkgconfig(enlightenment)
 %if %{with x}
