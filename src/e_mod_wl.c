@@ -1699,43 +1699,17 @@ _tzpol_iface_cb_aux_hint_add(struct wl_client *client EINA_UNUSED, struct wl_res
    E_Comp_Wl_Client_Data *cdata;
    Eina_List *l;
    E_Comp_Wl_Aux_Hint *hint;
-   Eina_Bool found = EINA_FALSE;
+   Eina_Bool res = EINA_FALSE;
 
 
    cp = wl_resource_get_user_data(surf);
    EINA_SAFETY_ON_NULL_RETURN(cp);
 
-   cdata = e_pixmap_cdata_get(cp);
-   EINA_SAFETY_ON_NULL_RETURN(cdata);
+   res = e_hints_aux_hint_add_with_pixmap(cp, id, name, value);
 
-   EINA_LIST_FOREACH(cdata->aux_hint.hints, l, hint)
-     {
-        if (hint->id == id)
-          {
-             if (strcmp(hint->val, value) != 0)
-               {
-                  eina_stringshare_del(hint->val);
-                  hint->val = eina_stringshare_add(value);
-               }
-             found = EINA_TRUE;
-             break;
-          }
-     }
+   ELOGF("TZPOL", "HINT_ADD|res_tzpol:0x%08x|id:%d, name:%s, val:%s, res:%d", NULL, NULL, (unsigned int)res_tzpol, id, name, value, res);
 
-   if (!found)
-     {
-        hint = E_NEW(E_Comp_Wl_Aux_Hint, 1);
-        if (hint)
-          {
-             hint->id = id;
-             hint->hint = eina_stringshare_add(name);
-             hint->val = eina_stringshare_add(value);
-             cdata->aux_hint.hints = eina_list_append(cdata->aux_hint.hints, hint);
-          }
-     }
-   ELOGF("TZPOL", "HINT_ADD|res_tzpol:0x%08x|id:%d, name:%s, val:%s, res:%d", NULL, NULL, (unsigned int)res_tzpol, id, name, value, found);
-
-   if (!found)
+   if (res)
      tizen_policy_send_allowed_aux_hint(res_tzpol, surf, id);
 }
 
@@ -1746,30 +1720,16 @@ _tzpol_iface_cb_aux_hint_change(struct wl_client *client EINA_UNUSED, struct wl_
    E_Comp_Wl_Client_Data *cdata;
    Eina_List *l;
    E_Comp_Wl_Aux_Hint *hint;
-   Eina_Bool found = EINA_FALSE;
+   Eina_Bool res = EINA_FALSE;
 
    cp = wl_resource_get_user_data(surf);
    EINA_SAFETY_ON_NULL_RETURN(cp);
 
-   cdata = e_pixmap_cdata_get(cp);
-   EINA_SAFETY_ON_NULL_RETURN(cdata);
+   res = e_hints_aux_hint_change_with_pixmap(cp, id, value);
 
-   EINA_LIST_FOREACH(cdata->aux_hint.hints, l, hint)
-     {
-        if (hint->id == id)
-          {
-             if ((hint->val) && (strcmp(hint->val, value) != 0))
-               {
-                  eina_stringshare_del(hint->val);
-                  hint->val = eina_stringshare_add(value);
-               }
-             found = EINA_TRUE;
-             break;
-          }
-     }
-   ELOGF("TZPOL", "HINT_CHANGE|res_tzpol:0x%08x|id:%d, val:%s, result:%d", NULL, NULL,  (unsigned int)res_tzpol, id, value, found);
+   ELOGF("TZPOL", "HINT_CHANGE|res_tzpol:0x%08x|id:%d, val:%s, result:%d", NULL, NULL,  (unsigned int)res_tzpol, id, value, res);
 
-   if (found)
+   if (res)
      tizen_policy_send_allowed_aux_hint(res_tzpol, surf, id);
 }
 
@@ -1785,21 +1745,7 @@ _tzpol_iface_cb_aux_hint_del(struct wl_client *client EINA_UNUSED, struct wl_res
    cp = wl_resource_get_user_data(surf);
    EINA_SAFETY_ON_NULL_RETURN(cp);
 
-   cdata = e_pixmap_cdata_get(cp);
-   EINA_SAFETY_ON_NULL_RETURN(cdata);
-
-   EINA_LIST_FOREACH_SAFE(cdata->aux_hint.hints, l, ll, hint)
-     {
-        if (hint->id == id)
-          {
-             if (hint->hint) eina_stringshare_del(hint->hint);
-             if (hint->val) eina_stringshare_del(hint->val);
-             cdata->aux_hint.hints = eina_list_remove_list(cdata->aux_hint.hints, l);
-             res = hint->id;
-             E_FREE(hint);
-             break;
-          }
-     }
+   res = e_hints_aux_hint_del_with_pixmap(cp, id);
    ELOGF("TZPOL", "HINT_DEL|res_tzpol:0x%08x|id:%d, result:%d", NULL, NULL,  (unsigned int)res_tzpol, id, res);
 }
 
