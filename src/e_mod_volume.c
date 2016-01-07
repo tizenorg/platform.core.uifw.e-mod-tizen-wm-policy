@@ -57,7 +57,7 @@ _volume_region_obj_cb_mouse_in(void *data EINA_UNUSED, Evas *evas EINA_UNUSED, E
    Evas_Event_Mouse_In *e = event;
    uint32_t serial;
 
-   serial = wl_display_next_serial(e_comp->wl_comp_data->wl.disp);
+   serial = wl_display_next_serial(e_comp_wl->wl.disp);
    wl_pointer_send_enter(_volume_wl_ptr, serial, _volume_ec->comp_data->surface,
                          wl_fixed_from_int(e->canvas.x - _volume_ec->client.x),
                          wl_fixed_from_int(e->canvas.y - _volume_ec->client.y));
@@ -68,7 +68,7 @@ _volume_region_obj_cb_mouse_out(void *data EINA_UNUSED, Evas *evas EINA_UNUSED, 
 {
    uint32_t serial;
 
-   serial = wl_display_next_serial(e_comp->wl_comp_data->wl.disp);
+   serial = wl_display_next_serial(e_comp_wl->wl.disp);
    wl_pointer_send_leave(_volume_wl_ptr, serial, _volume_ec->comp_data->surface);
 }
 
@@ -88,7 +88,7 @@ _volume_region_obj_cb_mouse_down(void *data EINA_UNUSED, Evas *evas EINA_UNUSED,
    Evas_Event_Mouse_Down *e = event;
    uint32_t serial;
 
-   serial = wl_display_next_serial(e_comp->wl_comp_data->wl.disp);
+   serial = wl_display_next_serial(e_comp_wl->wl.disp);
    wl_pointer_send_button(_volume_wl_ptr, serial, e->timestamp, e->button,
                           WL_POINTER_BUTTON_STATE_PRESSED);
 }
@@ -99,7 +99,7 @@ _volume_region_obj_cb_mouse_up(void *data EINA_UNUSED, Evas *evas EINA_UNUSED, E
    Evas_Event_Mouse_Up *e = event;
    uint32_t serial;
 
-   serial = wl_display_next_serial(e_comp->wl_comp_data->wl.disp);
+   serial = wl_display_next_serial(e_comp_wl->wl.disp);
    wl_pointer_send_button(_volume_wl_ptr, serial, e->timestamp, e->button,
                           WL_POINTER_BUTTON_STATE_RELEASED);
 }
@@ -397,7 +397,7 @@ _volume_wl_pointer_resource_get(void)
    if (_volume_wl_ptr) goto end;
 
    wc = wl_resource_get_client(_volume_ec->comp_data->surface);
-   EINA_LIST_FOREACH(e_comp->wl_comp_data->ptr.resources, l, res)
+   EINA_LIST_FOREACH(e_comp_wl->ptr.resources, l, res)
      {
         if (wl_resource_get_client(res) != wc) continue;
 

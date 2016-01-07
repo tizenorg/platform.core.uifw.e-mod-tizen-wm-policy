@@ -171,23 +171,18 @@ _e_tizen_rotation_set_available_angles_cb(struct wl_client *client,
                                           uint32_t angles)
 {
    E_Client *ec;
-   E_Pixmap *ep;
    Policy_Ext_Rotation *rot;
 
-   ep = wl_resource_get_user_data(resource);
-   EINA_SAFETY_ON_NULL_RETURN(ep);
+   ec = wl_resource_get_user_data(resource);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   rot = _policy_ext_rotation_get(ep);
+   rot = _policy_ext_rotation_get(ec->pixmap);
    EINA_SAFETY_ON_NULL_RETURN(rot);
 
    rot->available_angles = angles;
 
-   ec = e_pixmap_client_get(ep);
-   if (ec)
-     {
-        ec->e.fetch.rot.available_rots = 1;
-        EC_CHANGED(ec);
-     }
+   ec->e.fetch.rot.available_rots = 1;
+   EC_CHANGED(ec);
 }
 
 static void
@@ -195,24 +190,19 @@ _e_tizen_rotation_set_preferred_angle_cb(struct wl_client *client,
                                          struct wl_resource *resource,
                                          uint32_t angle)
 {
-   E_Pixmap *ep;
    Policy_Ext_Rotation *rot;
    E_Client *ec;
 
-   ep = wl_resource_get_user_data(resource);
-   EINA_SAFETY_ON_NULL_RETURN(ep);
+   ec = wl_resource_get_user_data(resource);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   rot = _policy_ext_rotation_get(ep);
+   rot = _policy_ext_rotation_get(ec->pixmap);
    EINA_SAFETY_ON_NULL_RETURN(rot);
 
    rot->preferred_angle = angle;
 
-   ec = e_pixmap_client_get(ep);
-   if (ec)
-     {
-        ec->e.fetch.rot.preferred_rot = 1;
-        EC_CHANGED(ec);
-     }
+   ec->e.fetch.rot.preferred_rot = 1;
+   EC_CHANGED(ec);
 }
 
 static void
@@ -221,46 +211,42 @@ _e_tizen_rotation_ack_angle_change_cb(struct wl_client *client,
                                       uint32_t serial)
 {
    E_Client *ec;
-   E_Pixmap *ep;
    Policy_Ext_Rotation *rot;
 
-   ep = wl_resource_get_user_data(resource);
-   EINA_SAFETY_ON_NULL_RETURN(ep);
+   ec = wl_resource_get_user_data(resource);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   rot = _policy_ext_rotation_get(ep);
+   rot = _policy_ext_rotation_get(ec->pixmap);
    EINA_SAFETY_ON_NULL_RETURN(rot);
 
-   ec = e_pixmap_client_get(ep);
-   if (ec)
+   if (rot->serial == serial) // rotation success
      {
-        if (rot->serial == serial) // rotation success
+        ec->e.state.rot.ang.prev = ec->e.state.rot.ang.curr;
+        ec->e.state.rot.ang.curr = TIZEN_ROTATION_ANGLE_TO_INT(rot->cur_angle);
+
+        if (TIZEN_ROTATION_ANGLE_TO_INT(rot->cur_angle) == ec->e.state.rot.ang.next)
           {
-             ec->e.state.rot.ang.prev = ec->e.state.rot.ang.curr;
-             ec->e.state.rot.ang.curr = TIZEN_ROTATION_ANGLE_TO_INT(rot->cur_angle);
+             ec->e.state.rot.ang.next = -1;
+             _e_client_rotation_list_remove(ec);
 
-             if (TIZEN_ROTATION_ANGLE_TO_INT(rot->cur_angle) == ec->e.state.rot.ang.next)
+             if (ec->e.state.rot.ang.reserve != -1)
                {
-                  ec->e.state.rot.ang.next = -1;
-                  _e_client_rotation_list_remove(ec);
-
-                  if (ec->e.state.rot.ang.reserve != -1)
-                    {
-                       e_client_rotation_set(ec, ec->e.state.rot.ang.reserve);
-                       ec->e.state.rot.ang.reserve = -1;
-                    }
-                  else if (ec->e.state.rot.pending_show)
-                    {
-                       ec->e.state.rot.pending_show = 0;
-                       evas_object_show(ec->frame);
-                    }
+                  e_client_rotation_set(ec, ec->e.state.rot.ang.reserve);
+                  ec->e.state.rot.ang.reserve = -1;
+               }
+             else if (ec->e.state.rot.pending_show)
+               {
+                  ec->e.state.rot.pending_show = 0;
+                  evas_object_show(ec->frame);
                }
           }
-        else // rotation fail
-          {
-             int angle = e_client_rotation_recommend_angle_get(ec);
-             if (angle != -1) e_client_rotation_set(ec, angle);
-          }
      }
+   else // rotation fail
+     {
+        int angle = e_client_rotation_recommend_angle_get(ec);
+        if (angle != -1) e_client_rotation_set(ec, angle);
+     }
+
    // check angle change serial
    rot->angle_change_done = EINA_TRUE;
 }
@@ -268,13 +254,13 @@ _e_tizen_rotation_ack_angle_change_cb(struct wl_client *client,
 static void
 _e_tizen_rotation_destroy(struct wl_resource *resource)
 {
-   E_Pixmap *ep;
+   E_Client *ec;
    Policy_Ext_Rotation *rot;
 
-   ep = wl_resource_get_user_data(resource);
-   EINA_SAFETY_ON_NULL_RETURN(ep);
+   ec = wl_resource_get_user_data(resource);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   rot = _policy_ext_rotation_get(ep);
+   rot = _policy_ext_rotation_get(ec->pixmap);
    EINA_SAFETY_ON_NULL_RETURN(rot);
 
    rot->rotation_list = eina_list_remove(rot->rotation_list, resource);
@@ -289,14 +275,13 @@ _e_tizen_policy_ext_get_rotation_cb(struct wl_client *client,
    int version = wl_resource_get_version(resource); // resource is tizen_policy_ext resource
    struct wl_resource *res;
    E_Client *ec;
-   E_Pixmap *ep;
    Policy_Ext_Rotation *rot;
 
-   ep = wl_resource_get_user_data(surface);
-   EINA_SAFETY_ON_NULL_RETURN(ep);
+   ec = wl_resource_get_user_data(surface);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
 
    // Add rotation info
-   rot = _policy_ext_rotation_get(ep);
+   rot = _policy_ext_rotation_get(ec->pixmap);
    EINA_SAFETY_ON_NULL_RETURN(rot);
 
    res = wl_resource_create(client, &tizen_rotation_interface, version, id);
@@ -309,27 +294,16 @@ _e_tizen_policy_ext_get_rotation_cb(struct wl_client *client,
    rot->rotation_list = eina_list_append(rot->rotation_list, res);
 
    wl_resource_set_implementation(res, &_e_tizen_rotation_interface,
-                                  ep, _e_tizen_rotation_destroy);
+                                  ec, _e_tizen_rotation_destroy);
 
-   ec = e_pixmap_client_get(ep);
-   if (ec)
-     {
-        ec->e.fetch.rot.support = 1;
-        EC_CHANGED(ec);
-     }
+   ec->e.fetch.rot.support = 1;
+   EC_CHANGED(ec);
 }
 
 static void
 _e_tizen_policy_ext_bind_cb(struct wl_client *client, void *data, uint32_t version, uint32_t id)
 {
-   E_Comp_Data *cdata;
    struct wl_resource *res;
-
-   if (!(cdata = data))
-     {
-        wl_client_post_no_memory(client);
-        return;
-     }
 
    if (!(res = wl_resource_create(client, &tizen_policy_ext_interface, version, id)))
      {
@@ -338,7 +312,7 @@ _e_tizen_policy_ext_bind_cb(struct wl_client *client, void *data, uint32_t versi
         return;
      }
 
-   wl_resource_set_implementation(res, &_e_tizen_policy_ext_interface, cdata, NULL);
+   wl_resource_set_implementation(res, &_e_tizen_policy_ext_interface, NULL, NULL);
 }
 
 static void
@@ -375,7 +349,7 @@ _e_tizen_rotation_send_angle_change(E_Client *ec, int angle)
           break;
      }
 
-   serial = wl_display_next_serial(ec->comp->wl_comp_data->wl.disp);
+   serial = wl_display_next_serial(e_comp_wl->wl.disp);
 
    rot->angle_change_done = EINA_FALSE;
    rot->prev_angle = rot->cur_angle;
@@ -448,7 +422,7 @@ _e_client_rotation_zone_set(E_Zone *zone)
 
         if (ez != zone) continue;
 
-        EINA_LIST_REVERSE_FOREACH(zone->comp->clients, l, ec)
+        EINA_LIST_REVERSE_FOREACH(e_comp->clients, l, ec)
           {
              if((!ec->zone) || (ec->zone != zone)) continue;
 
@@ -483,7 +457,6 @@ _e_client_rotation_zone_set(E_Zone *zone)
 static void
 _e_client_rotation_change_done(void)
 {
-   E_Manager *m = NULL;
    E_Client *ec;
 
    if (rot.done_timer) ecore_timer_del(rot.done_timer);
@@ -508,13 +481,12 @@ _e_client_rotation_change_done(void)
    rot.list = NULL;
    rot.async_list = NULL;
 
-   m = e_manager_current_get();
    if (rot.screen_lock)
      {
         // do call comp_wl's screen unlock
         rot.screen_lock = EINA_FALSE;
      }
-   e_zone_rotation_update_done(e_util_zone_current_get(m));
+   e_zone_rotation_update_done(e_zone_current_get());
 }
 
 static Eina_Bool
@@ -1489,16 +1461,11 @@ Eina_Bool
 e_mod_rot_wl_init(void)
 {
 #ifdef HAVE_WAYLAND_ONLY
-   E_Comp_Data *cdata;
+   EINA_SAFETY_ON_NULL_RETURN_VAL(e_comp_wl, EINA_FALSE);
+   EINA_SAFETY_ON_NULL_RETURN_VAL(e_comp_wl->wl.disp, EINA_FALSE);
 
-   EINA_SAFETY_ON_NULL_RETURN_VAL(e_comp, EINA_FALSE);
-
-   cdata = e_comp->wl_comp_data;
-   EINA_SAFETY_ON_NULL_RETURN_VAL(cdata, EINA_FALSE);
-   EINA_SAFETY_ON_NULL_RETURN_VAL(cdata->wl.disp, EINA_FALSE);
-
-   if (!wl_global_create(cdata->wl.disp, &tizen_policy_ext_interface, 1,
-                         cdata, _e_tizen_policy_ext_bind_cb))
+   if (!wl_global_create(e_comp_wl->wl.disp, &tizen_policy_ext_interface, 1,
+                         NULL, _e_tizen_policy_ext_bind_cb))
      {
         ERR("Could not add tizen_policy_ext to wayland globals: %m");
         return EINA_FALSE;

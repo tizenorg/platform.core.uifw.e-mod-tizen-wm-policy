@@ -5,6 +5,7 @@
 #ifdef HAVE_WAYLAND_ONLY
 
 #define E_COMP_WL
+#undef E_TYPEDEFS
 #include <e.h>
 
 EINTERN Eina_Bool     e_mod_volume_client_set(E_Client *ec);

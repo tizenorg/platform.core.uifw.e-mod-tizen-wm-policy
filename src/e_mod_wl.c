@@ -148,14 +148,14 @@ _pol_wl_tzpol_get(struct wl_resource *res_tzpol)
 }
 
 static Pol_Wl_Surface *
-_pol_wl_tzpol_surf_find(Pol_Wl_Tzpol *tzpol, E_Pixmap *cp)
+_pol_wl_tzpol_surf_find(Pol_Wl_Tzpol *tzpol, E_Client *ec)
 {
    Eina_List *l;
    Pol_Wl_Surface *psurf;
 
    EINA_LIST_FOREACH(tzpol->psurfs, l, psurf)
      {
-        if (psurf->cp == cp)
+        if (psurf->ec == ec)
           return psurf;
      }
 
@@ -582,31 +582,25 @@ _pol_wl_tzsh_client_del(Pol_Wl_Tzsh_Client *tzsh_client)
 // Pol_Wl_Surface
 // --------------------------------------------------------
 static Pol_Wl_Surface *
-_pol_wl_surf_add(E_Pixmap *cp, struct wl_resource *res_tzpol)
+_pol_wl_surf_add(E_Client *ec, struct wl_resource *res_tzpol)
 {
    Pol_Wl_Surface *psurf = NULL;
-   E_Comp_Client_Data *cdata = NULL;
-   struct wl_resource *surf = NULL;
 
    Pol_Wl_Tzpol *tzpol;
 
    tzpol = _pol_wl_tzpol_get(res_tzpol);
    EINA_SAFETY_ON_NULL_RETURN_VAL(tzpol, NULL);
 
-   psurf = _pol_wl_tzpol_surf_find(tzpol, cp);
+   psurf = _pol_wl_tzpol_surf_find(tzpol, ec);
    if (psurf) return psurf;
 
    psurf = E_NEW(Pol_Wl_Surface, 1);
    EINA_SAFETY_ON_NULL_RETURN_VAL(psurf, NULL);
 
-   cdata = e_pixmap_cdata_get(cp);
-   if (cdata)
-     surf = cdata->wl_surface;
-
-   psurf->surf = surf;
+   psurf->surf = ec->comp_data->surface;
    psurf->tzpol = tzpol;
-   psurf->cp = cp;
-   psurf->ec = e_pixmap_client_get(cp);
+   psurf->cp = ec->pixmap;
+   psurf->ec = ec;
 
    tzpol->psurfs = eina_list_append(tzpol->psurfs, psurf);
 
@@ -633,7 +627,7 @@ _pol_wl_surf_client_set(E_Client *ec)
    it = eina_hash_iterator_data_new(polwl->tzpols);
    EINA_ITERATOR_FOREACH(it, tzpol)
      {
-        psurf = _pol_wl_tzpol_surf_find(tzpol, ec->pixmap);
+        psurf = _pol_wl_tzpol_surf_find(tzpol, ec);
         if (psurf)
           {
              if ((psurf->ec) && (psurf->ec != ec))
@@ -660,7 +654,8 @@ _pol_wl_surf_client_set(E_Client *ec)
 static E_Pixmap *
 _pol_wl_e_pixmap_get_from_id(struct wl_client *client, uint32_t id)
 {
-   E_Pixmap *cp = NULL, *cp2;
+   E_Pixmap *cp;
+   E_Client *ec;
    struct wl_resource *res_surf;
 
    res_surf = wl_client_get_object(client, id);
@@ -670,22 +665,22 @@ _pol_wl_e_pixmap_get_from_id(struct wl_client *client, uint32_t id)
         return NULL;
      }
 
-   cp = wl_resource_get_user_data(res_surf);
-   if (!cp)
+   ec = wl_resource_get_user_data(res_surf);
+   if (!ec)
      {
         ERR("Could not get surface's user data");
         return NULL;
      }
 
    /* check E_Pixmap */
-   cp2 = e_pixmap_find(E_PIXMAP_TYPE_WL, (uintptr_t)res_surf);
-   if (cp2 != cp)
+   cp = e_pixmap_find(E_PIXMAP_TYPE_WL, (uintptr_t)res_surf);
+   if (cp != ec->pixmap)
      {
         ELOGF("POLWL",
               "CRI ERR!!|cp2:0x%08x|ec2:0x%08x|res_surf:0x%08x",
-              cp, e_pixmap_client_get(cp),
-              (unsigned int)cp2,
-              (unsigned int)e_pixmap_client_get(cp2),
+              ec->pixmap, ec,
+              (unsigned int)cp,
+              (unsigned int)e_pixmap_client_get(cp),
               (unsigned int)res_surf);
         return NULL;
      }
@@ -747,14 +742,14 @@ _tzvis_iface_cb_vis_destroy(struct wl_resource *res_tzvis)
 static void
 _tzpol_iface_cb_vis_get(struct wl_client *client, struct wl_resource *res_tzpol, uint32_t id, struct wl_resource *surf)
 {
-   E_Pixmap *cp;
+   E_Client *ec;
    Pol_Wl_Surface *psurf;
    struct wl_resource *res_tzvis;
 
-   cp = wl_resource_get_user_data(surf);
-   EINA_SAFETY_ON_NULL_RETURN(cp);
+   ec = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   psurf = _pol_wl_surf_add(cp, res_tzpol);
+   psurf = _pol_wl_surf_add(ec, res_tzpol);
    EINA_SAFETY_ON_NULL_RETURN(psurf);
 
    res_tzvis = wl_resource_create(client,
@@ -915,14 +910,14 @@ _tzpol_iface_cb_pos_destroy(struct wl_resource *res_tzpos)
 static void
 _tzpol_iface_cb_pos_get(struct wl_client *client, struct wl_resource *res_tzpol, uint32_t id, struct wl_resource *surf)
 {
-   E_Pixmap *cp;
+   E_Client *ec;
    Pol_Wl_Surface *psurf;
    struct wl_resource *res_tzpos;
 
-   cp = wl_resource_get_user_data(surf);
-   EINA_SAFETY_ON_NULL_RETURN(cp);
+   ec = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   psurf = _pol_wl_surf_add(cp, res_tzpol);
+   psurf = _pol_wl_surf_add(ec, res_tzpol);
    EINA_SAFETY_ON_NULL_RETURN(psurf);
 
    res_tzpos = wl_resource_create(client,
@@ -982,13 +977,9 @@ e_mod_pol_wl_position_send(E_Client *ec)
 static void
 _tzpol_iface_cb_activate(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol EINA_UNUSED, struct wl_resource *surf)
 {
-   E_Pixmap *cp;
    E_Client *ec;
 
-   cp = wl_resource_get_user_data(surf);
-   EINA_SAFETY_ON_NULL_RETURN(cp);
-
-   ec = e_pixmap_client_get(cp);
+   ec = wl_resource_get_user_data(surf);
    EINA_SAFETY_ON_NULL_RETURN(ec);
    EINA_SAFETY_ON_NULL_RETURN(ec->frame);
 
@@ -1005,13 +996,9 @@ _tzpol_iface_cb_activate(struct wl_client *client EINA_UNUSED, struct wl_resourc
 static void
 _tzpol_iface_cb_raise(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol EINA_UNUSED, struct wl_resource *surf)
 {
-   E_Pixmap *cp;
    E_Client *ec;
 
-   cp = wl_resource_get_user_data(surf);
-   EINA_SAFETY_ON_NULL_RETURN(cp);
-
-   ec = e_pixmap_client_get(cp);
+   ec = wl_resource_get_user_data(surf);
    EINA_SAFETY_ON_NULL_RETURN(ec);
    EINA_SAFETY_ON_NULL_RETURN(ec->frame);
 
@@ -1024,13 +1011,9 @@ _tzpol_iface_cb_raise(struct wl_client *client EINA_UNUSED, struct wl_resource *
 static void
 _tzpol_iface_cb_lower(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol EINA_UNUSED, struct wl_resource *surf)
 {
-   E_Pixmap *cp;
    E_Client *ec, *below = NULL;
 
-   cp = wl_resource_get_user_data(surf);
-   EINA_SAFETY_ON_NULL_RETURN(cp);
-
-   ec = e_pixmap_client_get(cp);
+   ec = wl_resource_get_user_data(surf);
    EINA_SAFETY_ON_NULL_RETURN(ec);
    EINA_SAFETY_ON_NULL_RETURN(ec->frame);
 
@@ -1088,54 +1071,30 @@ _tzpol_iface_cb_lower_by_res_id(struct wl_client *client EINA_UNUSED, struct wl_
 static void
 _tzpol_iface_cb_focus_skip_set(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol EINA_UNUSED, struct wl_resource *surf)
 {
-   E_Pixmap *cp;
    E_Client *ec;
-   E_Comp_Wl_Client_Data *cdata;
 
-   cp = wl_resource_get_user_data(surf);
-   EINA_SAFETY_ON_NULL_RETURN(cp);
+   ec = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   ec = e_pixmap_client_get(cp);
-   if (ec)
+   if (ec->icccm.accepts_focus)
      {
-        if (ec->icccm.accepts_focus)
-          {
-             ec->icccm.accepts_focus = ec->icccm.take_focus = 0;
-             EC_CHANGED(ec);
-          }
-     }
-   else
-     {
-        cdata = e_pixmap_cdata_get(cp);
-        EINA_SAFETY_ON_NULL_RETURN(cdata);
-        cdata->accepts_focus = 0;
+        ec->icccm.accepts_focus = ec->icccm.take_focus = 0;
+        EC_CHANGED(ec);
      }
 }
 
 static void
 _tzpol_iface_cb_focus_skip_unset(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol EINA_UNUSED, struct wl_resource *surf)
 {
-   E_Pixmap *cp;
    E_Client *ec;
-   E_Comp_Wl_Client_Data *cdata;
 
-   cp = wl_resource_get_user_data(surf);
-   EINA_SAFETY_ON_NULL_RETURN(cp);
+   ec = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   ec = e_pixmap_client_get(cp);
-   if (ec)
+   if (!ec->icccm.accepts_focus)
      {
-        if (!ec->icccm.accepts_focus)
-          {
-             ec->icccm.accepts_focus = ec->icccm.take_focus = 1;
-             EC_CHANGED(ec);
-          }
-     }
-   else
-     {
-        cdata = e_pixmap_cdata_get(cp);
-        EINA_SAFETY_ON_NULL_RETURN(cdata);
-        cdata->accepts_focus = 1;
+        ec->icccm.accepts_focus = ec->icccm.take_focus = 1;
+        EC_CHANGED(ec);
      }
 }
 
@@ -1145,15 +1104,11 @@ _tzpol_iface_cb_focus_skip_unset(struct wl_client *client EINA_UNUSED, struct wl
 static void
 _tzpol_iface_cb_role_set(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol EINA_UNUSED, struct wl_resource *surf, const char *role)
 {
-   E_Pixmap *cp;
    E_Client *ec;
 
    EINA_SAFETY_ON_NULL_RETURN(role);
 
-   cp = wl_resource_get_user_data(surf);
-   EINA_SAFETY_ON_NULL_RETURN(cp);
-
-   ec = e_pixmap_client_get(cp);
+   ec = wl_resource_get_user_data(surf);
    EINA_SAFETY_ON_NULL_RETURN(ec);
    EINA_SAFETY_ON_NULL_RETURN(ec->frame);
 
@@ -1191,13 +1146,11 @@ _tzpol_iface_cb_role_set(struct wl_client *client EINA_UNUSED, struct wl_resourc
 static void
 _tzpol_iface_cb_type_set(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf, uint32_t type)
 {
-   E_Pixmap *cp;
    E_Client *ec;
-   E_Comp_Wl_Client_Data *cdata;
    E_Window_Type win_type;
 
-   cp = wl_resource_get_user_data(surf);
-   EINA_SAFETY_ON_NULL_RETURN(cp);
+   ec = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
 
    switch (type)
      {
@@ -1206,34 +1159,18 @@ _tzpol_iface_cb_type_set(struct wl_client *client EINA_UNUSED, struct wl_resourc
       default: return;
      }
 
-   ec = e_pixmap_client_get(cp);
-
    ELOGF("TZPOL",
          "TYPE_SET |win:0x%08x|s:0x%08x|res_tzpol:0x%08x|tizen_win_type:%d, e_win_type:%d NOTI",
-         cp, ec,
-         ec ? (unsigned int)e_client_util_win_get(ec) : 0,
+         ec->pixmap, ec,
+         (unsigned int)e_client_util_win_get(ec),
          (unsigned int)surf,
          (unsigned int)res_tzpol,
          type, win_type);
 
-   if (ec)
-     {
-        ec->netwm.type = win_type;
-        if (win_type == E_WINDOW_TYPE_NOTIFICATION)
-          ec->layer = E_LAYER_CLIENT_NOTIFICATION_LOW;
-        EC_CHANGED(ec);
-     }
-   else
-     {
-        cdata = e_pixmap_cdata_get(cp);
-        EINA_SAFETY_ON_NULL_RETURN(cdata);
-
-        cdata->win_type = win_type;
-        cdata->fetch.win_type = 1;
-
-        cdata->layer = E_LAYER_CLIENT_NOTIFICATION_LOW;
-        cdata->fetch.layer = 1;
-     }
+   ec->netwm.type = win_type;
+   if (win_type == E_WINDOW_TYPE_NOTIFICATION)
+     ec->layer = E_LAYER_CLIENT_NOTIFICATION_LOW;
+   EC_CHANGED(ec);
 }
 // --------------------------------------------------------
 // conformant
@@ -1241,92 +1178,54 @@ _tzpol_iface_cb_type_set(struct wl_client *client EINA_UNUSED, struct wl_resourc
 static void
 _tzpol_iface_cb_conformant_set(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf)
 {
-   E_Pixmap *cp;
    E_Client *ec;
-   E_Comp_Wl_Client_Data *cdata;
    Pol_Wl_Surface *psurf;
 
-   cp = wl_resource_get_user_data(surf);
-   EINA_SAFETY_ON_NULL_RETURN(cp);
+   ec = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   psurf = _pol_wl_surf_add(cp, res_tzpol);
+   psurf = _pol_wl_surf_add(ec, res_tzpol);
    EINA_SAFETY_ON_NULL_RETURN(psurf);
 
-   ec = e_pixmap_client_get(cp);
-   if (ec)
+   if (!ec->comp_data->conformant)
      {
-        if (!ec->comp_data->conformant)
-          {
-             ec->comp_data->conformant = 1;
-             EC_CHANGED(ec);
-          }
-     }
-   else
-     {
-        cdata = e_pixmap_cdata_get(cp);
-        EINA_SAFETY_ON_NULL_RETURN(cdata);
-        cdata->conformant = 1;
+        ec->comp_data->conformant = 1;
+        EC_CHANGED(ec);
      }
 }
 
 static void
 _tzpol_iface_cb_conformant_unset(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol EINA_UNUSED, struct wl_resource *surf)
 {
-   E_Pixmap *cp;
    E_Client *ec;
-   E_Comp_Wl_Client_Data *cdata;
    Pol_Wl_Surface *psurf;
 
-   cp = wl_resource_get_user_data(surf);
-   EINA_SAFETY_ON_NULL_RETURN(cp);
+   ec = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   psurf = _pol_wl_surf_add(cp, res_tzpol);
+   psurf = _pol_wl_surf_add(ec, res_tzpol);
    EINA_SAFETY_ON_NULL_RETURN(psurf);
 
-   ec = e_pixmap_client_get(cp);
-   if (ec)
+   if (ec->comp_data->conformant)
      {
-        if (ec->comp_data->conformant)
-          {
-             ec->comp_data->conformant = 0;
-             EC_CHANGED(ec);
-          }
-     }
-   else
-     {
-        cdata = e_pixmap_cdata_get(cp);
-        EINA_SAFETY_ON_NULL_RETURN(cdata);
-        cdata->conformant = 0;
+        ec->comp_data->conformant = 0;
+        EC_CHANGED(ec);
      }
 }
 
 static void
 _tzpol_iface_cb_conformant_get(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf)
 {
-   E_Pixmap *cp;
    E_Client *ec;
-   E_Comp_Wl_Client_Data *cdata;
    Pol_Wl_Surface *psurf;
-   unsigned char conformant;
 
-   cp = wl_resource_get_user_data(surf);
-   EINA_SAFETY_ON_NULL_RETURN(cp);
+   ec = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   psurf = _pol_wl_surf_add(cp, res_tzpol);
+   psurf = _pol_wl_surf_add(ec, res_tzpol);
    EINA_SAFETY_ON_NULL_RETURN(psurf);
 
-   ec = e_pixmap_client_get(cp);
-   if (ec)
-     conformant = ec->comp_data->conformant;
-   else
-     {
-        cdata = e_pixmap_cdata_get(cp);
-        EINA_SAFETY_ON_NULL_RETURN(cdata);
-
-        conformant = cdata->conformant;
-     }
-
-   tizen_policy_send_conformant(res_tzpol, surf, conformant);
+   tizen_policy_send_conformant(res_tzpol, surf, ec->comp_data->conformant);
 }
 
 void
@@ -1394,21 +1293,16 @@ _tzpol_notilv_set(E_Client *ec, int lv)
 static void
 _tzpol_iface_cb_notilv_set(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf, int32_t lv)
 {
-   E_Pixmap *cp;
    E_Client *ec;
    Pol_Wl_Surface *psurf;
 
-   cp = wl_resource_get_user_data(surf);
-   EINA_SAFETY_ON_NULL_RETURN(cp);
+   ec = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   psurf = _pol_wl_surf_add(cp, res_tzpol);
+   psurf = _pol_wl_surf_add(ec, res_tzpol);
    EINA_SAFETY_ON_NULL_RETURN(psurf);
 
-   ec = e_pixmap_client_get(cp);
-   if (ec)
-     _tzpol_notilv_set(ec, lv);
-   else
-     psurf->pending_notilv = EINA_TRUE;
+   _tzpol_notilv_set(ec, lv);
 
    psurf->notilv = lv;
 
@@ -1456,17 +1350,11 @@ _pol_wl_parent_surf_set(E_Client *ec, struct wl_resource *parent_surf)
 
    if (parent_surf)
      {
-        if (!(pp = wl_resource_get_user_data(parent_surf)))
+        if (!(pc = wl_resource_get_user_data(parent_surf)))
           {
-             ERR("Could not get parent res pixmap");
+             ERR("Could not get parent res e_client");
              return;
           }
-
-        pwin = e_pixmap_window_get(pp);
-
-        /* find the parent client */
-        if (!(pc = e_pixmap_client_get(pp)))
-          pc = e_pixmap_find_client(E_PIXMAP_TYPE_WL, pwin);
      }
 
    e_mod_pol_stack_transient_for_set(ec, pc);
@@ -1535,10 +1423,10 @@ _tzpol_iface_cb_transient_for_unset(struct wl_client *client EINA_UNUSED, struct
 static void
 _tzpol_iface_cb_win_scrmode_set(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf, uint32_t mode)
 {
-   E_Pixmap *cp;
+   E_Client *ec;
 
-   cp = wl_resource_get_user_data(surf);
-   EINA_SAFETY_ON_NULL_RETURN(cp);
+   ec = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
 
    e_mod_pol_wl_win_scrmode_apply();
 
@@ -1631,21 +1519,12 @@ _tzpol_iface_cb_subsurface_get(struct wl_client *client, struct wl_resource *res
 static void
 _tzpol_iface_cb_opaque_state_set(struct wl_client *client, struct wl_resource *resource, struct wl_resource *surface, int32_t state)
 {
-   E_Pixmap *ep;
    E_Client *ec;
-   E_Comp_Wl_Client_Data *cdata;
 
-   ep = wl_resource_get_user_data(surface);
-   EINA_SAFETY_ON_NULL_RETURN(ep);
+   ec = wl_resource_get_user_data(surface);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   cdata = e_pixmap_cdata_get(ep);
-   EINA_SAFETY_ON_NULL_RETURN(cdata);
-
-   cdata->opaque_state = state;
-
-   ec = e_pixmap_client_get(ep);
-   if (ec)
-     e_mod_pol_client_window_opaque_set(ec);
+   ec->visibility.opaque = state;
 }
 
 // --------------------------------------------------------
@@ -1654,13 +1533,9 @@ _tzpol_iface_cb_opaque_state_set(struct wl_client *client, struct wl_resource *r
 static void
 _tzpol_iface_cb_iconify(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol EINA_UNUSED, struct wl_resource *surf)
 {
-   E_Pixmap *cp;
    E_Client *ec;
 
-   cp = wl_resource_get_user_data(surf);
-   EINA_SAFETY_ON_NULL_RETURN(cp);
-
-   ec = e_pixmap_client_get(cp);
+   ec = wl_resource_get_user_data(surf);
    EINA_SAFETY_ON_NULL_RETURN(ec);
    EINA_SAFETY_ON_NULL_RETURN(ec->frame);
 
@@ -1672,13 +1547,9 @@ _tzpol_iface_cb_iconify(struct wl_client *client EINA_UNUSED, struct wl_resource
 static void
 _tzpol_iface_cb_uniconify(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol EINA_UNUSED, struct wl_resource *surf)
 {
-   E_Pixmap *cp;
    E_Client *ec;
 
-   cp = wl_resource_get_user_data(surf);
-   EINA_SAFETY_ON_NULL_RETURN(cp);
-
-   ec = e_pixmap_client_get(cp);
+   ec = wl_resource_get_user_data(surf);
    EINA_SAFETY_ON_NULL_RETURN(ec);
    EINA_SAFETY_ON_NULL_RETURN(ec->frame);
 
@@ -1763,17 +1634,16 @@ e_mod_pol_wl_eval_pre_new_client(E_Client *ec)
 static void
 _tzpol_iface_cb_aux_hint_add(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf, int32_t id, const char *name, const char *value)
 {
-   E_Pixmap *cp;
-   E_Comp_Wl_Client_Data *cdata;
+   E_Client *ec;
    Eina_List *l;
    E_Comp_Wl_Aux_Hint *hint;
    Eina_Bool res = EINA_FALSE;
 
 
-   cp = wl_resource_get_user_data(surf);
-   EINA_SAFETY_ON_NULL_RETURN(cp);
+   ec = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   res = e_hints_aux_hint_add_with_pixmap(cp, id, name, value);
+   res = e_hints_aux_hint_add_with_pixmap(ec->pixmap, id, name, value);
 
    ELOGF("TZPOL", "HINT_ADD|res_tzpol:0x%08x|id:%d, name:%s, val:%s, res:%d", NULL, NULL, (unsigned int)res_tzpol, id, name, value, res);
 
@@ -1784,16 +1654,15 @@ _tzpol_iface_cb_aux_hint_add(struct wl_client *client EINA_UNUSED, struct wl_res
 static void
 _tzpol_iface_cb_aux_hint_change(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf, int32_t id, const char *value)
 {
-   E_Pixmap *cp;
-   E_Comp_Wl_Client_Data *cdata;
+   E_Client *ec;
    Eina_List *l;
    E_Comp_Wl_Aux_Hint *hint;
    Eina_Bool res = EINA_FALSE;
 
-   cp = wl_resource_get_user_data(surf);
-   EINA_SAFETY_ON_NULL_RETURN(cp);
+   ec = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   res = e_hints_aux_hint_change_with_pixmap(cp, id, value);
+   res = e_hints_aux_hint_change_with_pixmap(ec->pixmap, id, value);
 
    ELOGF("TZPOL", "HINT_CHANGE|res_tzpol:0x%08x|id:%d, val:%s, result:%d", NULL, NULL,  (unsigned int)res_tzpol, id, value, res);
 
@@ -1804,23 +1673,22 @@ _tzpol_iface_cb_aux_hint_change(struct wl_client *client EINA_UNUSED, struct wl_
 static void
 _tzpol_iface_cb_aux_hint_del(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf, int32_t id)
 {
-   E_Pixmap *cp;
-   E_Comp_Wl_Client_Data *cdata;
+   E_Client *ec;
    Eina_List *l, *ll;
    E_Comp_Wl_Aux_Hint *hint;
    unsigned int res = -1;
 
-   cp = wl_resource_get_user_data(surf);
-   EINA_SAFETY_ON_NULL_RETURN(cp);
+   ec = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   res = e_hints_aux_hint_del_with_pixmap(cp, id);
+   res = e_hints_aux_hint_del_with_pixmap(ec->pixmap, id);
    ELOGF("TZPOL", "HINT_DEL|res_tzpol:0x%08x|id:%d, result:%d", NULL, NULL,  (unsigned int)res_tzpol, id, res);
 }
 
 static void
 _tzpol_iface_cb_supported_aux_hints_get(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf)
 {
-   E_Pixmap *cp;
+   E_Client *ec;
    const Eina_List *hints_list;
    const Eina_List *l;
    struct wl_array hints;
@@ -1828,8 +1696,8 @@ _tzpol_iface_cb_supported_aux_hints_get(struct wl_client *client EINA_UNUSED, st
    int len;
    char *p;
 
-   cp = wl_resource_get_user_data(surf);
-   EINA_SAFETY_ON_NULL_RETURN(cp);
+   ec = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
 
    hints_list = e_hints_aux_hint_supported_get();
 
@@ -1847,7 +1715,7 @@ _tzpol_iface_cb_supported_aux_hints_get(struct wl_client *client EINA_UNUSED, st
    tizen_policy_send_supported_aux_hints(res_tzpol, surf, &hints, eina_list_count(hints_list));
    ELOGF("TZPOL",
          "SEND     |res_tzpol:0x%08x|supported_hints size:%d",
-         cp, NULL,
+         ec->pixmap, ec,
          (unsigned int)res_tzpol,
          eina_list_count(hints_list));
    wl_array_release(&hints);
@@ -2265,7 +2133,7 @@ _tzsh_iface_cb_reg_create(struct wl_client *client, struct wl_resource *res_tzsh
    tzsh_reg = E_NEW(Pol_Wl_Tzsh_Region, 1);
    EINA_SAFETY_ON_NULL_RETURN(tzsh_reg);
 
-   e_zone_useful_geometry_get(e_zone_current_get(e_comp),
+   e_zone_useful_geometry_get(e_zone_current_get(),
                               NULL, NULL, &zw, &zh);
 
    tz = eina_tiler_new(zw, zh);
@@ -2680,19 +2548,15 @@ e_mod_pol_wl_aux_hint_init(void)
 Eina_Bool
 e_mod_pol_wl_init(void)
 {
-   E_Comp_Data *cdata;
    struct wl_global *global;
 
-   EINA_SAFETY_ON_NULL_RETURN_VAL(e_comp, EINA_FALSE);
-
-   cdata = e_comp->wl_comp_data;
-   EINA_SAFETY_ON_NULL_RETURN_VAL(cdata, EINA_FALSE);
-   EINA_SAFETY_ON_NULL_RETURN_VAL(cdata->wl.disp, EINA_FALSE);
+   EINA_SAFETY_ON_NULL_RETURN_VAL(e_comp_wl, EINA_FALSE);
+   EINA_SAFETY_ON_NULL_RETURN_VAL(e_comp_wl->wl.disp, EINA_FALSE);
 
    polwl = E_NEW(Pol_Wl, 1);
    EINA_SAFETY_ON_NULL_RETURN_VAL(polwl, EINA_FALSE);
 
-   global = wl_global_create(cdata->wl.disp,
+   global = wl_global_create(e_comp_wl->wl.disp,
                              &tizen_policy_interface,
                              1,
                              NULL,
@@ -2700,7 +2564,7 @@ e_mod_pol_wl_init(void)
    EINA_SAFETY_ON_NULL_GOTO(global, err);
    polwl->globals = eina_list_append(polwl->globals, global);
 
-   global = wl_global_create(cdata->wl.disp,
+   global = wl_global_create(e_comp_wl->wl.disp,
                              &tizen_ws_shell_interface,
                              1,
                              NULL,

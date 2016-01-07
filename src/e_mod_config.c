@@ -17,7 +17,6 @@ _pol_conf_desk_add(Config *conf, E_Desk *desk)
    Config_Desk *d;
 
    d = E_NEW(Config_Desk, 1);
-   d->comp_num = desk->zone->comp->num;
    d->zone_num = desk->zone->num;
    d->x = desk->x;
    d->y = desk->y;
@@ -41,8 +40,7 @@ _pol_conf_desk_get(Config *conf, Config_Desk *d)
 
    EINA_LIST_FOREACH(conf->desks, l, d2)
      {
-        if ((d2->comp_num == d->comp_num) &&
-            (d2->zone_num == d->zone_num) &&
+        if ((d2->zone_num == d->zone_num) &&
             (d2->x == d->x) && (d2->y == d->y))
           {
              return d2;
@@ -132,7 +130,7 @@ _pol_cfd_data_basic_apply(E_Config_Dialog *cfd EINA_UNUSED, E_Config_Dialog_Data
 
    EINA_LIST_FOREACH(cfdata->conf->desks, l, d)
      {
-        zone = e_comp_zone_number_get(e_comp, d->zone_num);
+        zone = e_comp_zone_number_get(d->zone_num);
         desk = e_desk_at_xy_get(zone, d->x, d->y);
         if (!desk) continue;
 
@@ -189,7 +187,6 @@ _pol_cfd_desk_list_update(E_Config_Dialog_Data *cfdata, E_Zone *zone)
         desk = zone->desks[i];
 
         d = E_NEW(Config_Desk, 1);
-        d->comp_num = zone->comp->num;
         d->zone_num = zone->num;
         d->x = desk->x;
         d->y = desk->y;
@@ -280,7 +277,6 @@ e_mod_pol_conf_init(Mod *mod)
 #undef D
 #define T Config_Desk
 #define D mod->conf_desk_edd
-   E_CONFIG_VAL(D, T, comp_num, INT);
    E_CONFIG_VAL(D, T, zone_num, UINT);
    E_CONFIG_VAL(D, T, x, INT);
    E_CONFIG_VAL(D, T, y, INT);
@@ -312,7 +308,7 @@ e_mod_pol_conf_init(Mod *mod)
         conf->use_softkey = 1;
         conf->softkey_size = 42;
 
-        zone = e_zone_current_get(e_comp);
+        zone = e_zone_current_get();
         desk = e_desk_current_get(zone);
         _pol_conf_desk_add(conf, desk);
      }
@@ -337,15 +333,14 @@ e_mod_pol_conf_shutdown(Mod *mod)
 }
 
 Config_Desk *
-e_mod_pol_conf_desk_get_by_nums(Config *conf, unsigned int comp_num, unsigned int zone_num, int x, int y)
+e_mod_pol_conf_desk_get_by_nums(Config *conf, unsigned int zone_num, int x, int y)
 {
    Eina_List *l;
    Config_Desk *d2;
 
    EINA_LIST_FOREACH(conf->desks, l, d2)
      {
-        if ((d2->comp_num == comp_num) &&
-            (d2->zone_num == zone_num) &&
+        if ((d2->zone_num == zone_num) &&
             (d2->x == x) && (d2->y == y))
           {
              return d2;

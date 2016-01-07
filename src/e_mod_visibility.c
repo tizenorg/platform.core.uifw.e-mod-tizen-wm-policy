@@ -186,7 +186,7 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
         eina_tiler_rect_add(t, &r);
      }
 
-   E_CLIENT_REVERSE_FOREACH(zone->comp, ec)
+   E_CLIENT_REVERSE_FOREACH(ec)
      {
         if (e_object_is_del(E_OBJECT(ec))) continue;
         if (e_client_util_ignored_get(ec)) continue;
@@ -308,23 +308,4 @@ e_mod_pol_client_visibility_del(E_Client *ec)
    if (!pv) return;
 
    eina_hash_del_by_key(hash_pol_visibilities, &ec);
-}
-
-void
-e_mod_pol_client_window_opaque_set(E_Client *ec)
-{
-   int opaque = 0;
-
-   if (!ec) return;
-
-#ifdef HAVE_WAYLAND_ONLY
-   E_Comp_Wl_Client_Data *cdata;
-
-   if (!ec->pixmap) return;
-   if (!(cdata = (E_Comp_Wl_Client_Data *)e_pixmap_cdata_get(ec->pixmap))) return;
-
-   opaque = cdata->opaque_state;
-#endif
-
-   ec->visibility.opaque = opaque;
 }

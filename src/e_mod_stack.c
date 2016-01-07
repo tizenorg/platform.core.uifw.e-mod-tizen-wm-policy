@@ -78,7 +78,7 @@ _pol_stack_transient_for_apply(E_Client *ec)
 
    if (ec->transient_policy == E_TRANSIENT_ABOVE)
      {
-        top = e_client_top_get(ec->comp);
+        top = e_client_top_get();
         while (top)
           {
              if ((!ec->parent->transients) || (top == ec->parent))
