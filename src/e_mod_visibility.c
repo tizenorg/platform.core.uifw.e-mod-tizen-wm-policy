@@ -139,6 +139,14 @@ _e_mod_pol_client_iconify_by_visibility(E_Client *ec)
    ELOGF("ICONIFY_BY_WM", "win:0x%08x", ec->pixmap, ec, e_client_util_win_get(ec));
    e_mod_pol_wl_iconify_state_change_send(ec, 1);
    e_client_iconify(ec);
+
+   /* if client has obscured parent, try to iconify the parent also */
+   if (ec->parent)
+     {
+        pv = _visibility_find(ec->parent);
+        if ((pv) && (pv->visibility == E_VISIBILITY_FULLY_OBSCURED))
+          _e_mod_pol_client_iconify_by_visibility(ec->parent);
+     }
 }
 
 static void
