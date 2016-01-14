@@ -1569,6 +1569,52 @@ _tzpol_iface_cb_subsurf_place_below_parent(struct wl_client *client EINA_UNUSED,
 }
 
 static void
+_tzpol_iface_cb_subsurface_get(struct wl_client *client, struct wl_resource *resource, uint32_t id, struct wl_resource *surface, uint32_t parent_id)
+{
+   E_Client *ec, *epc;
+
+   ELOGF("TZPOL",
+         "SUBSURF   |wl_surface@%d|parent_id:%d",
+         NULL, NULL, wl_resource_get_id(surface), parent_id);
+
+   ec = wl_resource_get_user_data(surface);
+   if (!ec)
+     {
+        wl_resource_post_error(resource, WL_DISPLAY_ERROR_INVALID_OBJECT,
+                               "tizen_policy failed: wrong wl_surface@%d resource",
+                               wl_resource_get_id(surface));
+        return;
+     }
+
+   if (e_object_is_del(E_OBJECT(ec))) return;
+
+   epc = e_pixmap_find_client_by_res_id(parent_id);
+   if (!epc)
+     {
+        wl_resource_post_error(resource, WL_DISPLAY_ERROR_INVALID_OBJECT,
+                               "tizen_policy failed: wrong parent_id(%d)", parent_id);
+        return;
+     }
+
+   if (e_object_is_del(E_OBJECT(epc))) return;
+
+   /* check if this surface is already a sub-surface */
+   if ((ec->comp_data) && (ec->comp_data->sub.data))
+     {
+        wl_resource_post_error(resource,
+                               WL_SUBCOMPOSITOR_ERROR_BAD_SURFACE,
+                               "wl_surface@%d is already a sub-surface",
+                               wl_resource_get_id(surface));
+        return;
+     }
+
+   /* try to create a new subsurface */
+   if (!e_comp_wl_subsurface_create(ec, epc, id, surface))
+     ERR("Failed to create subsurface for surface@%d",
+         wl_resource_get_id(surface));
+}
+
+static void
 _tzpol_iface_cb_opaque_state_set(struct wl_client *client, struct wl_resource *resource, struct wl_resource *surface, int32_t state)
 {
    E_Pixmap *ep;
@@ -1816,6 +1862,7 @@ static const struct tizen_policy_interface _tzpol_iface =
    _tzpol_iface_cb_transient_for_unset,
    _tzpol_iface_cb_win_scrmode_set,
    _tzpol_iface_cb_subsurf_place_below_parent,
+   _tzpol_iface_cb_subsurface_get,
    _tzpol_iface_cb_opaque_state_set,
    _tzpol_iface_cb_iconify,
    _tzpol_iface_cb_uniconify,
