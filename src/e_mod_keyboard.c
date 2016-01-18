@@ -83,6 +83,10 @@ e_mod_pol_keyboard_layout_apply(E_Client *ec)
          break;
      }
 
+/* FIXME: do not resize and move client.
+ * ec->e.state.rot.geom[].w/h is always 0,
+ * then the geometry calculated here is not valid. */
+#if 0
    if ((ec->frame) &&
        ((ec->w != kbd_w) || (ec->h != kbd_h)))
      e_client_util_resize_without_frame(ec, kbd_w, kbd_h);
@@ -91,4 +95,5 @@ e_mod_pol_keyboard_layout_apply(E_Client *ec)
        (ec->frame) &&
        ((ec->x != kbd_x) || (ec->y != kbd_y)))
      e_client_util_move_without_frame(ec, kbd_x, kbd_y);
+#endif
 }
