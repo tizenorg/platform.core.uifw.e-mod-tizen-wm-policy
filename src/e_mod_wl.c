@@ -819,6 +819,20 @@ e_mod_pol_wl_iconify_state_change_send(E_Client *ec, int iconic)
    Eina_Iterator *it;
    Ecore_Window win;
 
+   if (e_config->transient.iconify)
+     {
+        E_Client *child;
+        Eina_List *list = eina_list_clone(ec->transients);
+
+        EINA_LIST_FREE(list, child)
+          {
+             if ((child->iconic == ec->iconic) &&
+                 (child->exp_iconify.by_client == ec->exp_iconify.by_client))
+               e_mod_pol_wl_iconify_state_change_send(child, iconic);
+
+          }
+     }
+
    win = e_client_util_win_get(ec);
 
    it = eina_hash_iterator_data_new(polwl->tzpols);
