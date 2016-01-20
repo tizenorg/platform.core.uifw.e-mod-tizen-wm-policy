@@ -264,8 +264,7 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
                        /* previous state is unobscured */
                        pv->visibility = E_VISIBILITY_FULLY_OBSCURED;
                        _visibility_notify_send(ec, E_VISIBILITY_FULLY_OBSCURED);
-                       if (zone->display_state != E_ZONE_DISPLAY_STATE_OFF)
-                         _e_mod_pol_client_iconify_by_visibility(ec);
+                       _e_mod_pol_client_iconify_by_visibility(ec);
                     }
                   else
                     {
@@ -278,8 +277,7 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
                   /* previous state is none */
                   _visibility_add(ec, E_VISIBILITY_FULLY_OBSCURED);
                   _visibility_notify_send(ec, E_VISIBILITY_FULLY_OBSCURED);
-                  if (zone->display_state != E_ZONE_DISPLAY_STATE_OFF)
-                    _e_mod_pol_client_iconify_by_visibility(ec);
+                  _e_mod_pol_client_iconify_by_visibility(ec);
                }
           }
      }
