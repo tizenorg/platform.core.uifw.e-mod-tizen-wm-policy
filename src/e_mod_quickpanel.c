@@ -66,6 +66,7 @@ struct _Mover_Data
 static Pol_Quickpanel *_pol_quickpanel = NULL;
 static Eina_List *_quickpanel_hooks = NULL;
 static Evas_Smart *_quickpanel_smart = NULL;
+static Ecore_Event_Handler *_buffer_change_hdlr = NULL;
 
 static void
 _quickpanel_object_intercept_show(void *data, Evas_Object *obj EINA_UNUSED)
@@ -455,6 +456,7 @@ _quickpanel_data_free(void)
    if (mover)
      _quickpanel_mover_free(mover);
 
+   E_FREE_FUNC(_buffer_change_hdlr, ecore_event_handler_del);
    E_FREE_FUNC(_pol_quickpanel->handler.obj, e_mod_quickpanel_handler_object_del);
    E_FREE_LIST(_quickpanel_hooks, e_client_hook_del);
    E_FREE(_pol_quickpanel);
@@ -468,6 +470,30 @@ _quickpanel_hook_client_del(void *d EINA_UNUSED, E_Client *ec)
    if (QP_EC != ec) return;
 
    _quickpanel_data_free();
+}
+
+/* HACK
+ * there is an issue that quickpanel's first frame is not normal.
+ * this handler is to send frame callback to quickpanel client,
+ * then quickpanel can have a chance to render one more times.
+ */
+static Eina_Bool
+_quickpanel_cb_buffer_change(void *data, int type, void *event)
+{
+   E_Event_Client *ev = event;
+   E_Client *ec;
+
+   ec = ev->ec;
+   if (ec != QP_EC)
+     goto end;
+
+   e_comp_post_update_add(ec);
+
+   ecore_event_handler_del(_buffer_change_hdlr);
+   _buffer_change_hdlr = NULL;
+
+end:
+   return ECORE_CALLBACK_PASS_ON;
 }
 
 #undef E_CLIENT_HOOK_APPEND
@@ -524,6 +550,13 @@ e_mod_quickpanel_client_set(E_Client *ec)
 
    E_CLIENT_HOOK_APPEND(_quickpanel_hooks, E_CLIENT_HOOK_DEL,
                         _quickpanel_hook_client_del, NULL);
+
+   if (!_buffer_change_hdlr)
+     {
+        _buffer_change_hdlr =
+           ecore_event_handler_add(E_EVENT_CLIENT_BUFFER_CHANGE,
+                                   _quickpanel_cb_buffer_change, NULL);
+     }
 
    _pol_quickpanel = pol_qp;
 }
