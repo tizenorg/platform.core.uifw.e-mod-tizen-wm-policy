@@ -569,14 +569,28 @@ e_mod_quickpanel_client_get(void)
    return QP_EC;
 }
 
+static Eina_Bool
+_quickpanel_mover_is_animating(Evas_Object *mover)
+{
+   Mover_Data *md;
+
+   md = evas_object_smart_data_get(mover);
+
+   return !!md->effect_info.transit;
+}
+
 static void
 _quickpanel_handler_cb_gesture_start(void *data EINA_UNUSED, Evas_Object *handler, int x, int y, unsigned int timestamp)
 {
    Evas_Object *mover;
+   Mover_Data *md;
 
    mover = evas_object_data_get(handler, QP_DATA_KEY);
    if (mover)
      {
+        if (_quickpanel_mover_is_animating(mover))
+          return;
+
         DBG("Mover object already existed");
         _quickpanel_mover_free(mover);
      }
@@ -597,6 +611,9 @@ _quickpanel_handler_cb_gesture_move(void *data EINA_UNUSED, Evas_Object *handler
    if (!mover)
      return;
 
+   if (_quickpanel_mover_is_animating(mover))
+     return;
+
    _quickpanel_mover_move(mover, 0, y, timestamp);
 }
 
@@ -611,6 +628,9 @@ _quickpanel_handler_cb_gesture_end(void *data EINA_UNUSED, Evas_Object *handler,
         DBG("Could not find quickpanel mover object");
         return;
      }
+
+   if (_quickpanel_mover_is_animating(mover))
+     return;
 
    _quickpanel_mover_end(mover, 0, y, timestamp);
 
