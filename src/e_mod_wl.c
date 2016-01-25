@@ -1514,6 +1514,9 @@ _tzpol_iface_cb_subsurface_get(struct wl_client *client, struct wl_resource *res
    if (!e_comp_wl_subsurface_create(ec, epc, id, surface))
      ERR("Failed to create subsurface for surface@%d",
          wl_resource_get_id(surface));
+
+   /* ec's parent comes from another process */
+   ec->comp_data->has_extern_parent = EINA_TRUE;
 }
 
 static void
