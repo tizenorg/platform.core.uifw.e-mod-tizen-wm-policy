@@ -13,6 +13,9 @@
           <entry name="180" value = "4"/>
           <entry name="270" value = "8"/>
         </enum>
+        <request name="destroy" type="destructor">
+            <description summary="destroy tizen_rotation"/>
+        </request>
         <request name="set_available_angles">
             <arg name="angles" type="uint"/>
         </request>

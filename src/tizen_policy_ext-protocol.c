@@ -23,6 +23,7 @@ WL_EXPORT const struct wl_interface tizen_policy_ext_interface = {
 };
 
 static const struct wl_message tizen_rotation_requests[] = {
+	{ "destroy", "", types + 0 },
 	{ "set_available_angles", "u", types + 0 },
 	{ "set_preferred_angle", "u", types + 0 },
 	{ "ack_angle_change", "u", types + 0 },
@@ -36,7 +37,7 @@ static const struct wl_message tizen_rotation_events[] = {
 
 WL_EXPORT const struct wl_interface tizen_rotation_interface = {
 	"tizen_rotation", 1,
-	3, tizen_rotation_requests,
+	4, tizen_rotation_requests,
 	3, tizen_rotation_events,
 };
 

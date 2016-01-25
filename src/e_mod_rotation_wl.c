@@ -80,6 +80,7 @@ static Ecore_Idle_Enterer *rot_idle_enterer = NULL;
 static Policy_Ext_Rotation* _policy_ext_rotation_get(E_Pixmap *ep);
 
 /* local subsystem wayland rotation protocol related functions */
+static void _e_tizen_rotation_destroy_cb(struct wl_client *client, struct wl_resource *resource);
 static void _e_tizen_rotation_set_available_angles_cb(struct wl_client *client, struct wl_resource *resource, uint32_t angles);
 static void _e_tizen_rotation_set_preferred_angle_cb(struct wl_client *client, struct wl_resource *resource, uint32_t angle);
 static void _e_tizen_rotation_ack_angle_change_cb(struct wl_client *client, struct wl_resource *resource, uint32_t serial);
@@ -91,10 +92,10 @@ static void _e_tizen_policy_ext_bind_cb(struct wl_client *client, void *data, ui
 /* local subsystem wayland rotation protocol related variables */
 static const struct tizen_rotation_interface _e_tizen_rotation_interface =
 {
+   _e_tizen_rotation_destroy_cb,
    _e_tizen_rotation_set_available_angles_cb,
    _e_tizen_rotation_set_preferred_angle_cb,
    _e_tizen_rotation_ack_angle_change_cb,
-   /* need rotation destroy request? */
 };
 static const struct tizen_policy_ext_interface _e_tizen_policy_ext_interface =
 {
@@ -163,6 +164,13 @@ _policy_ext_rotation_get(E_Pixmap *ep)
      }
 
    return rot;
+}
+
+static void
+_e_tizen_rotation_destroy_cb(struct wl_client *client EINA_UNUSED,
+                             struct wl_resource *resource)
+{
+   wl_resource_destroy(resource);
 }
 
 static void
@@ -1151,6 +1159,8 @@ _rot_hook_new_client_post(void *d EINA_UNUSED, E_Client *ec)
 static void
 _rot_hook_client_del(void *d EINA_UNUSED, E_Client *ec)
 {
+   Policy_Ext_Rotation *ext_rot;
+
    _e_client_rotation_list_remove(ec);
    if (rot.async_list) rot.async_list = eina_list_remove(rot.async_list, ec);
 
@@ -1159,6 +1169,10 @@ _rot_hook_client_del(void *d EINA_UNUSED, E_Client *ec)
 
    if (ec->e.state.rot.available_rots)
      E_FREE(ec->e.state.rot.available_rots);
+
+   ext_rot = _policy_ext_rotation_get(ec->pixmap);
+   if (ext_rot)
+     E_FREE_LIST(ext_rot->rotation_list, wl_resource_destroy);
 }
 
 static void

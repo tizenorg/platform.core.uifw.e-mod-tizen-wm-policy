@@ -7,7 +7,7 @@ extern "C" {
 
 #include <stdint.h>
 #include <stddef.h>
-#include "wayland-server.h"
+#include "wayland-util.h"
 
 struct wl_client;
 struct wl_resource;
@@ -30,7 +30,6 @@ struct tizen_policy_ext_interface {
 			     struct wl_resource *surface);
 };
 
-
 #ifndef TIZEN_ROTATION_ANGLE_ENUM
 #define TIZEN_ROTATION_ANGLE_ENUM
 enum tizen_rotation_angle {
@@ -43,6 +42,13 @@ enum tizen_rotation_angle {
 #endif /* TIZEN_ROTATION_ANGLE_ENUM */
 
 struct tizen_rotation_interface {
+	/**
+	 * destroy - destroy tizen_rotation
+	 *
+	 * 
+	 */
+	void (*destroy)(struct wl_client *client,
+			struct wl_resource *resource);
 	/**
 	 * set_available_angles - (none)
 	 * @angles: (none)
@@ -71,10 +77,6 @@ struct tizen_rotation_interface {
 #define TIZEN_ROTATION_AVAILABLE_ANGLES_DONE	0
 #define TIZEN_ROTATION_PREFERRED_ANGLE_DONE	1
 #define TIZEN_ROTATION_ANGLE_CHANGE	2
-
-#define TIZEN_ROTATION_AVAILABLE_ANGLES_DONE_SINCE_VERSION	1
-#define TIZEN_ROTATION_PREFERRED_ANGLE_DONE_SINCE_VERSION	1
-#define TIZEN_ROTATION_ANGLE_CHANGE_SINCE_VERSION	1
 
 static inline void
 tizen_rotation_send_available_angles_done(struct wl_resource *resource_, uint32_t angles)
