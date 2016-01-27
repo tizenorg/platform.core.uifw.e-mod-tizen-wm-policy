@@ -1810,8 +1810,6 @@ _tzsh_srv_iface_cb_region_set(struct wl_client *client, struct wl_resource *res_
 {
    Pol_Wl_Tzsh_Srv *tzsh_srv;
    Pol_Wl_Tzsh_Region *tzsh_reg;
-   Eina_Iterator *it;
-   Eina_Rectangle *r;
 
    tzsh_srv = wl_resource_get_user_data(res_tzsh_srv);
    EINA_SAFETY_ON_NULL_RETURN(tzsh_srv);
@@ -1823,25 +1821,7 @@ _tzsh_srv_iface_cb_region_set(struct wl_client *client, struct wl_resource *res_
    EINA_SAFETY_ON_NULL_RETURN(tzsh_reg);
 
    if (tzsh_srv->role == TZSH_SRV_ROLE_QUICKPANEL)
-     {
-        // FIXME should consider rotation.
-        if (angle != 0)
-          return;
-
-        // FIXME: region type
-        if (type == 0)
-          {
-             it = eina_tiler_iterator_new(tzsh_reg->tiler);
-             EINA_ITERATOR_FOREACH(it, r)
-               {
-                  e_mod_quickpanel_handler_region_set(r->x, r->y, r->w, r->h);
-                  e_mod_indicator_create(r->w, r->h);
-                  /* NOTE: supported single rectangle as a handler region for now. */
-                  break;
-               }
-             eina_iterator_free(it);
-          }
-     }
+     e_mod_quickpanel_region_set(type, angle, tzsh_reg->tiler);
    else if (tzsh_srv->role == TZSH_SRV_ROLE_VOLUME)
      e_mod_volume_region_set(type, angle, tzsh_reg->tiler);
 }

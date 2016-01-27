@@ -1,4 +1,5 @@
 #include "e_mod_volume.h"
+#include "e_mod_rotation.h"
 
 #include <wayland-server.h>
 #include <tzsh_server.h>
@@ -19,15 +20,6 @@ do { \
 #define REGION_OBJS_SHOW() REGION_OBJS_VISIBLE_CHANGE(EINA_TRUE)
 #define REGION_OBJS_HIDE() REGION_OBJS_VISIBLE_CHANGE(EINA_FALSE)
 
-typedef enum
-{
-   ROT_IDX_0 = 0,
-   ROT_IDX_90,
-   ROT_IDX_180,
-   ROT_IDX_270,
-   ROT_IDX_NUM
-} Rot_Idx;
-
 /* private data for volume */
 static struct wl_resource  *_volume_wl_ptr = NULL;
 static E_Client            *_volume_ec = NULL;
@@ -43,12 +35,6 @@ EINTERN E_Client *
 e_mod_volume_client_get(void)
 {
    return _volume_ec;
-}
-
-static inline Eina_Bool
-_rot_value_is_valid(int rot)
-{
-   return ((rot >= 0) && (rot <= 270) && !(rot % 90));
 }
 
 static void
@@ -226,19 +212,16 @@ _volume_client_cb_rot_done(void *data EINA_UNUSED, int type EINA_UNUSED, void *e
 {
    E_Event_Client_Rotation_Change_End *e = event;
    Rot_Idx new_idx;
-   Eina_Bool res;
 
    if (EINA_UNLIKELY(e == NULL))
      goto end;
 
-   res = _rot_value_is_valid(_volume_ec->e.state.rot.ang.curr);
-   if (EINA_UNLIKELY(!res))
+   new_idx = e_mod_rotation_angle_to_idx(_volume_ec->e.state.rot.ang.curr);
+   if (EINA_UNLIKELY(new_idx == -1))
      goto end;
 
    if (e->ec != _volume_ec)
      goto end;
-
-   new_idx = _volume_ec->e.state.rot.ang.curr / 90;
 
    /* is new rotation same with previous? */
    if (_volume_cur_rot_idx == new_idx)
@@ -280,7 +263,7 @@ e_mod_volume_client_set(E_Client *ec)
    ELOGF("VOLUME","Set Client", ec->pixmap, ec);
 
    _volume_ec = ec;
-   _volume_cur_rot_idx = ec->e.state.rot.ang.curr / 90;
+   _volume_cur_rot_idx = e_mod_rotation_angle_to_idx(ec->e.state.rot.ang.curr);
 
    /* repeat events for volume client. */
    evas_object_repeat_events_set(ec->frame, EINA_TRUE);
@@ -413,7 +396,6 @@ EINTERN Eina_Bool
 e_mod_volume_region_set(int type, int angle, Eina_Tiler *tiler)
 {
    Rot_Idx rot_idx;
-   Eina_Bool res;
 
    if (EINA_UNLIKELY(!_volume_ec))
      {
@@ -421,8 +403,8 @@ e_mod_volume_region_set(int type, int angle, Eina_Tiler *tiler)
         return EINA_FALSE;
      }
 
-   res = _rot_value_is_valid(angle);
-   if (EINA_UNLIKELY(!res))
+   rot_idx = e_mod_rotation_angle_to_idx(angle);
+   if (EINA_UNLIKELY(rot_idx == -1))
      return EINA_FALSE;
 
    /* FIXME: use enum instead of constant */
@@ -440,8 +422,6 @@ e_mod_volume_region_set(int type, int angle, Eina_Tiler *tiler)
 
    ELOGF("VOLUME","Content Region Set: angle %d, tiler %p",
          NULL, NULL, angle, tiler);
-
-   rot_idx = angle / 90;
 
    _volume_content_region_set(rot_idx, tiler);
 

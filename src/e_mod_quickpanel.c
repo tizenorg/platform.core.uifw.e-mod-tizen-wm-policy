@@ -1,22 +1,22 @@
 #include "e_mod_main.h"
 #include "e_mod_quickpanel.h"
+#include "e_mod_indicator.h"
 #include "e_mod_gesture.h"
 
 #define SMART_NAME            "quickpanel_object"
-#define QP_DATA_KEY           "qp_mover_data"
-#define GESTURE_DATA_KEY      "gesture_data"
-#define QP_EC                 _pol_quickpanel->ec
 #define INTERNAL_ENTRY                    \
    Mover_Data *md;                        \
    md = evas_object_smart_data_get(obj);
 
 typedef struct _Pol_Quickpanel Pol_Quickpanel;
 typedef struct _Mover_Data Mover_Data;
+typedef struct _Handler_Data Handler_Data;
 typedef struct _Mover_Effect_Data Mover_Effect_Data;
 
 struct _Pol_Quickpanel
 {
    E_Client *ec;
+   Evas_Object *mover;
 
    struct
    {
@@ -25,17 +25,9 @@ struct _Pol_Quickpanel
    } handler;
 };
 
-struct _Mover_Effect_Data
-{
-   Evas_Object *mover;
-   int from_dy;
-   int to_dy;
-   Eina_Bool visible : 1;
-};
-
 struct _Mover_Data
 {
-   E_Client    *ec; // quickpanel's e_client
+   Pol_Quickpanel *qp;
 
    Evas_Object *smart_obj; //smart object
    Evas_Object *qp_layout_obj; // quickpanel's e_layout_object
@@ -43,111 +35,132 @@ struct _Mover_Data
    Evas_Object *handler_mirror_obj; // quickpanel handler mirror object
    Evas_Object *base_clip; // clipper for quickapnel base object
    Evas_Object *handler_clip; // clipper for quickpanel handler object
-   Evas_Object *handler_obj;
-
-   Eina_Bool    qp_layout_init: 1;
 
    struct
    {
-      int x;
-      int y;
-      int w;
-      int h;
-   } handler_geo; // handler geometry
+      Handler_Data *data;
+      Eina_Rectangle rect;
+   } handler;
 
    struct
    {
       Elm_Transit *transit;
+      Mover_Effect_Data *data;
       int y;
       unsigned int timestamp;
       float accel;
    } effect_info;
 };
 
+struct _Handler_Data
+{
+   Pol_Quickpanel *qp;
+   Pol_Gesture *gesture;
+   Evas_Object *handler;
+   Evas_Object *mover;
+};
+
+struct _Mover_Effect_Data
+{
+   Elm_Transit *transit;
+   Evas_Object *mover;
+   int from_dy;
+   int to_dy;
+   Eina_Bool visible : 1;
+};
+
 static Pol_Quickpanel *_pol_quickpanel = NULL;
 static Eina_List *_quickpanel_hooks = NULL;
-static Evas_Smart *_quickpanel_smart = NULL;
+static Evas_Smart *_mover_smart = NULL;
 static Ecore_Event_Handler *_buffer_change_hdlr = NULL;
 
-static void
-_quickpanel_object_intercept_show(void *data, Evas_Object *obj EINA_UNUSED)
+static Pol_Quickpanel *
+_quickpanel_find(E_Client *ec)
 {
-   Mover_Data *md = data;
-   E_Client *ec = md->ec;
+   if (!_pol_quickpanel)
+     return NULL;
 
-   if (md->qp_layout_init)
-     {
-        evas_object_show(md->smart_obj);
-        return;
-     }
-   else
-     {
-        evas_object_color_set(md->ec->frame, 0, 0, 0, 0);
+   if (_pol_quickpanel->ec == ec)
+     return _pol_quickpanel;
 
-        md->base_mirror_obj =  e_comp_object_util_mirror_add(ec->frame);
-        e_layout_pack(md->qp_layout_obj, md->base_mirror_obj);
-        e_layout_child_move(md->base_mirror_obj, 0, 0);
-        e_layout_child_resize(md->base_mirror_obj, ec->w, ec->h);
-        evas_object_show(md->base_mirror_obj);
-
-        md->base_clip = evas_object_rectangle_add(e_comp->evas);
-        e_layout_pack(md->qp_layout_obj, md->base_clip);
-        e_layout_child_move(md->base_clip, 0, 0);
-        e_layout_child_resize(md->base_clip, ec->w, ec->h);
-        evas_object_color_set(md->base_clip, 255, 255, 255, 255);
-        evas_object_show(md->base_clip);
-
-        evas_object_clip_set(md->base_mirror_obj, md->base_clip);
-
-        // for handler object
-        md->handler_mirror_obj =  e_comp_object_util_mirror_add(ec->frame);
-        e_layout_pack(md->qp_layout_obj, md->handler_mirror_obj);
-        e_layout_child_move(md->handler_mirror_obj, md->handler_geo.x, md->handler_geo.y);
-        e_layout_child_resize(md->handler_mirror_obj, ec->w, ec->h);
-        evas_object_show(md->handler_mirror_obj);
-
-        md->handler_clip = evas_object_rectangle_add(e_comp->evas);
-        e_layout_pack(md->qp_layout_obj, md->handler_clip);
-        e_layout_child_move(md->handler_clip, md->handler_geo.x, md->handler_geo.y);
-        e_layout_child_resize(md->handler_clip, md->handler_geo.w, md->handler_geo.h);
-        evas_object_color_set(md->handler_clip, 255, 255, 255, 255);
-        evas_object_show(md->handler_clip);
-
-        evas_object_clip_set(md->handler_mirror_obj, md->handler_clip);
-
-        md->qp_layout_init = EINA_TRUE;
-     }
-
-   evas_object_show(md->smart_obj);
+   return NULL;
 }
 
 static void
-_quickpanel_smart_add(Evas_Object *obj)
+_mover_intercept_show(void *data, Evas_Object *obj)
+{
+   Mover_Data *md = data;
+   E_Client *ec = md->qp->ec;
+   Evas *e;
+
+   e = evas_object_evas_get(obj);
+
+   evas_object_color_set(ec->frame, 0, 0, 0, 0);
+
+   // create base_mirror_obj
+   md->base_mirror_obj =  e_comp_object_util_mirror_add(ec->frame);
+   e_layout_pack(md->qp_layout_obj, md->base_mirror_obj);
+   e_layout_child_move(md->base_mirror_obj, 0, 0);
+   e_layout_child_resize(md->base_mirror_obj, ec->w, ec->h);
+   evas_object_show(md->base_mirror_obj);
+
+   // create base_clip
+   md->base_clip = evas_object_rectangle_add(e);
+   e_layout_pack(md->qp_layout_obj, md->base_clip);
+   e_layout_child_move(md->base_clip, 0, 0);
+   e_layout_child_resize(md->base_clip, ec->w, ec->h);
+   evas_object_color_set(md->base_clip, 255, 255, 255, 255);
+   evas_object_show(md->base_clip);
+   evas_object_clip_set(md->base_mirror_obj, md->base_clip);
+
+   // create handler_mirror_obj
+   md->handler_mirror_obj =  e_comp_object_util_mirror_add(ec->frame);
+   e_layout_pack(md->qp_layout_obj, md->handler_mirror_obj);
+   e_layout_child_move(md->handler_mirror_obj, md->handler.rect.x, md->handler.rect.y);
+   e_layout_child_resize(md->handler_mirror_obj, ec->w, ec->h);
+   evas_object_show(md->handler_mirror_obj);
+
+   // create handler_clip
+   md->handler_clip = evas_object_rectangle_add(e);
+   e_layout_pack(md->qp_layout_obj, md->handler_clip);
+   e_layout_child_move(md->handler_clip, md->handler.rect.x, md->handler.rect.y);
+   e_layout_child_resize(md->handler_clip, md->handler.rect.w, md->handler.rect.h);
+   evas_object_color_set(md->handler_clip, 255, 255, 255, 255);
+   evas_object_show(md->handler_clip);
+   evas_object_clip_set(md->handler_mirror_obj, md->handler_clip);
+
+   evas_object_show(obj);
+}
+
+static void
+_mover_smart_add(Evas_Object *obj)
 {
    Mover_Data *md;
+
    md = E_NEW(Mover_Data, 1);
+   if (EINA_UNLIKELY(!md))
+     return;
+
    md->smart_obj = obj;
-   md->qp_layout_obj = e_layout_add(e_comp->evas);
+   md->qp_layout_obj = e_layout_add(evas_object_evas_get(obj));
    evas_object_color_set(md->qp_layout_obj, 255, 255, 255, 255);
    evas_object_smart_member_add(md->qp_layout_obj, md->smart_obj);
-
-   evas_object_layer_set(md->smart_obj, EVAS_LAYER_MAX - 1); // EVAS_LAYER_MAX :L cursor layer
 
    evas_object_smart_data_set(obj, md);
 
    evas_object_move(obj, -1 , -1);
-
-   evas_object_intercept_show_callback_add(obj, _quickpanel_object_intercept_show, md);
+   evas_object_layer_set(obj, EVAS_LAYER_MAX - 1); // EVAS_LAYER_MAX :L cursor layer
+   evas_object_intercept_show_callback_add(obj, _mover_intercept_show, md);
 }
 
 static void
-_quickpanel_smart_del(Evas_Object *obj)
+_mover_smart_del(Evas_Object *obj)
 {
    E_Client *ec;
 
    INTERNAL_ENTRY;
 
-   ec = md->ec;
+   ec = md->qp->ec;
    if (md->base_clip)
      {
         evas_object_clip_unset(md->base_clip);
@@ -173,17 +186,15 @@ _quickpanel_smart_del(Evas_Object *obj)
 
    if (md->qp_layout_obj) evas_object_del(md->qp_layout_obj);
 
-   if (md->handler_obj)
-     evas_object_data_del(md->handler_obj, QP_DATA_KEY);
-
    evas_object_color_set(ec->frame, ec->netwm.opacity, ec->netwm.opacity, ec->netwm.opacity, ec->netwm.opacity);
-   evas_object_data_del(ec->frame, QP_DATA_KEY);
+
+   md->qp->mover = NULL;
 
    free(md);
 }
 
 static void
-_quickpanel_smart_show(Evas_Object *obj)
+_mover_smart_show(Evas_Object *obj)
 {
    INTERNAL_ENTRY;
 
@@ -191,7 +202,7 @@ _quickpanel_smart_show(Evas_Object *obj)
 }
 
 static void
-_quickpanel_smart_hide(Evas_Object *obj)
+_mover_smart_hide(Evas_Object *obj)
 {
    INTERNAL_ENTRY;
 
@@ -199,7 +210,7 @@ _quickpanel_smart_hide(Evas_Object *obj)
 }
 
 static void
-_quickpanel_smart_move(Evas_Object *obj, int x, int y)
+_mover_smart_move(Evas_Object *obj, int x, int y)
 {
    INTERNAL_ENTRY;
 
@@ -207,7 +218,7 @@ _quickpanel_smart_move(Evas_Object *obj, int x, int y)
 }
 
 static void
-_quickpanel_smart_resize(Evas_Object *obj, int w, int h)
+_mover_smart_resize(Evas_Object *obj, int w, int h)
 {
    INTERNAL_ENTRY;
 
@@ -216,20 +227,20 @@ _quickpanel_smart_resize(Evas_Object *obj, int w, int h)
 }
 
 static void
-_quickpanel_smart_init(void)
+_mover_smart_init(void)
 {
-   if (_quickpanel_smart) return;
+   if (_mover_smart) return;
    {
       static const Evas_Smart_Class sc =
       {
          SMART_NAME,
          EVAS_SMART_CLASS_VERSION,
-         _quickpanel_smart_add,
-         _quickpanel_smart_del,
-         _quickpanel_smart_move,
-         _quickpanel_smart_resize,
-         _quickpanel_smart_show,
-         _quickpanel_smart_hide,
+         _mover_smart_add,
+         _mover_smart_del,
+         _mover_smart_move,
+         _mover_smart_resize,
+         _mover_smart_show,
+         _mover_smart_hide,
          NULL, /* color_set */
          NULL, /* clip_set */
          NULL, /* clip_unset */
@@ -242,69 +253,79 @@ _quickpanel_smart_init(void)
          NULL, /* interfaces */
          NULL  /* data */
       };
-      _quickpanel_smart = evas_smart_class_new(&sc);
+      _mover_smart = evas_smart_class_new(&sc);
    }
 }
 
 static Eina_Bool
-_quickpanel_mover_handler_move(Mover_Data *md, int x, int y)
+_mover_obj_handler_move(Mover_Data *md, int x, int y)
 {
    // angle 0 case
    // do not move handler out of screen.
-   if ((y + md->handler_geo.h) > md->ec->zone->h) return EINA_FALSE;
+   if ((y + md->handler.rect.h) > md->qp->ec->zone->h) return EINA_FALSE;
 
    // angle 0 case
-   md->handler_geo.y = y;
+   md->handler.rect.y = y;
 
-   e_layout_child_resize(md->base_clip, md->ec->w, md->handler_geo.y); // base clip resize
+   e_layout_child_resize(md->base_clip, md->qp->ec->w, md->handler.rect.y); // base clip resize
 
-   e_layout_child_move(md->handler_mirror_obj, md->handler_geo.x, md->handler_geo.y - md->ec->h + md->handler_geo.h); // handler mirror object move
-   e_layout_child_move(md->handler_clip, md->handler_geo.x, md->handler_geo.y); // handler mirror object move
+   e_layout_child_move(md->handler_mirror_obj, md->handler.rect.x, md->handler.rect.y - md->qp->ec->h + md->handler.rect.h); // handler mirror object move
+   e_layout_child_move(md->handler_clip, md->handler.rect.x, md->handler.rect.y); // handler mirror object move
 
    return EINA_TRUE;
 }
 
 static Evas_Object *
-_quickpanel_mover_begin(E_Client *ec, Evas_Object *handler, int x, int y, unsigned int timestamp)
+_mover_obj_new(Pol_Quickpanel *qp)
 {
    Evas_Object *mover;
    Mover_Data *md;
 
-   EINA_SAFETY_ON_NULL_RETURN_VAL(_pol_quickpanel, NULL);
+   if (!qp->ec) return NULL;
+   if (!qp->ec->frame) return NULL;
 
-   if (!ec->frame) return NULL; // if quickpanel's frame object is not exist then return;
+   if (qp->mover)
+     return qp->mover;
 
-   if (evas_object_data_get(ec->frame, QP_DATA_KEY))
-     {
-        DBG("Already used mover object");
-        return NULL;
-     }
-
-   _quickpanel_smart_init();
-   mover = evas_object_smart_add(e_comp->evas, _quickpanel_smart);
+   _mover_smart_init();
+   mover = evas_object_smart_add(evas_object_evas_get(qp->ec->frame), _mover_smart);
 
    md = evas_object_smart_data_get(mover);
-   md->ec = ec;
-   md->handler_obj = handler;
-   md->handler_geo.w = _pol_quickpanel->handler.rect.w;
-   md->handler_geo.h = _pol_quickpanel->handler.rect.h;
+   md->qp = qp;
+   md->handler.rect.w = qp->handler.rect.w;
+   md->handler.rect.h = qp->handler.rect.h;
+
+   evas_object_move(mover, 0, 0); // 0 angle case
+   evas_object_resize(mover, qp->ec->w, qp->ec->h);
+   evas_object_show(mover);
+
+   qp->mover = mover;
+
+   return mover;
+}
+
+static Evas_Object *
+_mover_obj_new_with_move(Pol_Quickpanel *qp, int x, int y, unsigned int timestamp)
+{
+   Evas_Object *mover;
+   Mover_Data *md;
+
+   mover = _mover_obj_new(qp);
+   if (!mover)
+     return NULL;
+
+   md = evas_object_smart_data_get(mover);
+
    md->effect_info.y = y;
    md->effect_info.timestamp = timestamp;
 
-   evas_object_data_set(mover, "E_Client", ec);
-   evas_object_data_set(ec->frame, QP_DATA_KEY, mover);
-
-   evas_object_move(mover, 0, 0); // 0 angle case
-   evas_object_resize(mover, ec->w, ec->h);
-   evas_object_show(mover);
-
-   _quickpanel_mover_handler_move(md, x, y);
+   _mover_obj_handler_move(md, x, y);
 
    return mover;
 }
 
 static Eina_Bool
-_quickpanel_mover_move(Evas_Object *mover, int x, int y, unsigned int timestamp)
+_mover_obj_move(Evas_Object *mover, int x, int y, unsigned int timestamp)
 {
    Mover_Data *md;
    int dy;
@@ -313,7 +334,7 @@ _quickpanel_mover_move(Evas_Object *mover, int x, int y, unsigned int timestamp)
    if (!mover) return EINA_FALSE;
 
    md = evas_object_smart_data_get(mover);
-   if (!_quickpanel_mover_handler_move(md, x, y)) return EINA_FALSE;
+   if (!_mover_obj_handler_move(md, x, y)) return EINA_FALSE;
 
    /* Calculate the acceleration of movement,
     * determine the visibility of quickpanel based on the result. */
@@ -329,13 +350,14 @@ _quickpanel_mover_move(Evas_Object *mover, int x, int y, unsigned int timestamp)
 }
 
 static Elm_Transit_Effect *
-_quickpanel_mover_effect_data_new(Evas_Object *mover, int from_y, int to_y, Eina_Bool visible)
+_mover_obj_effect_data_new(Elm_Transit *transit, Evas_Object *mover, int from_y, int to_y, Eina_Bool visible)
 {
    Mover_Effect_Data *ed;
 
    ed = E_NEW(Mover_Effect_Data, 1);
    if (!ed) return NULL;
 
+   ed->transit = transit;
    ed->mover = mover;
    ed->visible = visible;
    ed->from_dy = from_y;
@@ -345,25 +367,26 @@ _quickpanel_mover_effect_data_new(Evas_Object *mover, int from_y, int to_y, Eina
 }
 
 static void
-_quickpanel_mover_effect_data_free(Elm_Transit_Effect *effect, Elm_Transit *transit)
+_mover_obj_effect_data_free(Elm_Transit_Effect *effect, Elm_Transit *transit)
 {
-   E_Client *ec;
+   Mover_Data *md;
    Mover_Effect_Data *ed = effect;
    int pos;
 
-   ec = evas_object_data_get(ed->mover, "E_Client");
-   pos = (ed->visible) ? 0 : -10000;
-   evas_object_move(ec->frame, pos, pos);
-   evas_object_data_del(ec->frame, QP_DATA_KEY);
+   if (ed->mover)
+     {
+        md = evas_object_smart_data_get(ed->mover);
+        pos = (ed->visible) ? 0 : -10000;
+        evas_object_move(md->qp->ec->frame, pos, pos);
 
-   evas_object_hide(ed->mover);
-   evas_object_del(ed->mover);
+        evas_object_del(ed->mover);
+     }
 
    free(ed);
 }
 
 static void
-_quickpanel_mover_effect_op(Elm_Transit_Effect *effect, Elm_Transit *transit, double progress)
+_mover_obj_effect_op(Elm_Transit_Effect *effect, Elm_Transit *transit, double progress)
 {
    Mover_Effect_Data *ed = effect;
    Mover_Data *md;
@@ -371,98 +394,189 @@ _quickpanel_mover_effect_op(Elm_Transit_Effect *effect, Elm_Transit *transit, do
 
    md = evas_object_smart_data_get(ed->mover);
    new_y = ed->from_dy + (ed->to_dy * progress);
-   _quickpanel_mover_handler_move(md, 0, new_y);
+   _mover_obj_handler_move(md, 0, new_y);
 }
 
 static void
-_quickpanel_mover_effect_begin(Evas_Object *mover, int from_y, Eina_Bool visible)
+_mover_obj_effect_cb_mover_obj_del(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event_info EINA_UNUSED)
 {
-   Elm_Transit *trans;
-   Elm_Transit_Effect *effect;
+   Mover_Effect_Data *ed = data;
    Mover_Data *md;
+   int pos;
+
+   ed = data;
+   md = evas_object_smart_data_get(ed->mover);
+   pos = (ed->visible) ? 0 : -10000;
+   evas_object_move(md->qp->ec->frame, pos, pos);
+
+   /* make sure NULL before calling elm_transit_del() */
+   ed->mover = NULL;
+
+   elm_transit_del(ed->transit);
+}
+
+static void
+_mover_obj_effect_start(Evas_Object *mover, int from_y, Eina_Bool visible)
+{
+   Mover_Data *md;
+   E_Client *ec;
+   Elm_Transit *transit;
+   Elm_Transit_Effect *effect;
    int to_y;
    double duration;
    const double ref = 0.1;
 
-   trans = elm_transit_add();
-   elm_transit_object_add(trans, mover);
-   elm_transit_tween_mode_set(trans, ELM_TRANSIT_TWEEN_MODE_DECELERATE);
+   md = evas_object_smart_data_get(mover);
+   ec = md->qp->ec;
+
+   transit = elm_transit_add();
+   elm_transit_object_add(transit, mover);
+   elm_transit_tween_mode_set(transit, ELM_TRANSIT_TWEEN_MODE_DECELERATE);
 
    /* determine the position as a destination */
-   to_y = (visible) ? (QP_EC->zone->h - from_y) : (-from_y);
+   to_y = (visible) ? (ec->zone->h - from_y) : (-from_y);
 
    /* determine the transit's duration */
-   duration = ((double)abs(to_y) / (QP_EC->zone->h / 2)) * ref;
-   elm_transit_duration_set(trans, duration);
+   duration = ((double)abs(to_y) / (ec->zone->h / 2)) * ref;
+   elm_transit_duration_set(transit, duration);
 
    /* create and add effect to transit */
-   effect = _quickpanel_mover_effect_data_new(mover, from_y, to_y, visible);
-   elm_transit_effect_add(trans, _quickpanel_mover_effect_op, effect, _quickpanel_mover_effect_data_free);
+   effect = _mover_obj_effect_data_new(transit, mover, from_y, to_y, visible);
+   elm_transit_effect_add(transit, _mover_obj_effect_op, effect, _mover_obj_effect_data_free);
 
    /* start transit */
-   elm_transit_go(trans);
+   elm_transit_go(transit);
 
-   md = evas_object_smart_data_get(mover);
-   md->effect_info.transit = trans;
+   evas_object_event_callback_add(mover, EVAS_CALLBACK_DEL, _mover_obj_effect_cb_mover_obj_del, effect);
+
+   md->effect_info.transit = transit;
+   md->effect_info.data = (Mover_Effect_Data *)effect;
 }
 
 static void
-_quickpanel_mover_end(Evas_Object *mover, int x, int y, unsigned int timestamp)
+_mover_obj_effect_stop(Evas_Object *mover)
+{
+   Mover_Data *md;
+
+   md = evas_object_smart_data_get(mover);
+   md->effect_info.data->mover = NULL;
+
+   evas_object_event_callback_del(mover, EVAS_CALLBACK_DEL, _mover_obj_effect_cb_mover_obj_del);
+
+   E_FREE_FUNC(md->effect_info.transit, elm_transit_del);
+}
+
+static Eina_Bool
+_mover_obj_visibility_eval(Evas_Object *mover, int x, int y, unsigned int timestamp)
 {
    E_Client *ec;
    Mover_Data *md;
-   Eina_Bool visible = EINA_FALSE;
    const float sensitivity = 1.5; /* hard coded. (arbitrary) */
 
-   EINA_SAFETY_ON_NULL_RETURN(mover);
-
    md = evas_object_smart_data_get(mover);
-   ec = evas_object_data_get(mover, "E_Client");
-
-   if (EINA_UNLIKELY((!ec) || (!ec->zone)))
-     return;
+   ec = md->qp->ec;
 
    if ((md->effect_info.accel > sensitivity) ||
        ((md->effect_info.accel > -sensitivity) && (y > ec->zone->h / 2)))
-     visible = EINA_TRUE;
+     return EINA_TRUE;
 
-   /* Start show/hide effect */
-   _quickpanel_mover_effect_begin(mover, y, visible);
+   return EINA_FALSE;
 }
 
-static void
-_quickpanel_mover_free(Evas_Object *mover)
+static Eina_Bool
+_mover_obj_is_animating(Evas_Object *mover)
 {
    Mover_Data *md;
 
    md = evas_object_smart_data_get(mover);
 
-   if (md->effect_info.transit)
-     {
-        /* NOTE: the mover will be deleted when effect data is freed. */
-        elm_transit_del(md->effect_info.transit);
-     }
-   else
-     {
-        evas_object_hide(mover);
-        evas_object_del(mover);
-     }
+   return !!md->effect_info.transit;
 }
 
 static void
-_quickpanel_data_free(void)
+_handler_obj_cb_mover_obj_del(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event_info EINA_UNUSED)
 {
-   Evas_Object *mover;
+   Handler_Data *hd;
 
-   if (!_pol_quickpanel)
+   hd = data;
+   hd->mover = NULL;
+}
+
+static void
+_handler_obj_cb_gesture_start(void *data, Evas_Object *handler, int x, int y, unsigned int timestamp)
+{
+   Handler_Data *hd;
+
+   hd = data;
+   if (hd->mover)
+     {
+        if (_mover_obj_is_animating(hd->mover))
+          return;
+
+        DBG("Mover object already existed");
+        evas_object_del(hd->mover);
+     }
+
+   hd->mover = _mover_obj_new_with_move(hd->qp, 0, y, timestamp);
+   evas_object_event_callback_add(hd->mover, EVAS_CALLBACK_DEL, _handler_obj_cb_mover_obj_del, hd);
+}
+
+static void
+_handler_obj_cb_gesture_move(void *data, Evas_Object *handler, int x, int y, unsigned int timestamp)
+{
+   Handler_Data *hd;
+
+   hd = data;
+   if (!hd->mover)
      return;
 
-   mover = evas_object_data_get(QP_EC->frame, QP_DATA_KEY);
-   if (mover)
-     _quickpanel_mover_free(mover);
+   if (_mover_obj_is_animating(hd->mover))
+     return;
 
+   _mover_obj_move(hd->mover, 0, y, timestamp);
+}
+
+static void
+_handler_obj_cb_gesture_end(void *data EINA_UNUSED, Evas_Object *handler, int x, int y, unsigned int timestamp)
+{
+   Handler_Data *hd;
+   Eina_Bool v;
+
+   hd = data;
+   if (!hd->mover)
+     {
+        DBG("Could not find quickpanel mover object");
+        return;
+     }
+
+   if (_mover_obj_is_animating(hd->mover))
+     return;
+
+   v = _mover_obj_visibility_eval(hd->mover, 0, y, timestamp);
+   _mover_obj_effect_start(hd->mover, y, v);
+}
+
+static void
+_handler_obj_cb_del(void *data, Evas *e EINA_UNUSED, Evas_Object *obj, void *event_info EINA_UNUSED)
+{
+   Handler_Data *hd;
+
+   hd = data;
+
+   E_FREE_FUNC(hd->mover, evas_object_del);
+   E_FREE_FUNC(hd->gesture, e_mod_gesture_del);
+
+   free(hd);
+}
+
+static void
+_quickpanel_free(Pol_Quickpanel *pol_qp)
+{
+   if (pol_qp->mover)
+     evas_object_del(pol_qp->mover);
+
+   E_FREE_FUNC(pol_qp->handler.obj, evas_object_del);
    E_FREE_FUNC(_buffer_change_hdlr, ecore_event_handler_del);
-   E_FREE_FUNC(_pol_quickpanel->handler.obj, e_mod_quickpanel_handler_object_del);
    E_FREE_LIST(_quickpanel_hooks, e_client_hook_del);
    E_FREE(_pol_quickpanel);
 }
@@ -470,11 +584,15 @@ _quickpanel_data_free(void)
 static void
 _quickpanel_hook_client_del(void *d EINA_UNUSED, E_Client *ec)
 {
-   if (!ec) return;
-   if (!_pol_quickpanel) return;
-   if (QP_EC != ec) return;
+   Pol_Quickpanel *pol_qp;
 
-   _quickpanel_data_free();
+   if (!ec) return;
+
+   pol_qp = _quickpanel_find(ec);
+   if (!pol_qp)
+     return;
+
+   _quickpanel_free(pol_qp);
 }
 
 /* HACK
@@ -489,7 +607,7 @@ _quickpanel_cb_buffer_change(void *data, int type, void *event)
    E_Client *ec;
 
    ec = ev->ec;
-   if (ec != QP_EC)
+   if (ec != e_mod_quickpanel_client_get())
      goto end;
 
    e_comp_post_update_add(ec);
@@ -499,6 +617,146 @@ _quickpanel_cb_buffer_change(void *data, int type, void *event)
 
 end:
    return ECORE_CALLBACK_PASS_ON;
+}
+
+static void
+_quickpanel_client_evas_cb_show(void *data, Evas *evas, Evas_Object *qp_obj, void *event)
+{
+   Evas_Object *handler = data;
+
+   evas_object_show(handler);
+}
+
+static void
+_quickpanel_client_evas_cb_hide(void *data, Evas *evas, Evas_Object *qp_obj, void *event)
+{
+   Evas_Object *handler = data;
+
+   evas_object_hide(handler);
+}
+
+static void
+_quickpanel_client_evas_cb_move(void *data, Evas *evas, Evas_Object *qp_obj, void *event)
+{
+   Evas_Object *handler = data;
+   int x, y, hx, hy;
+
+   hx = _pol_quickpanel->handler.rect.x;
+   hy = _pol_quickpanel->handler.rect.y;
+
+   evas_object_geometry_get(qp_obj, &x, &y, NULL, NULL);
+   evas_object_move(handler, x + hx, y + hy);
+   evas_object_raise(handler);
+}
+
+static void
+_quickpanel_handler_rect_add(Pol_Quickpanel *qp, int angle, int x, int y, int w, int h)
+{
+   E_Client *ec;
+   Evas_Object *handler;
+
+   ec = qp->ec;
+
+   ELOGF("QUICKPANEL", "Handler Geo Set | x %d, y %d, w %d, h %d",
+         NULL, NULL, x, y, w, h);
+
+   handler =
+      e_mod_quickpanel_handler_object_add(ec,
+                                          ec->client.x + x,
+                                          ec->client.y + y,
+                                          w, h);
+
+   /* Add handler object to smart member to follow the client's stack */
+   evas_object_smart_member_add(handler, ec->frame);
+   evas_object_propagate_events_set(handler, 0);
+
+   if (evas_object_visible_get(ec->frame))
+     evas_object_show(handler);
+
+   evas_object_event_callback_add(ec->frame, EVAS_CALLBACK_SHOW,
+                                  _quickpanel_client_evas_cb_show, handler);
+   evas_object_event_callback_add(ec->frame, EVAS_CALLBACK_HIDE,
+                                  _quickpanel_client_evas_cb_hide, handler);
+   evas_object_event_callback_add(ec->frame, EVAS_CALLBACK_MOVE,
+                                  _quickpanel_client_evas_cb_move, handler);
+
+   EINA_RECTANGLE_SET(&qp->handler.rect, x, y, w, h);
+   qp->handler.obj = handler;
+}
+
+static void
+_quickpanel_handler_region_set(Pol_Quickpanel *qp, int angle, Eina_Tiler *tiler)
+{
+   Eina_Iterator *it;
+   Eina_Rectangle *r;
+
+   /* NOTE: supported single rectangle, not tiler */
+
+   it = eina_tiler_iterator_new(tiler);
+   EINA_ITERATOR_FOREACH(it, r)
+     {
+        _quickpanel_handler_rect_add(qp, angle, r->x, r->y, r->w, r->h);
+        e_mod_indicator_create(r->w, r->h);
+        break;
+     }
+   eina_iterator_free(it);
+}
+
+static void
+_quickpanel_visibility_change(Pol_Quickpanel *qp, Eina_Bool vis, Eina_Bool with_effect)
+{
+   E_Client *ec;
+   Evas_Object *mover;
+   Mover_Data *md;
+   Eina_Bool cur_vis = EINA_FALSE;
+   int from_y;
+   int x, y, w, h;
+
+   ec = qp->ec;
+
+   evas_object_geometry_get(ec->frame, &x, &y, &w, &h);
+
+   if (E_INTERSECTS(x, y, w, h, ec->zone->x, ec->zone->y, ec->zone->w, ec->zone->h))
+     cur_vis = evas_object_visible_get(ec->frame);
+
+   if (cur_vis == vis)
+     return;
+
+   mover = qp->mover;
+
+   if (with_effect)
+     {
+        if (mover)
+          {
+             if (_mover_obj_is_animating(mover))
+               _mover_obj_effect_stop(mover);
+
+             md = evas_object_smart_data_get(mover);
+             from_y = md->handler.rect.y;
+          }
+        else
+          {
+             from_y = vis ? 0 : ec->zone->h;
+             mover = _mover_obj_new(qp);
+          }
+
+
+        _mover_obj_effect_start(mover, from_y, vis);
+     }
+   else
+     {
+        if (mover)
+          {
+             if (_mover_obj_is_animating(mover))
+               _mover_obj_effect_stop(mover);
+             evas_object_del(mover);
+          }
+
+        if (vis)
+          evas_object_move(ec->frame, 0, 0);
+        else
+          evas_object_move(ec->frame, -10000, -10000);
+     }
 }
 
 #undef E_CLIENT_HOOK_APPEND
@@ -520,7 +778,8 @@ e_mod_quickpanel_client_set(E_Client *ec)
 
    if (EINA_UNLIKELY(!ec))
      {
-        _quickpanel_data_free();
+        pol_qp = _quickpanel_find(e_mod_quickpanel_client_get());
+        _quickpanel_free(pol_qp);
         return;
      }
 
@@ -571,86 +830,53 @@ e_mod_quickpanel_client_get(void)
 {
    EINA_SAFETY_ON_NULL_RETURN_VAL(_pol_quickpanel, NULL);
 
-   return QP_EC;
+   return _pol_quickpanel->ec;
 }
 
-static Eina_Bool
-_quickpanel_mover_is_animating(Evas_Object *mover)
+EINTERN Eina_Bool
+e_mod_quickpanel_region_set(int type, int angle, Eina_Tiler *tiler)
 {
-   Mover_Data *md;
+   Pol_Quickpanel *qp;
+   E_Client *ec;
 
-   md = evas_object_smart_data_get(mover);
+   ec = e_mod_quickpanel_client_get();
+   if (EINA_UNLIKELY(!ec))
+     return EINA_FALSE;
 
-   return !!md->effect_info.transit;
-}
+   qp = _quickpanel_find(ec);
+   if (EINA_UNLIKELY(!qp))
+     return EINA_FALSE;
 
-static void
-_quickpanel_handler_cb_gesture_start(void *data EINA_UNUSED, Evas_Object *handler, int x, int y, unsigned int timestamp)
-{
-   Evas_Object *mover;
-   Mover_Data *md;
+   // FIXME should consider rotation.
+   if (angle != 0)
+     return EINA_FALSE;
 
-   mover = evas_object_data_get(handler, QP_DATA_KEY);
-   if (mover)
-     {
-        if (_quickpanel_mover_is_animating(mover))
-          return;
+   // FIXME: region type
+   if (type != 0)
+     return EINA_FALSE;
 
-        DBG("Mover object already existed");
-        _quickpanel_mover_free(mover);
-     }
+   _quickpanel_handler_region_set(qp, angle, tiler);
 
-   mover = _quickpanel_mover_begin(QP_EC, handler, 0, y, timestamp);
-   if (!mover)
-     return;
-
-   evas_object_data_set(handler, QP_DATA_KEY, mover);
-}
-
-static void
-_quickpanel_handler_cb_gesture_move(void *data EINA_UNUSED, Evas_Object *handler, int x, int y, unsigned int timestamp)
-{
-   Evas_Object *mover;
-
-   mover = evas_object_data_get(handler, QP_DATA_KEY);
-   if (!mover)
-     return;
-
-   if (_quickpanel_mover_is_animating(mover))
-     return;
-
-   _quickpanel_mover_move(mover, 0, y, timestamp);
-}
-
-static void
-_quickpanel_handler_cb_gesture_end(void *data EINA_UNUSED, Evas_Object *handler, int x, int y, unsigned int timestamp)
-{
-   Evas_Object *mover;
-
-   mover = evas_object_data_get(handler, QP_DATA_KEY);
-   if (!mover)
-     {
-        DBG("Could not find quickpanel mover object");
-        return;
-     }
-
-   if (_quickpanel_mover_is_animating(mover))
-     return;
-
-   _quickpanel_mover_end(mover, 0, y, timestamp);
-
-   evas_object_data_del(handler, QP_DATA_KEY);
+   return EINA_TRUE;
 }
 
 EINTERN Evas_Object *
-e_mod_quickpanel_handler_object_add(int x, int y, int w, int h)
+e_mod_quickpanel_handler_object_add(E_Client *ec, int x, int y, int w, int h)
 {
+   Pol_Quickpanel *qp;
    Pol_Gesture *gesture;
    Evas_Object *handler;
+   Handler_Data *hd;
 
-   EINA_SAFETY_ON_NULL_RETURN_VAL(_pol_quickpanel, NULL);
+   qp = _quickpanel_find(ec);
+   if (!qp)
+     return NULL;
 
-   handler = evas_object_rectangle_add(evas_object_evas_get(QP_EC->frame));
+   hd = E_NEW(Handler_Data, 1);
+   if (EINA_UNLIKELY(!hd))
+     return NULL;
+
+   handler = evas_object_rectangle_add(evas_object_evas_get(ec->frame));
 
    /* make it transparent */
    evas_object_color_set(handler, 0, 0, 0, 0);
@@ -660,155 +886,53 @@ e_mod_quickpanel_handler_object_add(int x, int y, int w, int h)
    evas_object_move(handler, x, y);
    evas_object_resize(handler, w, h);
 
+   evas_object_event_callback_add(handler, EVAS_CALLBACK_DEL, _handler_obj_cb_del, hd);
+
    gesture = e_mod_gesture_add(handler, POL_GESTURE_TYPE_LINE);
    e_mod_gesture_cb_set(gesture,
-                        _quickpanel_handler_cb_gesture_start,
-                        _quickpanel_handler_cb_gesture_move,
-                        _quickpanel_handler_cb_gesture_end,
-                        NULL);
+                        _handler_obj_cb_gesture_start,
+                        _handler_obj_cb_gesture_move,
+                        _handler_obj_cb_gesture_end,
+                        hd);
 
-   evas_object_data_set(handler, GESTURE_DATA_KEY, gesture);
+   hd->qp = qp;
+   hd->gesture = gesture;
+   hd->handler = handler;
+   hd->mover = NULL;
 
    return handler;
 }
 
 EINTERN void
-e_mod_quickpanel_handler_object_del(Evas_Object *handler)
-{
-   Pol_Gesture *gesture;
-   Evas_Object *mover;
-
-   mover = evas_object_data_get(handler, QP_DATA_KEY);
-   if (mover)
-     {
-        _quickpanel_mover_free(mover);
-        evas_object_data_del(handler, QP_DATA_KEY);
-     }
-
-   gesture = evas_object_data_get(handler, GESTURE_DATA_KEY);
-   if (gesture)
-     {
-        e_mod_gesture_del(gesture);
-        evas_object_data_del(handler, GESTURE_DATA_KEY);
-     }
-
-   evas_object_del(handler);
-}
-
-static void
-_quickpanel_client_evas_cb_show(void *data, Evas *evas, Evas_Object *qp_obj, void *event)
-{
-   Evas_Object *handler = data;
-
-   evas_object_show(handler);
-}
-
-static void
-_quickpanel_client_evas_cb_hide(void *data, Evas *evas, Evas_Object *qp_obj, void *event)
-{
-   Evas_Object *handler = data;
-
-   evas_object_hide(handler);
-}
-
-static void
-_quickpanel_client_evas_cb_move(void *data, Evas *evas, Evas_Object *qp_obj, void *event)
-{
-   Evas_Object *handler = data;
-   int x, y, hx, hy;
-
-   hx = _pol_quickpanel->handler.rect.x;
-   hy = _pol_quickpanel->handler.rect.y;
-
-   evas_object_geometry_get(qp_obj, &x, &y, NULL, NULL);
-   evas_object_move(handler, x + hx, y + hy);
-   evas_object_raise(handler);
-}
-
-EINTERN Eina_Bool
-e_mod_quickpanel_handler_region_set(int x, int y, int w, int h)
-{
-   Evas_Object *handler;
-
-   EINA_SAFETY_ON_NULL_RETURN_VAL(_pol_quickpanel, EINA_FALSE);
-
-   ELOGF("QUICKPANEL", "Handler Geo Set | x %d, y %d, w %d, h %d",
-         NULL, NULL, x, y, w, h);
-
-   handler = e_mod_quickpanel_handler_object_add(QP_EC->client.x + x,
-                                                 QP_EC->client.y + y,
-                                                 w, h);
-
-   /* Add handler object to smart member to follow the client's stack */
-   evas_object_smart_member_add(handler, QP_EC->frame);
-   evas_object_propagate_events_set(handler, 0);
-
-   if (evas_object_visible_get(QP_EC->frame))
-     evas_object_show(handler);
-
-   evas_object_event_callback_add(QP_EC->frame, EVAS_CALLBACK_SHOW,
-                                  _quickpanel_client_evas_cb_show, handler);
-   evas_object_event_callback_add(QP_EC->frame, EVAS_CALLBACK_HIDE,
-                                  _quickpanel_client_evas_cb_hide, handler);
-   evas_object_event_callback_add(QP_EC->frame, EVAS_CALLBACK_MOVE,
-                                  _quickpanel_client_evas_cb_move, handler);
-
-   EINA_RECTANGLE_SET(&_pol_quickpanel->handler.rect, x, y, w, h);
-   _pol_quickpanel->handler.obj = handler;
-
-   return EINA_TRUE;
-}
-
-static void
-_quickpanel_visibility_change(Eina_Bool visibility, Eina_Bool with_effect)
-{
-   Evas_Object *mover;
-   Mover_Data *md;
-   int from_y;
-
-   mover = evas_object_data_get(QP_EC->frame, QP_DATA_KEY);
-
-   if (with_effect)
-     {
-        if (mover)
-          {
-             md = evas_object_smart_data_get(mover);
-             from_y = md->handler_geo.y;
-          }
-        else
-          {
-             from_y = visibility ? 0 : QP_EC->zone->h;
-             mover = _quickpanel_mover_begin(QP_EC, NULL, 0, from_y, 0);
-          }
-
-        _quickpanel_mover_effect_begin(mover, from_y, visibility);
-     }
-   else
-     {
-        if (mover)
-          _quickpanel_mover_free(mover);
-
-        if (visibility)
-          evas_object_move(QP_EC->frame, 0, 0);
-        else
-          evas_object_move(QP_EC->frame, -10000, -10000);
-     }
-}
-
-EINTERN void
 e_mod_quickpanel_show(void)
 {
-   EINA_SAFETY_ON_NULL_RETURN(_pol_quickpanel);
+   Pol_Quickpanel *qp;
+   E_Client *ec;
 
-   _quickpanel_visibility_change(EINA_TRUE, EINA_TRUE);
+   ec = e_mod_quickpanel_client_get();
+   if (!ec)
+     return;
+
+   qp = _quickpanel_find(ec);
+   if (!qp)
+     return;
+
+   _quickpanel_visibility_change(qp, EINA_TRUE, EINA_TRUE);
 }
 
 EINTERN void
 e_mod_quickpanel_hide(void)
 {
-   Evas_Object *mover;
+   Pol_Quickpanel *qp;
+   E_Client *ec;
 
-   EINA_SAFETY_ON_NULL_RETURN(_pol_quickpanel);
+   ec = e_mod_quickpanel_client_get();
+   if (!ec)
+     return;
 
-   _quickpanel_visibility_change(EINA_FALSE, EINA_TRUE);
+   qp = _quickpanel_find(ec);
+   if (!qp)
+     return;
+
+   _quickpanel_visibility_change(qp, EINA_FALSE, EINA_TRUE);
 }

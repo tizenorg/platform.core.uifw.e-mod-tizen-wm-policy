@@ -20,7 +20,7 @@ _indicator_hook_client_del(void *d, E_Client *ec)
 
    DBG("DEL Indicator Handler: obj %p", pi->handler);
 
-   e_mod_quickpanel_handler_object_del(pi->handler);
+   evas_object_del(pi->handler);
    free(pi);
 
    E_FREE_LIST(indicator_hooks, e_client_hook_del);
@@ -71,7 +71,7 @@ e_mod_indicator_create(int w, int h)
 
    pi = E_NEW(Pol_Indicator, 1);
    pi->qp_ec = qp_ec;
-   pi->handler = e_mod_quickpanel_handler_object_add(0, 0, w, h);
+   pi->handler = e_mod_quickpanel_handler_object_add(qp_ec, 0, 0, w, h);
 
    /* FIXME set stacking as a max temporally. */
    evas_object_layer_set(pi->handler, EVAS_LAYER_MAX);
