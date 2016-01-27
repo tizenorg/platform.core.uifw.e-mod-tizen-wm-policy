@@ -43,6 +43,7 @@ struct _Mover_Data
    Evas_Object *handler_mirror_obj; // quickpanel handler mirror object
    Evas_Object *base_clip; // clipper for quickapnel base object
    Evas_Object *handler_clip; // clipper for quickpanel handler object
+   Evas_Object *handler_obj;
 
    Eina_Bool    qp_layout_init: 1;
 
@@ -172,6 +173,9 @@ _quickpanel_smart_del(Evas_Object *obj)
 
    if (md->qp_layout_obj) evas_object_del(md->qp_layout_obj);
 
+   if (md->handler_obj)
+     evas_object_data_del(md->handler_obj, QP_DATA_KEY);
+
    evas_object_color_set(ec->frame, ec->netwm.opacity, ec->netwm.opacity, ec->netwm.opacity, ec->netwm.opacity);
    evas_object_data_del(ec->frame, QP_DATA_KEY);
 
@@ -261,7 +265,7 @@ _quickpanel_mover_handler_move(Mover_Data *md, int x, int y)
 }
 
 static Evas_Object *
-_quickpanel_mover_begin(E_Client *ec, int x, int y, unsigned int timestamp)
+_quickpanel_mover_begin(E_Client *ec, Evas_Object *handler, int x, int y, unsigned int timestamp)
 {
    Evas_Object *mover;
    Mover_Data *md;
@@ -281,6 +285,7 @@ _quickpanel_mover_begin(E_Client *ec, int x, int y, unsigned int timestamp)
 
    md = evas_object_smart_data_get(mover);
    md->ec = ec;
+   md->handler_obj = handler;
    md->handler_geo.w = _pol_quickpanel->handler.rect.w;
    md->handler_geo.h = _pol_quickpanel->handler.rect.h;
    md->effect_info.y = y;
@@ -569,19 +574,33 @@ e_mod_quickpanel_client_get(void)
    return QP_EC;
 }
 
+static Eina_Bool
+_quickpanel_mover_is_animating(Evas_Object *mover)
+{
+   Mover_Data *md;
+
+   md = evas_object_smart_data_get(mover);
+
+   return !!md->effect_info.transit;
+}
+
 static void
 _quickpanel_handler_cb_gesture_start(void *data EINA_UNUSED, Evas_Object *handler, int x, int y, unsigned int timestamp)
 {
    Evas_Object *mover;
+   Mover_Data *md;
 
    mover = evas_object_data_get(handler, QP_DATA_KEY);
    if (mover)
      {
+        if (_quickpanel_mover_is_animating(mover))
+          return;
+
         DBG("Mover object already existed");
         _quickpanel_mover_free(mover);
      }
 
-   mover = _quickpanel_mover_begin(QP_EC, 0, y, timestamp);
+   mover = _quickpanel_mover_begin(QP_EC, handler, 0, y, timestamp);
    if (!mover)
      return;
 
@@ -595,6 +614,9 @@ _quickpanel_handler_cb_gesture_move(void *data EINA_UNUSED, Evas_Object *handler
 
    mover = evas_object_data_get(handler, QP_DATA_KEY);
    if (!mover)
+     return;
+
+   if (_quickpanel_mover_is_animating(mover))
      return;
 
    _quickpanel_mover_move(mover, 0, y, timestamp);
@@ -611,6 +633,9 @@ _quickpanel_handler_cb_gesture_end(void *data EINA_UNUSED, Evas_Object *handler,
         DBG("Could not find quickpanel mover object");
         return;
      }
+
+   if (_quickpanel_mover_is_animating(mover))
+     return;
 
    _quickpanel_mover_end(mover, 0, y, timestamp);
 
@@ -734,18 +759,48 @@ e_mod_quickpanel_handler_region_set(int x, int y, int w, int h)
    return EINA_TRUE;
 }
 
+static void
+_quickpanel_visibility_change(Eina_Bool visibility, Eina_Bool with_effect)
+{
+   Evas_Object *mover;
+   Mover_Data *md;
+   int from_y;
+
+   mover = evas_object_data_get(QP_EC->frame, QP_DATA_KEY);
+
+   if (with_effect)
+     {
+        if (mover)
+          {
+             md = evas_object_smart_data_get(mover);
+             from_y = md->handler_geo.y;
+          }
+        else
+          {
+             from_y = visibility ? 0 : QP_EC->zone->h;
+             mover = _quickpanel_mover_begin(QP_EC, NULL, 0, from_y, 0);
+          }
+
+        _quickpanel_mover_effect_begin(mover, from_y, visibility);
+     }
+   else
+     {
+        if (mover)
+          _quickpanel_mover_free(mover);
+
+        if (visibility)
+          evas_object_move(QP_EC->frame, 0, 0);
+        else
+          evas_object_move(QP_EC->frame, -10000, -10000);
+     }
+}
+
 EINTERN void
 e_mod_quickpanel_show(void)
 {
-   Evas_Object *mover;
-
    EINA_SAFETY_ON_NULL_RETURN(_pol_quickpanel);
 
-   mover = evas_object_data_get(QP_EC->frame, QP_DATA_KEY);
-   if (mover)
-     _quickpanel_mover_free(mover);
-
-   evas_object_move(QP_EC->frame, 0, 0);
+   _quickpanel_visibility_change(EINA_TRUE, EINA_TRUE);
 }
 
 EINTERN void
@@ -755,9 +810,5 @@ e_mod_quickpanel_hide(void)
 
    EINA_SAFETY_ON_NULL_RETURN(_pol_quickpanel);
 
-   mover = evas_object_data_get(QP_EC->frame, QP_DATA_KEY);
-   if (mover)
-     _quickpanel_mover_free(mover);
-
-   evas_object_move(QP_EC->frame, -10000, -10000);
+   _quickpanel_visibility_change(EINA_FALSE, EINA_TRUE);
 }
