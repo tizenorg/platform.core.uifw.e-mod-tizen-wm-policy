@@ -31,8 +31,12 @@ e_mod_pol_client_is_keyboard_sub(E_Client *ec)
 }
 
 EINTERN void
-e_mod_pol_keyboard_layout_apply(E_Client *ec)
+e_mod_pol_keyboard_layout_apply(E_Client *ec EINA_UNUSED)
 {
+/* FIXME: do not resize and move client.
+ * ec->e.state.rot.geom[].w/h is always 0,
+ * then the geometry calculated here is not valid. */
+#if 0
    int angle;
    int angle_id = 0;
    int kbd_x, kbd_y, kbd_w, kbd_h;
@@ -83,10 +87,6 @@ e_mod_pol_keyboard_layout_apply(E_Client *ec)
          break;
      }
 
-/* FIXME: do not resize and move client.
- * ec->e.state.rot.geom[].w/h is always 0,
- * then the geometry calculated here is not valid. */
-#if 0
    if ((ec->frame) &&
        ((ec->w != kbd_w) || (ec->h != kbd_h)))
      e_client_util_resize_without_frame(ec, kbd_w, kbd_h);

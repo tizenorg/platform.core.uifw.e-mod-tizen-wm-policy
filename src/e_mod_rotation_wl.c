@@ -132,6 +132,7 @@ static int        e_client_rotation_recommend_angle_get(const E_Client *ec);
 static int        e_zone_rotation_get(E_Zone *zone);
 static void       e_zone_rotation_update_done(E_Zone *zone);
 static void       e_zone_rotation_update_cancel(E_Zone *zone);
+static void       e_zone_rotation_sub_set(E_Zone *zone, int rotation) EINA_UNUSED;
 
 /* e_client event, hook, intercept callbacks */
 static Eina_Bool _rot_cb_zone_rotation_change_begin(void *data EINA_UNUSED, int ev_type EINA_UNUSED, E_Event_Zone_Rotation_Change_Begin *ev);

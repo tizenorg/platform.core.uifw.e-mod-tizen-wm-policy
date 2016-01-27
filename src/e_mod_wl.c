@@ -839,7 +839,7 @@ e_mod_pol_wl_iconify_state_change_send(E_Client *ec, int iconic)
 
           tizen_policy_send_iconify_state_changed(tzpol->res_tzpol, psurf->surf, iconic, 1);
           ELOGF("ICONIFY",
-                "SEND     |win:0x%08x|iconic:%d |sur:%x",
+                "SEND     |win:0x%08x|iconic:%d |sur:%p",
                 ec->pixmap, ec,
                 (unsigned int)win,
                 iconic, psurf->surf);
@@ -1344,9 +1344,7 @@ e_mod_pol_wl_notification_level_fetch(E_Client *ec)
 static void
 _pol_wl_parent_surf_set(E_Client *ec, struct wl_resource *parent_surf)
 {
-   E_Pixmap *pp;
    E_Client *pc = NULL;
-   Ecore_Window pwin = 0;
 
    if (parent_surf)
      {
@@ -1638,8 +1636,6 @@ static void
 _tzpol_iface_cb_aux_hint_add(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf, int32_t id, const char *name, const char *value)
 {
    E_Client *ec;
-   Eina_List *l;
-   E_Comp_Wl_Aux_Hint *hint;
    Eina_Bool res = EINA_FALSE;
 
 
@@ -1658,8 +1654,6 @@ static void
 _tzpol_iface_cb_aux_hint_change(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf, int32_t id, const char *value)
 {
    E_Client *ec;
-   Eina_List *l;
-   E_Comp_Wl_Aux_Hint *hint;
    Eina_Bool res = EINA_FALSE;
 
    ec = wl_resource_get_user_data(surf);
@@ -1677,8 +1671,6 @@ static void
 _tzpol_iface_cb_aux_hint_del(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf, int32_t id)
 {
    E_Client *ec;
-   Eina_List *l, *ll;
-   E_Comp_Wl_Aux_Hint *hint;
    unsigned int res = -1;
 
    ec = wl_resource_get_user_data(surf);
