@@ -208,9 +208,6 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
                     continue;
                }
           }
-        /* check e_client and skip e_clinets not intersects with zone */
-        if (!E_INTERSECTS(ec->x, ec->y, ec->w, ec->h, zone->x, zone->y, zone->w, zone->h))
-          continue;
 
         if (_client_tiler_intersects(ec, t))
           {
