@@ -28,12 +28,11 @@ The Enlightenment WM Policy Module for Tizen
 
 %build
 export CFLAGS+=" -DE_LOGGING=1"
-%autogen
 %if %{with wayland}
-%configure \
+%reconfigure \
       --enable-wayland-only
 %else
-%configure
+%reconfigure
 %endif
 make %{?_smp_mflags}
 
