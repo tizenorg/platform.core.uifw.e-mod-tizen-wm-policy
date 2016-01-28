@@ -367,25 +367,6 @@ _mover_obj_effect_data_new(Elm_Transit *transit, Evas_Object *mover, int from_y,
 }
 
 static void
-_mover_obj_effect_data_free(Elm_Transit_Effect *effect, Elm_Transit *transit)
-{
-   Mover_Data *md;
-   Mover_Effect_Data *ed = effect;
-   int pos;
-
-   if (ed->mover)
-     {
-        md = evas_object_smart_data_get(ed->mover);
-        pos = (ed->visible) ? 0 : -10000;
-        evas_object_move(md->qp->ec->frame, pos, pos);
-
-        evas_object_del(ed->mover);
-     }
-
-   free(ed);
-}
-
-static void
 _mover_obj_effect_op(Elm_Transit_Effect *effect, Elm_Transit *transit, double progress)
 {
    Mover_Effect_Data *ed = effect;
@@ -413,6 +394,26 @@ _mover_obj_effect_cb_mover_obj_del(void *data, Evas *e EINA_UNUSED, Evas_Object 
    ed->mover = NULL;
 
    elm_transit_del(ed->transit);
+}
+
+static void
+_mover_obj_effect_data_free(Elm_Transit_Effect *effect, Elm_Transit *transit)
+{
+   Mover_Data *md;
+   Mover_Effect_Data *ed = effect;
+   int pos;
+
+   if (ed->mover)
+     {
+        md = evas_object_smart_data_get(ed->mover);
+        pos = (ed->visible) ? 0 : -10000;
+        evas_object_move(md->qp->ec->frame, pos, pos);
+
+        evas_object_event_callback_del(ed->mover, EVAS_CALLBACK_DEL, _mover_obj_effect_cb_mover_obj_del);
+        evas_object_del(ed->mover);
+     }
+
+   free(ed);
 }
 
 static void
