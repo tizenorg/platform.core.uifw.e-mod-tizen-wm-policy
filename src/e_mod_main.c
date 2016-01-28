@@ -196,6 +196,7 @@ _pol_client_normal_check(E_Client *ec)
 
    if (e_mod_pol_client_is_quickpanel(ec))
      {
+        ec->exp_iconify.skip_iconify = 1;
         evas_object_move(ec->frame, -10000, -10000);
         return EINA_FALSE;
      }
