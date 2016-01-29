@@ -49,6 +49,7 @@ struct _Mover_Data
       int y;
       unsigned int timestamp;
       float accel;
+      Eina_Bool visible;
    } effect_info;
 };
 
@@ -451,6 +452,7 @@ _mover_obj_effect_start(Evas_Object *mover, int from_y, Eina_Bool visible)
    evas_object_event_callback_add(mover, EVAS_CALLBACK_DEL, _mover_obj_effect_cb_mover_obj_del, effect);
 
    md->effect_info.transit = transit;
+   md->effect_info.visible = visible;
    md->effect_info.data = (Mover_Effect_Data *)effect;
 }
 
@@ -492,6 +494,16 @@ _mover_obj_is_animating(Evas_Object *mover)
    md = evas_object_smart_data_get(mover);
 
    return !!md->effect_info.transit;
+}
+
+static Eina_Bool
+_mover_obj_effect_visible_get(Evas_Object *mover)
+{
+   Mover_Data *md;
+
+   md = evas_object_smart_data_get(mover);
+
+   return md->effect_info.visible;
 }
 
 static void
@@ -730,7 +742,12 @@ _quickpanel_visibility_change(Pol_Quickpanel *qp, Eina_Bool vis, Eina_Bool with_
         if (mover)
           {
              if (_mover_obj_is_animating(mover))
-               _mover_obj_effect_stop(mover);
+               {
+                  if (_mover_obj_effect_visible_get(mover) == vis)
+                    return;
+
+                  _mover_obj_effect_stop(mover);
+               }
 
              md = evas_object_smart_data_get(mover);
              from_y = md->handler.rect.y;
@@ -738,9 +755,8 @@ _quickpanel_visibility_change(Pol_Quickpanel *qp, Eina_Bool vis, Eina_Bool with_
         else
           {
              from_y = vis ? 0 : ec->zone->h;
-             mover = _mover_obj_new(qp);
+             mover = _mover_obj_new_with_move(qp, 0, from_y, 0);
           }
-
 
         _mover_obj_effect_start(mover, from_y, vis);
      }
