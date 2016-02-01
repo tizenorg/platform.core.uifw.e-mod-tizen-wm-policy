@@ -7,7 +7,7 @@ e_mod_rotation_angle_valid_check(int angle)
 static inline Rot_Idx
 e_mod_rotation_angle_to_idx(int angle)
 {
-   if (e_mod_rotation_angle_valid_check(angle))
+   if (!e_mod_rotation_angle_valid_check(angle))
      return -1;
 
    return angle / 90;
