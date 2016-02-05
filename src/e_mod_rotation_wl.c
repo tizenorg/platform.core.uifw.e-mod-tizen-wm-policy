@@ -34,7 +34,7 @@ typedef struct _E_Client_Rotation E_Client_Rotation;
 
 struct _Policy_Ext_Rotation
 {
-   E_Pixmap *ep;
+   E_Client *ec;
    uint32_t available_angles, preferred_angle;
    enum tizen_rotation_angle cur_angle, prev_angle;
    Eina_List *rotation_list;
@@ -77,7 +77,7 @@ static Eina_List *rot_intercept_hooks = NULL;
 static Ecore_Idle_Enterer *rot_idle_enterer = NULL;
 
 /* local subsystem functions */
-static Policy_Ext_Rotation* _policy_ext_rotation_get(E_Pixmap *ep);
+static Policy_Ext_Rotation* _policy_ext_rotation_get(E_Client *ec);
 
 /* local subsystem wayland rotation protocol related functions */
 static void _e_tizen_rotation_destroy_cb(struct wl_client *client, struct wl_resource *resource);
@@ -148,20 +148,20 @@ static void      _rot_cb_evas_show(void *data, Evas *e EINA_UNUSED, Evas_Object 
 
 /* local subsystem functions */
 static Policy_Ext_Rotation*
-_policy_ext_rotation_get(E_Pixmap *ep)
+_policy_ext_rotation_get(E_Client *ec)
 {
    Policy_Ext_Rotation *rot;
 
    EINA_SAFETY_ON_NULL_RETURN_VAL(hash_policy_ext_rotation, NULL);
 
-   rot = eina_hash_find(hash_policy_ext_rotation, &ep);
+   rot = eina_hash_find(hash_policy_ext_rotation, &ec);
    if (!rot)
      {
         rot = E_NEW(Policy_Ext_Rotation, 1);
         EINA_SAFETY_ON_NULL_RETURN_VAL(rot, NULL);
 
-        rot->ep = ep;
-        eina_hash_add(hash_policy_ext_rotation, &ep, rot);
+        rot->ec = ec;
+        eina_hash_add(hash_policy_ext_rotation, &ec, rot);
      }
 
    return rot;
@@ -182,11 +182,12 @@ _e_tizen_rotation_set_available_angles_cb(struct wl_client *client,
    E_Client *ec;
    Policy_Ext_Rotation *rot;
 
-   ec = wl_resource_get_user_data(resource);
-   EINA_SAFETY_ON_NULL_RETURN(ec);
-
-   rot = _policy_ext_rotation_get(ec->pixmap);
+   rot = wl_resource_get_user_data(resource);
    EINA_SAFETY_ON_NULL_RETURN(rot);
+
+   ec = rot->ec;
+   if (!ec)
+     return;
 
    rot->available_angles = angles;
 
@@ -202,11 +203,12 @@ _e_tizen_rotation_set_preferred_angle_cb(struct wl_client *client,
    Policy_Ext_Rotation *rot;
    E_Client *ec;
 
-   ec = wl_resource_get_user_data(resource);
-   EINA_SAFETY_ON_NULL_RETURN(ec);
-
-   rot = _policy_ext_rotation_get(ec->pixmap);
+   rot = wl_resource_get_user_data(resource);
    EINA_SAFETY_ON_NULL_RETURN(rot);
+
+   ec = rot->ec;
+   if (!ec)
+     return;
 
    rot->preferred_angle = angle;
 
@@ -222,11 +224,12 @@ _e_tizen_rotation_ack_angle_change_cb(struct wl_client *client,
    E_Client *ec;
    Policy_Ext_Rotation *rot;
 
-   ec = wl_resource_get_user_data(resource);
-   EINA_SAFETY_ON_NULL_RETURN(ec);
-
-   rot = _policy_ext_rotation_get(ec->pixmap);
+   rot = wl_resource_get_user_data(resource);
    EINA_SAFETY_ON_NULL_RETURN(rot);
+
+   ec = rot->ec;
+   if (!ec)
+     return;
 
    if (rot->serial == serial) // rotation success
      {
@@ -266,10 +269,7 @@ _e_tizen_rotation_destroy(struct wl_resource *resource)
    E_Client *ec;
    Policy_Ext_Rotation *rot;
 
-   ec = wl_resource_get_user_data(resource);
-   EINA_SAFETY_ON_NULL_RETURN(ec);
-
-   rot = _policy_ext_rotation_get(ec->pixmap);
+   rot = wl_resource_get_user_data(resource);
    EINA_SAFETY_ON_NULL_RETURN(rot);
 
    rot->rotation_list = eina_list_remove(rot->rotation_list, resource);
@@ -290,7 +290,7 @@ _e_tizen_policy_ext_get_rotation_cb(struct wl_client *client,
    EINA_SAFETY_ON_NULL_RETURN(ec);
 
    // Add rotation info
-   rot = _policy_ext_rotation_get(ec->pixmap);
+   rot = _policy_ext_rotation_get(ec);
    EINA_SAFETY_ON_NULL_RETURN(rot);
 
    res = wl_resource_create(client, &tizen_rotation_interface, version, id);
@@ -303,7 +303,7 @@ _e_tizen_policy_ext_get_rotation_cb(struct wl_client *client,
    rot->rotation_list = eina_list_append(rot->rotation_list, res);
 
    wl_resource_set_implementation(res, &_e_tizen_rotation_interface,
-                                  ec, _e_tizen_rotation_destroy);
+                                  rot, _e_tizen_rotation_destroy);
 
    ec->e.fetch.rot.support = 1;
    EC_CHANGED(ec);
@@ -334,10 +334,9 @@ _e_tizen_rotation_send_angle_change(E_Client *ec, int angle)
    enum tizen_rotation_angle tz_angle = TIZEN_ROTATION_ANGLE_0;
 
    EINA_SAFETY_ON_NULL_RETURN(ec);
-   EINA_SAFETY_ON_NULL_RETURN(ec->pixmap);
    EINA_SAFETY_ON_NULL_RETURN(hash_policy_ext_rotation);
 
-   rot = eina_hash_find(hash_policy_ext_rotation, &ec->pixmap);
+   rot = eina_hash_find(hash_policy_ext_rotation, &ec);
    if (!rot) return;
 
    switch (angle)
@@ -1127,10 +1126,9 @@ _rot_hook_new_client(void *d EINA_UNUSED, E_Client *ec)
    ec->e.state.rot.ang.curr = 0;
    ec->e.state.rot.ang.prev = 0;
 
-   EINA_SAFETY_ON_NULL_RETURN(ec->pixmap);
    EINA_SAFETY_ON_NULL_RETURN(hash_policy_ext_rotation);
 
-   rot = eina_hash_find(hash_policy_ext_rotation, &ec->pixmap);
+   rot = eina_hash_find(hash_policy_ext_rotation, &ec);
    if (!rot) return;
 
    ec->e.fetch.rot.support = 1;
@@ -1161,6 +1159,7 @@ static void
 _rot_hook_client_del(void *d EINA_UNUSED, E_Client *ec)
 {
    Policy_Ext_Rotation *ext_rot;
+   struct wl_resource *res;
 
    _e_client_rotation_list_remove(ec);
    if (rot.async_list) rot.async_list = eina_list_remove(rot.async_list, ec);
@@ -1171,9 +1170,14 @@ _rot_hook_client_del(void *d EINA_UNUSED, E_Client *ec)
    if (ec->e.state.rot.available_rots)
      E_FREE(ec->e.state.rot.available_rots);
 
-   ext_rot = _policy_ext_rotation_get(ec->pixmap);
+   ext_rot = _policy_ext_rotation_get(ec);
    if (ext_rot)
-     E_FREE_LIST(ext_rot->rotation_list, wl_resource_destroy);
+     {
+        EINA_LIST_FREE(ext_rot->rotation_list, res)
+           wl_resource_set_user_data(res, NULL);
+
+        eina_hash_del_by_key(hash_policy_ext_rotation, &ec);
+     }
 }
 
 static void
@@ -1209,9 +1213,8 @@ _rot_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec)
    Policy_Ext_Rotation *rot;
 
    if (!ec) return;
-   if (!ec->pixmap) return;
 
-   rot = eina_hash_find(hash_policy_ext_rotation, &ec->pixmap);
+   rot = eina_hash_find(hash_policy_ext_rotation, &ec);
    if (!rot) return;
 
    if(ec->e.fetch.rot.support)
