@@ -122,11 +122,20 @@ typedef struct _Pol_Wl
 } Pol_Wl;
 
 static Pol_Wl *polwl = NULL;
+
 E_Launch_Screen   *launch_scrn=NULL;
+
+enum _WM_Policy_Hint_Type
+{
+   WM_POLICY_HINT_USER_GEOMETRY = 0,
+   WM_POLICY_HINT_FIXED_RESIZE = 1,
+   WM_POLICY_HINT_DEICONIFY_APPROVE_DISABLE = 2
+};
 static const char *hint_names[] =
 {
    "wm.policy.win.user.geometry",
-   "wm.policy.win.fixed.resize"
+   "wm.policy.win.fixed.resize",
+   "wm.policy.win.deiconify.approve.disable"
 };
 
 static void                _pol_wl_surf_del(Pol_Wl_Surface *psurf);
@@ -1635,7 +1644,7 @@ e_mod_pol_wl_eval_pre_new_client(E_Client *ec)
    EINA_LIST_FOREACH(ec->comp_data->aux_hint.hints, l, hint)
      {
         send = EINA_FALSE;
-        if (!strcmp(hint->hint, hint_names[0]))
+        if (!strcmp(hint->hint, hint_names[WM_POLICY_HINT_USER_GEOMETRY]))
           {
              if (!strcmp(hint->val, "1") && (ec->lock_client_location || ec->lock_client_size || !ec->placed))
                {
@@ -1659,9 +1668,13 @@ e_mod_pol_wl_eval_pre_new_client(E_Client *ec)
                   EC_CHANGED(ec);
                }
           }
-        else if (!strcmp(hint->hint, hint_names[1]))
+        else if (!strcmp(hint->hint, hint_names[WM_POLICY_HINT_FIXED_RESIZE]))
           {
              /* TODO: support other aux_hints */
+          }
+        else if (!strcmp(hint->hint, hint_names[WM_POLICY_HINT_DEICONIFY_APPROVE_DISABLE]))
+          {
+             /* TODO: would implement after deiconify approve protocol provided */
           }
 
         if (send)
