@@ -44,6 +44,9 @@ struct _Pol_Client
       unsigned int  lock_user_fullscreen : 1;
       unsigned int  lock_client_fullscreen : 1;
    } orig;
+
+   Eina_Bool max_policy_state;
+   Eina_Bool allow_user_geom;
 };
 
 struct _Pol_Softkey
@@ -103,6 +106,8 @@ EINTERN void             e_mod_pol_conf_init(Mod *mod);
 EINTERN void             e_mod_pol_conf_shutdown(Mod *mod);
 EINTERN Config_Desk     *e_mod_pol_conf_desk_get_by_nums(Config *conf, unsigned int zone_num, int x, int y);
 EINTERN E_Config_Dialog *e_int_config_pol_mobile(Evas_Object *o EINA_UNUSED, const char *params EINA_UNUSED);
+EINTERN Pol_Client      *e_mod_pol_client_get(E_Client *ec);
+EINTERN void             e_mod_pol_allow_user_geometry_set(E_Client *ec, Eina_Bool set);
 EINTERN void             e_mod_pol_desk_add(E_Desk *desk);
 EINTERN void             e_mod_pol_desk_del(Pol_Desk *pd);
 EINTERN Pol_Client      *e_mod_pol_client_launcher_get(E_Zone *zone);

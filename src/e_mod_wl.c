@@ -1607,6 +1607,9 @@ e_mod_pol_wl_eval_pre_new_client(E_Client *ec)
                        ec->netwm.type = E_WINDOW_TYPE_UTILITY;
                        ec->lock_client_location = EINA_FALSE;
                     }
+
+                  e_mod_pol_allow_user_geometry_set(ec, EINA_TRUE);
+
                   ec->lock_client_size = EINA_FALSE;
                   ec->placed = 1;
                   send = EINA_TRUE;
@@ -1614,6 +1617,8 @@ e_mod_pol_wl_eval_pre_new_client(E_Client *ec)
                }
              else if (strcmp(hint->val, "1") && (!ec->lock_client_location || !ec->lock_client_size || ec->placed))
                {
+                  e_mod_pol_allow_user_geometry_set(ec, EINA_FALSE);
+
                   ec->lock_client_location = EINA_TRUE;
                   ec->lock_client_size = EINA_TRUE;
                   ec->placed = 0;
