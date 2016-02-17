@@ -18,7 +18,8 @@ static Eina_List *hooks_cp = NULL;
 static Pol_Client *_pol_client_add(E_Client *ec);
 static void        _pol_client_del(Pol_Client *pc);
 static Eina_Bool   _pol_client_normal_check(E_Client *ec);
-static void        _pol_client_update(Pol_Client *pc);
+static void        _pol_client_maximize_policy_apply(Pol_Client *pc);
+static void        _pol_client_maximize_policy_cancel(Pol_Client *pc);
 static void        _pol_client_launcher_set(Pol_Client *pc);
 
 static void        _pol_cb_hook_client_eval_pre_new_client(void *d EINA_UNUSED, E_Client *ec);
@@ -82,22 +83,113 @@ static Pol_Client *
 _pol_client_add(E_Client *ec)
 {
    Pol_Client *pc;
-   Pol_Desk *pd;
 
    if (e_object_is_del(E_OBJECT(ec))) return NULL;
-   if (!_pol_client_normal_check(ec)) return NULL;
 
    pc = eina_hash_find(hash_pol_clients, &ec);
    if (pc) return NULL;
 
-   pd = eina_hash_find(hash_pol_desks, &ec->desk);
-   if (!pd) return NULL;
-
    pc = E_NEW(Pol_Client, 1);
    pc->ec = ec;
 
+   eina_hash_add(hash_pol_clients, &ec, pc);
+
+   return pc;
+}
+
+static void
+_pol_client_del(Pol_Client *pc)
+{
+   eina_hash_del_by_key(hash_pol_clients, &pc->ec);
+}
+
+static Eina_Bool
+_pol_client_normal_check(E_Client *ec)
+{
+   Pol_Client *pc;
+
+   if ((e_client_util_ignored_get(ec)) ||
+       (!ec->pixmap))
+     {
+        return EINA_FALSE;
+     }
+
+   if (e_mod_pol_client_is_quickpanel(ec))
+     {
+        ec->exp_iconify.skip_iconify = 1;
+        evas_object_move(ec->frame, -10000, -10000);
+        return EINA_FALSE;
+     }
+
+   if (e_mod_pol_client_is_keyboard(ec) ||
+       e_mod_pol_client_is_keyboard_sub(ec))
+     {
+        e_mod_pol_keyboard_layout_apply(ec);
+        goto cancel_max;
+     }
+   else if (e_mod_pol_client_is_volume_tv(ec))
+     goto cancel_max;
+   else if (!e_util_strcmp("e_demo", ec->icccm.window_role))
+     goto cancel_max;
+#ifdef HAVE_WAYLAND_ONLY
+   else if (e_mod_pol_client_is_subsurface(ec))
+     goto cancel_max;
+#endif
+
+   if ((ec->netwm.type == E_WINDOW_TYPE_NORMAL) ||
+       (ec->netwm.type == E_WINDOW_TYPE_UNKNOWN) ||
+       (ec->netwm.type == E_WINDOW_TYPE_NOTIFICATION))
+     {
+        return EINA_TRUE;
+     }
+
+   return EINA_FALSE;
+
+cancel_max:
+   pc = eina_hash_find(hash_pol_clients, &ec);
+   _pol_client_maximize_policy_cancel(pc);
+
+   return EINA_FALSE;
+}
+
+static void
+_pol_client_maximize_pre(Pol_Client *pc)
+{
+   E_Client *ec;
+   int zx, zy, zw, zh;
+
+   ec = pc->ec;
+
+   if (ec->desk->visible)
+     e_zone_useful_geometry_get(ec->zone, &zx, &zy, &zw, &zh);
+   else
+     {
+        zx = ec->zone->x;
+        zy = ec->zone->y;
+        zw = ec->zone->w;
+        zh = ec->zone->h;
+     }
+
+   ec->x = ec->client.x = zx;
+   ec->y = ec->client.y = zy;
+   ec->w = ec->client.w = zw;
+   ec->h = ec->client.h = zh;
+
+   EC_CHANGED(ec);
+}
+
+static void
+_pol_client_maximize_policy_apply(Pol_Client *pc)
+{
+   E_Client *ec;
+
+   if (pc->max_policy_state) return;
+   if (pc->allow_user_geom) return;
+
+   pc->max_policy_state = EINA_TRUE;
+
 #undef _SET
-# define _SET(a) pc->orig.a = ec->a
+# define _SET(a) pc->orig.a = pc->ec->a
    _SET(borderless);
    _SET(fullscreen);
    _SET(maximized);
@@ -116,18 +208,58 @@ _pol_client_add(E_Client *ec)
 
    _pol_client_launcher_set(pc);
 
-   eina_hash_add(hash_pol_clients, &ec, pc);
+   ec = pc->ec;
 
-   _pol_client_update(pc);
+   if (ec->remember)
+     {
+        e_remember_del(ec->remember);
+        ec->remember = NULL;
+     }
 
-   return pc;
+   /* skip hooks of e_remeber for eval_pre_post_fetch and eval_post_new_client */
+   ec->internal_no_remember = 1;
+
+   if (!ec->borderless)
+     {
+        ec->borderless = 1;
+        ec->border.changed = 1;
+        EC_CHANGED(pc->ec);
+     }
+
+   if (!ec->maximized)
+     {
+        e_client_maximize(ec, E_MAXIMIZE_EXPAND | E_MAXIMIZE_BOTH);
+
+        if (ec->changes.need_maximize)
+          _pol_client_maximize_pre(pc);
+     }
+
+   /* do not allow client to change these properties */
+   ec->lock_user_location = 1;
+   ec->lock_client_location = 1;
+   ec->lock_user_size = 1;
+   ec->lock_client_size = 1;
+   ec->lock_user_shade = 1;
+   ec->lock_client_shade = 1;
+   ec->lock_user_maximize = 1;
+   ec->lock_client_maximize = 1;
+   ec->lock_user_fullscreen = 1;
+   ec->lock_client_fullscreen = 1;
+   ec->skip_fullscreen = 1;
+
+   if (!e_mod_pol_client_is_home_screen(ec))
+     ec->lock_client_stacking = 1;
 }
 
 static void
-_pol_client_del(Pol_Client *pc)
+_pol_client_maximize_policy_cancel(Pol_Client *pc)
 {
    E_Client *ec;
    Eina_Bool changed = EINA_FALSE;
+
+   if (!pc->max_policy_state) return;
+
+   pc->max_policy_state = EINA_FALSE;
 
    ec = pc->ec;
 
@@ -179,140 +311,15 @@ _pol_client_del(Pol_Client *pc)
      EC_CHANGED(pc->ec);
 
    _pol_mod->launchers = eina_list_remove(_pol_mod->launchers, pc);
-
-   eina_hash_del_by_key(hash_pol_clients, &pc->ec);
-}
-
-static Eina_Bool
-_pol_client_normal_check(E_Client *ec)
-{
-   Pol_Client *pc;
-
-   if ((e_client_util_ignored_get(ec)) ||
-       (!ec->pixmap))
-     {
-        return EINA_FALSE;
-     }
-
-   if (e_mod_pol_client_is_quickpanel(ec))
-     {
-        ec->exp_iconify.skip_iconify = 1;
-        evas_object_move(ec->frame, -10000, -10000);
-        return EINA_FALSE;
-     }
-
-   if (e_mod_pol_client_is_keyboard(ec) ||
-       e_mod_pol_client_is_keyboard_sub(ec))
-     {
-        pc = eina_hash_find(hash_pol_clients, &ec);
-        if (pc) _pol_client_del(pc);
-
-        e_mod_pol_keyboard_layout_apply(ec);
-        return EINA_FALSE;
-     }
-   else if (e_mod_pol_client_is_volume_tv(ec))
-     {
-        pc = eina_hash_find(hash_pol_clients, &ec);
-        if (pc) _pol_client_del(pc);
-        return EINA_FALSE;
-     }
-   else if (!e_util_strcmp("e_demo", ec->icccm.window_role))
-     {
-        pc = eina_hash_find(hash_pol_clients, &ec);
-        if (pc) _pol_client_del(pc);
-        return EINA_FALSE;
-     }
-#ifdef HAVE_WAYLAND_ONLY
-   else if (e_mod_pol_client_is_subsurface(ec))
-     {
-        pc = eina_hash_find(hash_pol_clients, &ec);
-        if (pc) _pol_client_del(pc);
-        return EINA_FALSE;
-     }
-#endif
-
-   if ((ec->netwm.type == E_WINDOW_TYPE_NORMAL) ||
-       (ec->netwm.type == E_WINDOW_TYPE_UNKNOWN) ||
-       (ec->netwm.type == E_WINDOW_TYPE_NOTIFICATION))
-     {
-        return EINA_TRUE;
-     }
-
-   return EINA_FALSE;
 }
 
 static void
-_pol_client_maximize_pre(Pol_Client *pc)
+_pol_cb_hook_client_new(void *d EINA_UNUSED, E_Client *ec)
 {
-   E_Client *ec;
-   int zx, zy, zw, zh;
+   if (EINA_UNLIKELY(!ec))
+     return;
 
-   ec = pc->ec;
-
-   if (ec->desk->visible)
-     e_zone_useful_geometry_get(ec->zone, &zx, &zy, &zw, &zh);
-   else
-     {
-        zx = ec->zone->x;
-        zy = ec->zone->y;
-        zw = ec->zone->w;
-        zh = ec->zone->h;
-     }
-
-   ec->x = ec->client.x = zx;
-   ec->y = ec->client.y = zy;
-   ec->w = ec->client.w = zw;
-   ec->h = ec->client.h = zh;
-
-   EC_CHANGED(ec);
-}
-
-static void
-_pol_client_update(Pol_Client *pc)
-{
-   E_Client *ec;
-
-   ec = pc->ec;
-
-   if (ec->remember)
-     {
-        e_remember_del(ec->remember);
-        ec->remember = NULL;
-     }
-
-   /* skip hooks of e_remeber for eval_pre_post_fetch and eval_post_new_client */
-   ec->internal_no_remember = 1;
-
-   if (!ec->borderless)
-     {
-        ec->borderless = 1;
-        ec->border.changed = 1;
-        EC_CHANGED(pc->ec);
-     }
-
-   if (!ec->maximized)
-     {
-        e_client_maximize(ec, E_MAXIMIZE_EXPAND | E_MAXIMIZE_BOTH);
-
-        if (ec->changes.need_maximize)
-          _pol_client_maximize_pre(pc);
-     }
-
-   /* do not allow client to change these properties */
-   ec->lock_user_location = 1;
-   ec->lock_client_location = 1;
-   ec->lock_user_size = 1;
-   ec->lock_client_size = 1;
-   ec->lock_user_shade = 1;
-   ec->lock_client_shade = 1;
-   ec->lock_user_maximize = 1;
-   ec->lock_client_maximize = 1;
-   ec->lock_user_fullscreen = 1;
-   ec->lock_client_fullscreen = 1;
-   ec->skip_fullscreen = 1;
-
-   if (!e_mod_pol_client_is_home_screen(ec))
-     ec->lock_client_stacking = 1;
+   _pol_client_add(ec);
 }
 
 static void
@@ -385,7 +392,7 @@ _pol_cb_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec)
      {
         Pol_Client *pc;
         pc = eina_hash_find(hash_pol_clients, &ec);
-        if (pc) _pol_client_del(pc);
+        _pol_client_maximize_policy_cancel(pc);
 
         e_mod_pol_keyboard_layout_apply(ec);
      }
@@ -394,11 +401,7 @@ _pol_cb_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec)
      {
         Pol_Client *pc;
         pc = eina_hash_find(hash_pol_clients, &ec);
-        if (pc)
-          {
-             _pol_client_del(pc);
-             e_client_unmaximize(ec, E_MAXIMIZE_BOTH);
-          }
+        _pol_client_maximize_policy_cancel(pc);
         return;
      }
 
@@ -414,14 +417,7 @@ _pol_cb_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec)
    if (!pd) return;
 
    pc = eina_hash_find(hash_pol_clients, &ec);
-   if (pc)
-     {
-        _pol_client_launcher_set(pc);
-        return;
-     }
-
-   _pol_client_add(ec);
-
+   _pol_client_maximize_policy_apply(pc);
 }
 
 static void
@@ -436,12 +432,15 @@ _pol_cb_hook_client_desk_set(void *d EINA_UNUSED, E_Client *ec)
    if (ec->new_client) return;
 
    pc = eina_hash_find(hash_pol_clients, &ec);
+   if (!EINA_UNLIKELY(!pc))
+     return;
+
    pd = eina_hash_find(hash_pol_desks, &ec->desk);
 
-   if ((!pc) && (pd))
-     _pol_client_add(ec);
-   else if ((pc) && (!pd))
-     _pol_client_del(pc);
+   if (pd)
+     _pol_client_maximize_policy_apply(pc);
+   else
+     _pol_client_maximize_policy_cancel(pc);
 }
 
 static void
@@ -648,9 +647,7 @@ _pol_cb_client_remove(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    e_mod_pol_visibility_calc();
 
    pc = eina_hash_find(hash_pol_clients, &ev->ec);
-   if (!pc) return ECORE_CALLBACK_PASS_ON;
-
-   eina_hash_del_by_key(hash_pol_clients, &ev->ec);
+   _pol_client_del(pc);
 
    return ECORE_CALLBACK_PASS_ON;
 }
@@ -767,11 +764,27 @@ _pol_cb_client_vis_change(void *data EINA_UNUSED, int type EINA_UNUSED, void *ev
 }
 
 void
+e_mod_pol_allow_user_geometry_set(E_Client *ec, Eina_Bool set)
+{
+   Pol_Client *pc;
+
+   if (EINA_UNLIKELY(!ec))
+     return;
+
+   pc = eina_hash_find(hash_pol_clients, &ec);
+   if (EINA_UNLIKELY(!pc))
+     return;
+
+   pc->allow_user_geom = set;
+}
+
+void
 e_mod_pol_desk_add(E_Desk *desk)
 {
    Pol_Desk *pd;
    E_Client *ec;
    Pol_Softkey *softkey;
+   Pol_Client *pc;
 
    pd = eina_hash_find(hash_pol_desks, &desk);
    if (pd) return;
@@ -786,7 +799,10 @@ e_mod_pol_desk_add(E_Desk *desk)
    E_CLIENT_FOREACH(ec)
      {
        if (pd->desk == ec->desk)
-         _pol_client_add(ec);
+         {
+            pc = eina_hash_find(hash_pol_clients, &ec);
+            _pol_client_maximize_policy_apply(pc);
+         }
      }
 
    /* add and show softkey */
@@ -844,7 +860,7 @@ e_mod_pol_desk_del(Pol_Desk *pd)
    EINA_LIST_FREE(clients_del, ec)
      {
         pc = eina_hash_find(hash_pol_clients, &ec);
-        if (pc) _pol_client_del(pc);
+        _pol_client_maximize_policy_cancel(pc);
      }
 
    eina_hash_del_by_key(hash_pol_desks, &pd->desk);
@@ -1064,6 +1080,7 @@ e_modapi_init(E_Module *m)
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_PROPERTY,           _pol_cb_client_property,                 NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_VISIBILITY_CHANGE,  _pol_cb_client_vis_change,               NULL);
 
+   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_NEW_CLIENT,          _pol_cb_hook_client_new,                 NULL);
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_PRE_NEW_CLIENT, _pol_cb_hook_client_eval_pre_new_client, NULL);
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_PRE_FETCH,      _pol_cb_hook_client_eval_pre_fetch,      NULL);
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_PRE_POST_FETCH, _pol_cb_hook_client_eval_pre_post_fetch, NULL);
