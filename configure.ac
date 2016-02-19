@@ -48,6 +48,15 @@ fi
 AC_SUBST(ENLIGHTENMENT_CFLAGS)
 AC_SUBST(ENLIGHTENMENT_LIBS)
 
+# Checks for ttrace header files
+PKG_CHECK_MODULES(TTRACE,
+		[ttrace],
+		[have_ttrace="yes"], [have_ttrace="no"])
+
+if test "x$have_ttrace" = "xyes"; then
+	AC_DEFINE(ENABLE_TTRACE, 1, [ttrace available])
+fi
+
 AC_CHECK_LIB(dl, dlopen, dlopen_libs=-ldl)
 AC_SUBST(dlopen_libs)
 

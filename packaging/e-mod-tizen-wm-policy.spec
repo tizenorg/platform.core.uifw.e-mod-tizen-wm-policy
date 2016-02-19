@@ -9,6 +9,7 @@ Group:      Graphics & UI Framework/Other
 License:    BSD-2-Clause and Flora-1.1
 Source0:    %{name}-%{version}.tar.bz2
 BuildRequires: pkgconfig(enlightenment)
+BuildRequires: pkgconfig(ttrace)
 %if %{with x}
 BuildRequires: pkgconfig(x11) 
 %endif
