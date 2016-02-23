@@ -15,6 +15,7 @@ typedef struct _Pol_Client   Pol_Client;
 typedef struct _Pol_Softkey  Pol_Softkey;
 typedef struct _Config_Match Config_Match;
 typedef struct _Config_Desk  Config_Desk;
+typedef struct _Config_Rot   Config_Rot;
 typedef struct _Config       Config;
 typedef struct _Mod          Mod;
 
@@ -72,10 +73,17 @@ struct _Config_Desk
    int              enable;
 };
 
+struct _Config_Rot
+{
+   unsigned char    enable;
+   int              angle;
+};
+
 struct _Config
 {
    Config_Match     launcher;
    Eina_List       *desks;
+   Eina_List       *rotations;
    int              use_softkey;
    int              softkey_size;
 };
@@ -85,6 +93,7 @@ struct _Mod
    E_Module        *module;
    E_Config_DD     *conf_edd;
    E_Config_DD     *conf_desk_edd;
+   E_Config_DD     *conf_rot_edd;
    Config          *conf;
    E_Config_Dialog *conf_dialog;
    Eina_List       *launchers; /* launcher window per zone */
@@ -143,4 +152,5 @@ EINTERN void             e_mod_pol_stack_cb_client_remove(E_Client *ec);
 EINTERN void             e_mod_pol_stack_hook_pre_fetch(E_Client *ec);
 EINTERN void             e_mod_pol_stack_hook_pre_post_fetch(E_Client *ec);
 
+EINTERN Eina_Bool        e_mod_pol_conf_rot_enable_get(int angle);
 #endif

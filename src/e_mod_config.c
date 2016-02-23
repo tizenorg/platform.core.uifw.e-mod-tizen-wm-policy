@@ -282,6 +282,14 @@ e_mod_pol_conf_init(Mod *mod)
    E_CONFIG_VAL(D, T, y, INT);
    E_CONFIG_VAL(D, T, enable, INT);
 
+   mod->conf_rot_edd = E_CONFIG_DD_NEW("Policy_Mobile_Config_Rot", Config_Rot);
+#undef T
+#undef D
+#define T Config_Rot
+#define D mod->conf_rot_edd
+   E_CONFIG_VAL(D, T, enable, UCHAR);
+   E_CONFIG_VAL(D, T, angle, INT);
+
    mod->conf_edd = E_CONFIG_DD_NEW("Policy_Mobile_Config", Config);
 #undef T
 #undef D
@@ -293,7 +301,7 @@ e_mod_pol_conf_init(Mod *mod)
    E_CONFIG_LIST(D, T, desks, mod->conf_desk_edd);
    E_CONFIG_VAL(D, T, use_softkey, INT);
    E_CONFIG_VAL(D, T, softkey_size, INT);
-
+   E_CONFIG_LIST(D, T, rotations, mod->conf_rot_edd);
 #undef T
 #undef D
 
@@ -328,6 +336,7 @@ e_mod_pol_conf_shutdown(Mod *mod)
         free(mod->conf);
      }
 
+   E_CONFIG_DD_FREE(mod->conf_rot_edd);
    E_CONFIG_DD_FREE(mod->conf_desk_edd);
    E_CONFIG_DD_FREE(mod->conf_edd);
 }
@@ -371,4 +380,29 @@ e_int_config_pol_mobile(Evas_Object *o EINA_UNUSED, const char *params EINA_UNUS
    cfd = e_config_dialog_new(NULL, _("Mobile Policy Configuration"), "E",
                              "windows/policy-tizen", buf, 0, v, NULL);
    return cfd;
+}
+
+EINTERN Eina_Bool
+e_mod_pol_conf_rot_enable_get(int angle)
+{
+   Config_Rot *rot;
+   Eina_List *rots, *l;
+
+   if (EINA_UNLIKELY(!_pol_mod))
+     return EINA_FALSE;
+
+   if (EINA_UNLIKELY(!_pol_mod->conf))
+     return EINA_FALSE;
+
+   rots = _pol_mod->conf->rotations;
+   if (!rots)
+     return EINA_FALSE;
+
+   EINA_LIST_FOREACH(rots, l, rot)
+     {
+        if (rot->angle == angle)
+          return !!rot->enable;
+     }
+
+   return EINA_FALSE;
 }
