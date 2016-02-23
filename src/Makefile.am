@@ -17,7 +17,8 @@ module_la_SOURCES      = e_mod_config.c \
                          e_mod_utils.h \
                          e_mod_keyboard.c \
                          e_mod_keyboard.h \
-                         e_mod_stack.c
+                         e_mod_stack.c \
+                         e_mod_sensord.c
 if HAVE_WAYLAND_ONLY
 module_la_SOURCES += e_mod_wl.c \
 					 e_mod_wl.h \
@@ -36,6 +37,6 @@ module_la_SOURCES += e_mod_wl.c \
 endif
 
 module_la_LIBADD       =
-module_la_CFLAGS       = @ENLIGHTENMENT_CFLAGS@ @TZSH_SERVER_CFLAGS@
-module_la_LDFLAGS      = -module -avoid-version @ENLIGHTENMENT_LIBS@ @TZSH_SERVER_LIBS@
+module_la_CFLAGS       = @ENLIGHTENMENT_CFLAGS@ @TZSH_SERVER_CFLAGS@ @SENSORD_CFLAGS@
+module_la_LDFLAGS      = -module -avoid-version @ENLIGHTENMENT_LIBS@ @TZSH_SERVER_LIBS@ @SENSORD_LIBS@
 module_la_DEPENDENCIES = $(top_builddir)/config.h

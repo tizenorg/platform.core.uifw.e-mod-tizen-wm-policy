@@ -72,6 +72,9 @@ if test "x${have_wayland_only}" = "xyes"; then
   PKG_CHECK_MODULES([TZSH_SERVER], [tzsh-server])
 fi
 
+# Checks for sensord
+PKG_CHECK_MODULES(SENSORD, [sensor])
+
 # for include e_comp_wl.h
 if test "x${have_wayland_only}" != "xno"; then
   AC_DEFINE_UNQUOTED([HAVE_WAYLAND],[1],[enable wayland support])
