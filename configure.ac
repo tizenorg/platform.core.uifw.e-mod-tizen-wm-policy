@@ -72,13 +72,35 @@ if test "x${have_wayland_only}" = "xyes"; then
   PKG_CHECK_MODULES([TZSH_SERVER], [tzsh-server])
 fi
 
-# Checks for sensord
-PKG_CHECK_MODULES(SENSORD, [sensor])
-
 # for include e_comp_wl.h
 if test "x${have_wayland_only}" != "xno"; then
   AC_DEFINE_UNQUOTED([HAVE_WAYLAND],[1],[enable wayland support])
 fi
+
+#### WM Rotation
+want_auto_rotation=
+have_auto_rotation=
+
+AC_ARG_ENABLE([auto-rotation],
+  [AS_HELP_STRING([--enable-auto-rotation], [enable auto rotation @<:@default=disabled@:>@])],
+  [want_auto_rotation=$enableval],
+  [want_auto_rotation=no])
+
+AC_MSG_CHECKING([whether auto rotation is enabled])
+AC_MSG_RESULT([${want_auto_rotation}])
+
+if test "x${want_auto_rotation}" == "xyes"; then
+   # Checks for sensord
+   PKG_CHECK_MODULES([SENSORD], [sensor],
+                     [
+                       have_auto_rotation=yes
+                       AC_DEFINE_UNQUOTED([HAVE_AUTO_ROTATION], [1], [enable auto rotation])
+                     ],
+                     [have_auto_rotation=no])
+fi
+
+AM_CONDITIONAL([HAVE_AUTO_ROTATION], [test "x${have_auto_rotation}" = "xyes"])
+#### End of WM Rotation
 
 AC_CONFIG_FILES([Makefile
 		 src/Makefile])

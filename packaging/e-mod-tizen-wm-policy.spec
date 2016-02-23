@@ -32,7 +32,8 @@ The Enlightenment WM Policy Module for Tizen
 export CFLAGS+=" -DE_LOGGING=1"
 %if %{with wayland}
 %reconfigure \
-      --enable-wayland-only
+      --enable-wayland-only \
+      --enable-auto-rotation
 %else
 %reconfigure
 %endif
