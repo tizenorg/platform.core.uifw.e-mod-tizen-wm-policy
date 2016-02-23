@@ -18,8 +18,11 @@
  * license.
  */
 #include "e_mod_rotation.h"
-#include "e_mod_sensord.h"
 #include "e_mod_utils.h"
+
+#ifdef HAVE_AUTO_ROTATION
+#include "e_mod_sensord.h"
+#endif
 
 static Eina_List *_event_handlers = NULL;
 
@@ -105,7 +108,9 @@ _e_mod_pol_rotation_cb_idle_exiter(void *data EINA_UNUSED)
 EINTERN void
 e_mod_pol_rotation_init(void)
 {
+#ifdef HAVE_AUTO_ROTATION
    e_mod_sensord_init();
+#endif
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_rot_wl_init();
 #endif
@@ -130,7 +135,9 @@ e_mod_pol_rotation_init(void)
 EINTERN void
 e_mod_pol_rotation_shutdown(void)
 {
+#ifdef HAVE_AUTO_ROTATION
   e_mod_sensord_deinit();
+#endif
 #ifdef HAVE_WAYLAND_ONLY
   e_mod_rot_wl_shutdown();
 #endif
