@@ -2575,6 +2575,7 @@ _launch_timeout(void *data)
 
    _launch_img_off(tzlaunchimg);
 
+   return ECORE_CALLBACK_CANCEL;
 }
 
 static void
@@ -2608,7 +2609,7 @@ _tzlaunchimg_iface_cb_launch(struct wl_client *client EINA_UNUSED, struct wl_res
      {
         edje_object_part_unswallow(launch_scrn->shobj, old_o);
         evas_object_hide(old_o);
-        DBG("%s | unswallow %x", __FUNCTION__, old_o);
+        DBG("%s | unswallow %p", __FUNCTION__, old_o);
      }
 
    if (tzlaunchimg->obj) evas_object_del(tzlaunchimg->obj);
