@@ -266,7 +266,6 @@ _e_tizen_rotation_ack_angle_change_cb(struct wl_client *client,
 static void
 _e_tizen_rotation_destroy(struct wl_resource *resource)
 {
-   E_Client *ec;
    Policy_Ext_Rotation *rot;
 
    rot = wl_resource_get_user_data(resource);
