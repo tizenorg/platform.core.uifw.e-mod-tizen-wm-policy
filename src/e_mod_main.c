@@ -47,6 +47,8 @@ static Eina_Bool   _pol_cb_client_resize(void *data EINA_UNUSED, int type, void 
 static Eina_Bool   _pol_cb_client_stack(void *data EINA_UNUSED, int type, void *event);
 static Eina_Bool   _pol_cb_client_property(void *data EINA_UNUSED, int type EINA_UNUSED, void *event);
 static Eina_Bool   _pol_cb_client_vis_change(void *data EINA_UNUSED, int type EINA_UNUSED, void *event EINA_UNUSED);
+static Eina_Bool   _pol_cb_module_defer_job(void *data EINA_UNUSED);
+
 
 static void
 _pol_client_launcher_set(Pol_Client *pc)
@@ -993,6 +995,13 @@ e_mod_pol_client_is_subsurface(E_Client *ec)
 }
 #endif
 
+static Eina_Bool
+_pol_cb_module_defer_job(void *data EINA_UNUSED)
+{
+   e_mod_pol_wl_defer_job();
+   return ECORE_CALLBACK_PASS_ON;
+}
+
 #undef E_CLIENT_HOOK_APPEND
 #define E_CLIENT_HOOK_APPEND(l, t, cb, d) \
   do                                      \
@@ -1079,6 +1088,7 @@ e_modapi_init(E_Module *m)
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_STACK,              _pol_cb_client_stack,                    NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_PROPERTY,           _pol_cb_client_property,                 NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_VISIBILITY_CHANGE,  _pol_cb_client_vis_change,               NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_MODULE_DEFER_JOB,          _pol_cb_module_defer_job,                NULL);
 
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_NEW_CLIENT,          _pol_cb_hook_client_new,                 NULL);
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_PRE_NEW_CLIENT, _pol_cb_hook_client_eval_pre_new_client, NULL);

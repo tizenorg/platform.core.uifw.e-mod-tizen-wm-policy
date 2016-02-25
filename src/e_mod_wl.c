@@ -2910,6 +2910,31 @@ e_mod_pol_wl_aux_hint_init(void)
    return;
 }
 
+Eina_Bool e_mod_pol_wl_defer_job(void)
+{
+   struct wl_global *global;
+   EINA_SAFETY_ON_NULL_GOTO(polwl, err);
+
+   global = wl_global_create(e_comp_wl->wl.disp,
+                             &tizen_launchscreen_interface,
+                             1,
+                             NULL,
+                             _tzlaunch_cb_bind);
+
+   EINA_SAFETY_ON_NULL_GOTO(global, err);
+   polwl->globals = eina_list_append(polwl->globals, global);
+
+   return EINA_TRUE;
+
+err:
+   if (global)
+     {
+        wl_global_destroy(global);
+     }
+   return EINA_FALSE;
+
+}
+
 Eina_Bool
 e_mod_pol_wl_init(void)
 {
@@ -2934,15 +2959,6 @@ e_mod_pol_wl_init(void)
                              1,
                              NULL,
                              _tzsh_cb_bind);
-   EINA_SAFETY_ON_NULL_GOTO(global, err);
-   polwl->globals = eina_list_append(polwl->globals, global);
-
-   global = wl_global_create(e_comp_wl->wl.disp,
-                             &tizen_launchscreen_interface,
-                             1,
-                             NULL,
-                             _tzlaunch_cb_bind);
-
    EINA_SAFETY_ON_NULL_GOTO(global, err);
    polwl->globals = eina_list_append(polwl->globals, global);
 
