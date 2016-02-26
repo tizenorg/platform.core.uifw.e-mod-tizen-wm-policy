@@ -423,7 +423,7 @@ _e_client_rotation_zone_set(E_Zone *zone)
    E_Zone *ez;
    Eina_List *zl;
 
-   TRACE_BEGIN(_e_client_rotation_zone_set);
+   TRACE_DS_BEGIN(CLIENT ROTATION ZONE SET);
 
    /* step 1. make the list needs to be rotated. */
    EINA_LIST_FOREACH(e_comp->zones, zl, ez)
@@ -461,7 +461,7 @@ _e_client_rotation_zone_set(E_Zone *zone)
           }
      }
 
-   TRACE_END();
+   TRACE_DS_END();
    return ret;
 }
 
@@ -723,8 +723,8 @@ e_client_rotation_set(E_Client *ec, int rotation)
    if (rotation < 0) return EINA_FALSE;
    if (!e_client_rotation_is_available(ec, rotation)) return EINA_FALSE;
 
-   TRACE_BEGIN(e_client_rotation_set);
-   TRACE_BEGIN(e_client_rotation_set_curr_angle_check);
+   TRACE_DS_BEGIN(CLIENT ROTATION SET);
+   TRACE_DS_BEGIN(CLINET CURRENT ANGLE SET);
 
    // in case same with current angle.
    curr_rot = e_client_rotation_curr_angle_get(ec);
@@ -744,8 +744,8 @@ e_client_rotation_set(E_Client *ec, int rotation)
                          evas_object_show(ec->frame); // e_client_show(ec);
                     }
 
-                  TRACE_END();
-                  TRACE_END();
+                  TRACE_DS_END();
+                  TRACE_DS_END();
                   return EINA_FALSE;
                }
              else
@@ -753,12 +753,12 @@ e_client_rotation_set(E_Client *ec, int rotation)
           }
         else
           {
-             TRACE_END();
-             TRACE_END();
+             TRACE_DS_END();
+             TRACE_DS_END();
              return EINA_FALSE;
           }
      }
-   TRACE_END();
+   TRACE_DS_END();
 
    // in case same with next angle.
    curr_rot = e_client_rotation_next_angle_get(ec);
@@ -815,7 +815,7 @@ finish:
         rot.cancel.zone = NULL;
      }
 
-   TRACE_END();
+   TRACE_DS_END();
    return EINA_TRUE;
 }
 
@@ -824,8 +824,6 @@ e_client_rotation_change_request(E_Client *ec, int rotation)
 {
    if (!ec) return;
    if (rotation < 0) return;
-
-   TRACE_BEGIN(e_client_rotation_change_request);
 
    // if this window is in withdrawn state, change the state to NORMAL.
    // that's because the window in withdrawn state can't render its canvas.
@@ -848,8 +846,6 @@ e_client_rotation_change_request(E_Client *ec, int rotation)
                                          _e_client_rotation_change_done_timeout,
                                          NULL);
      }
-
-   TRACE_END();
 }
 
 /**
@@ -964,7 +960,7 @@ e_zone_rotation_set(E_Zone *zone, int rotation)
    E_OBJECT_CHECK(zone);
    E_OBJECT_TYPE_CHECK(zone, E_ZONE_TYPE);
 
-   TRACE_BEGIN(e_zone_rotation_set);
+   TRACE_DS_BEGIN(ZONE ROTATION SET);
 
    if (rotation == -1)
      {
@@ -977,7 +973,7 @@ e_zone_rotation_set(E_Zone *zone, int rotation)
      zone->rot.unknown_state = EINA_FALSE;
 
    _e_zone_rotation_set_internal(zone, rotation);
-   TRACE_END();
+   TRACE_DS_END();
 }
 
 static void
@@ -985,8 +981,6 @@ e_zone_rotation_sub_set(E_Zone *zone, int rotation)
 {
    E_OBJECT_CHECK(zone);
    E_OBJECT_TYPE_CHECK(zone, E_ZONE_TYPE);
-
-   TRACE_BEGIN(e_zone_rotation_sub_set);
 
    ELOGF("ROTATION", "SUB_SET  |zone:%d|rot curr:%d, rot:%d",
          NULL, NULL, zone->num, zone->rot.curr, rotation);
@@ -996,8 +990,6 @@ e_zone_rotation_sub_set(E_Zone *zone, int rotation)
    if ((zone->rot.unknown_state) &&
        (zone->rot.curr != rotation))
      _e_zone_rotation_set_internal(zone, rotation);
-
-   TRACE_END();
 }
 
 static int
@@ -1016,8 +1008,6 @@ e_zone_rotation_block_set(E_Zone *zone, const char *name_hint, Eina_Bool set)
 
    E_OBJECT_CHECK_RETURN(zone, EINA_FALSE);
    E_OBJECT_TYPE_CHECK_RETURN(zone, E_ZONE_TYPE, EINA_FALSE);
-
-   TRACE_BEGIN(e_zone_rotation_block_set);
 
    if (set) zone->rot.block_count++;
    else     zone->rot.block_count--;
@@ -1050,7 +1040,6 @@ e_zone_rotation_block_set(E_Zone *zone, const char *name_hint, Eina_Bool set)
           }
      }
 
-   TRACE_END();
    return EINA_TRUE;
 }
 
@@ -1061,8 +1050,6 @@ e_zone_rotation_update_done(E_Zone *zone)
 
    E_OBJECT_CHECK(zone);
    E_OBJECT_TYPE_CHECK(zone, E_ZONE_TYPE);
-
-   TRACE_BEGIN(e_zone_rotation_update_done);
 
    ELOGF("ROTATION", "ROT_DONE |zone:%d|rot:%d",
          NULL, NULL, zone->num, zone->rot.curr);
@@ -1098,7 +1085,6 @@ e_zone_rotation_update_done(E_Zone *zone)
                    NULL, NULL, zone->num, zone->rot.curr);
           }
      }
-   TRACE_END();
 }
 
 static void
@@ -1108,8 +1094,6 @@ e_zone_rotation_update_cancel(E_Zone *zone)
 
    E_OBJECT_CHECK(zone);
    E_OBJECT_TYPE_CHECK(zone, E_ZONE_TYPE);
-
-   TRACE_BEGIN(e_zone_rotation_update_cancel);
 
    zone->rot.wait_for_done = EINA_FALSE;
    if (zone->rot.pending)
@@ -1127,7 +1111,6 @@ e_zone_rotation_update_cancel(E_Zone *zone)
         ecore_event_add(E_EVENT_ZONE_ROTATION_CHANGE_CANCEL,
                         ev, _e_zone_event_rotation_change_cancel_free, NULL);
      }
-   TRACE_END();
 }
 
 static Eina_Bool

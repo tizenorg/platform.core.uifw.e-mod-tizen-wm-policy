@@ -9,14 +9,14 @@
 
 #ifdef ENABLE_TTRACE
 # include <ttrace.h>
-# undef TRACE_BEGIN
-# undef TRACE_END
+# undef TRACE_DS_BEGIN
+# undef TRACE_DS_END
 
-# define TRACE_BEGIN(NAME) traceBegin(TTRACE_TAG_WINDOW_MANAGER, "DS:ROT:"#NAME)
-# define TRACE_END() traceEnd(TTRACE_TAG_WINDOW_MANAGER)
+# define TRACE_DS_BEGIN(NAME) traceBegin(TTRACE_TAG_WINDOW_MANAGER, "DS:ROT:"#NAME)
+# define TRACE_DS_END() traceEnd(TTRACE_TAG_WINDOW_MANAGER)
 #else
-# define TRACE_BEGIN(NAME)
-# define TRACE_END()
+# define TRACE_DS_BEGIN(NAME)
+# define TRACE_DS_END()
 #endif
 
 Eina_Bool          e_mod_rot_wl_init(void);
