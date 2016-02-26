@@ -5,6 +5,18 @@
 #include "e_mod_wl.h"
 #endif
 
+#ifdef ENABLE_TTRACE
+# include <ttrace.h>
+# undef TRACE_DS_BEGIN
+# undef TRACE_DS_END
+
+# define TRACE_DS_BEGIN(NAME) traceBegin(TTRACE_TAG_WINDOW_MANAGER, "DS:POL:"#NAME)
+# define TRACE_DS_END() traceEnd(TTRACE_TAG_WINDOW_MANAGER)
+#else
+# define TRACE_DS_BEGIN(NAME)
+# define TRACE_DS_END()
+#endif
+
 typedef struct _Pol_Visibility Pol_Visibility;
 
 struct _Pol_Visibility
@@ -26,7 +38,7 @@ _visibility_add(E_Client *ec, int visibility)
    Pol_Visibility *pv;
 
    if (e_object_is_del(E_OBJECT(ec))) return NULL;
-   
+
    pv = eina_hash_find(hash_pol_visibilities, &ec);
    if (pv) return NULL;
 
@@ -177,6 +189,8 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
 
    if (!zone) return;
 
+   TRACE_DS_BEGIN(VISIBILITY CALCULATE);
+
    t = eina_tiler_new(zone->w + edge, zone->h + edge);
    eina_tiler_tile_size_set(t, 1, 1);
 
@@ -280,6 +294,8 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
      }
 
    eina_tiler_free(t);
+
+   TRACE_DS_END();
 }
 
 void
