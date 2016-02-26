@@ -998,7 +998,9 @@ e_mod_pol_client_is_subsurface(E_Client *ec)
 static Eina_Bool
 _pol_cb_module_defer_job(void *data EINA_UNUSED)
 {
+#ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_defer_job();
+#endif
    return ECORE_CALLBACK_PASS_ON;
 }
 
