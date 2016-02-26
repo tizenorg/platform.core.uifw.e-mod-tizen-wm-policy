@@ -2,8 +2,13 @@ Copyright notice for Flora-licensed files:
 
 The following files are copyrighted by Samsung Electronics Co., Ltd
 and licensed under Flora License, Version 1.1
-- src/e_mod_rotation.c
-- src/e_mod_rotation_wl.c
+- src/rotation/e_mod_rotation.c
+- src/rotation/e_mod_rotation.h
+- src/rotation/e_mod_rotation_wl.c
+- src/rotation/e_mod_rotation_wl.h
+- src/rotation/e_mod_rotation.x
+- src/rotation/e_mod_sensord.c
+- src/rotation/e_mod_sensord.h
 
 Copyright (C) 2013 Samsung Electronics Co., Ltd All rights reserved.
 
