@@ -2910,9 +2910,10 @@ e_mod_pol_wl_aux_hint_init(void)
    return;
 }
 
-Eina_Bool e_mod_pol_wl_defer_job(void)
+Eina_Bool
+e_mod_pol_wl_defer_job(void)
 {
-   struct wl_global *global;
+   struct wl_global *global = NULL;
    EINA_SAFETY_ON_NULL_GOTO(polwl, err);
 
    global = wl_global_create(e_comp_wl->wl.disp,
@@ -2920,8 +2921,8 @@ Eina_Bool e_mod_pol_wl_defer_job(void)
                              1,
                              NULL,
                              _tzlaunch_cb_bind);
-
    EINA_SAFETY_ON_NULL_GOTO(global, err);
+
    polwl->globals = eina_list_append(polwl->globals, global);
 
    return EINA_TRUE;
@@ -2932,7 +2933,6 @@ err:
         wl_global_destroy(global);
      }
    return EINA_FALSE;
-
 }
 
 Eina_Bool
