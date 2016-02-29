@@ -116,6 +116,62 @@ _client_tiler_intersects(E_Client *ec, Eina_Tiler *t)
    return ret;
 }
 
+static Eina_Bool
+_e_mod_pol_check_transient_child_visible(E_Client *ancestor_ec, E_Client *ec)
+{
+   Eina_Bool visible = EINA_FALSE;
+   Eina_List *list = NULL;
+   E_Client *child_ec = NULL;
+   Pol_Visibility *pv;
+
+   if (!ancestor_ec) return EINA_FALSE;
+
+   list = eina_list_clone(ec->transients);
+   EINA_LIST_FREE(list, child_ec)
+     {
+        if (visible == EINA_TRUE) continue;
+
+        pv = _visibility_find(child_ec);
+        if (pv)
+          {
+             if (child_ec->exp_iconify.skip_iconify == EINA_TRUE)
+               {
+                  if (pv->visibility == E_VISIBILITY_UNOBSCURED)
+                    {
+                       return EINA_TRUE;
+                    }
+                  else
+                    {
+                       if ((!child_ec->iconic) &&
+                           (E_CONTAINS(child_ec->x, child_ec->y, child_ec->w, child_ec->h, ancestor_ec->x, ancestor_ec->y, ancestor_ec->w, ancestor_ec->h)))
+                         {
+                            return EINA_TRUE;
+                         }
+                    }
+               }
+             else
+               {
+                  if ((!child_ec->iconic) ||
+                      (pv->visibility == E_VISIBILITY_UNOBSCURED))
+                    {
+                       return EINA_TRUE;
+                    }
+               }
+          }
+        else
+          {
+             if (!child_ec->iconic)
+               {
+                  return EINA_TRUE;
+               }
+          }
+
+        visible = _e_mod_pol_check_transient_child_visible(ancestor_ec, child_ec);
+     }
+
+   return visible;
+}
+
 static void
 _e_mod_pol_client_iconify_by_visibility(E_Client *ec)
 {
@@ -129,16 +185,9 @@ _e_mod_pol_client_iconify_by_visibility(E_Client *ec)
 
    if (e_config->transient.iconify)
      {
-        E_Client *child;
-        Eina_List *list = eina_list_clone(ec->transients);
-
-        EINA_LIST_FREE(list, child)
+        if (_e_mod_pol_check_transient_child_visible(ec, ec))
           {
-             pv = _visibility_find(child);
-             if (pv && (pv->visibility == E_VISIBILITY_UNOBSCURED))
-               {
-                  do_iconify = EINA_FALSE;
-               }
+             do_iconify = EINA_FALSE;
           }
      }
 
