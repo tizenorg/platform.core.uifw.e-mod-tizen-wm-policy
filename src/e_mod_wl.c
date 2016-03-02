@@ -1214,8 +1214,7 @@ _tzpol_iface_cb_type_set(struct wl_client *client EINA_UNUSED, struct wl_resourc
          type, win_type);
 
    ec->netwm.type = win_type;
-   if (win_type == E_WINDOW_TYPE_NOTIFICATION)
-     ec->layer = E_LAYER_CLIENT_NOTIFICATION_LOW;
+
    EC_CHANGED(ec);
 }
 // --------------------------------------------------------
