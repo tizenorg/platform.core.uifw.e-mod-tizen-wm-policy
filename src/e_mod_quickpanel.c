@@ -1,3 +1,4 @@
+#include "e_mod_private_data.h"
 #include "e_mod_main.h"
 #include "e_mod_quickpanel.h"
 #include "e_mod_indicator.h"
@@ -822,8 +823,15 @@ e_mod_quickpanel_client_set(E_Client *ec)
     * so we should unmaximize it to move object to out of screen. */
    e_client_unmaximize(ec, E_MAXIMIZE_BOTH);
 
-   /* stacking it on the lock_screen, set layer to notification-high. */
-   evas_object_layer_set(ec->frame, E_LAYER_CLIENT_NOTIFICATION_HIGH);
+   // set quickpanel layer
+   if (WM_POL_QUICKPANEL_LAYER != evas_object_layer_get(ec->frame))
+     {
+        evas_object_layer_set(ec->frame, WM_POL_QUICKPANEL_LAYER);
+     }
+   ec->layer = WM_POL_QUICKPANEL_LAYER;
+
+   // set skip iconify
+   ec->exp_iconify.skip_iconify = 1;
 
    /* since we unmaximized it,
     * so we should resize it directly as fullscreen. */

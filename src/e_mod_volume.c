@@ -1,3 +1,4 @@
+#include "e_mod_private_data.h"
 #include "e_mod_volume.h"
 #include "e_mod_rotation.h"
 
@@ -274,6 +275,16 @@ e_mod_volume_client_set(E_Client *ec)
                               NULL);
    _volume_del_hook =
       e_client_hook_add(E_CLIENT_HOOK_DEL, _volume_hook_client_del, NULL);
+
+   // set volume layer
+   if (WM_POL_VOLUME_LAYER != evas_object_layer_get(ec->frame))
+     {
+        evas_object_layer_set(ec->frame, WM_POL_VOLUME_LAYER);
+     }
+   ec->layer = WM_POL_VOLUME_LAYER;
+
+   // set skip iconify
+   ec->exp_iconify.skip_iconify = 1;
 
    return EINA_TRUE;
 }

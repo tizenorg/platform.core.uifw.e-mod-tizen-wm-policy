@@ -118,7 +118,6 @@ _pol_client_normal_check(E_Client *ec)
 
    if (e_mod_pol_client_is_quickpanel(ec))
      {
-        ec->exp_iconify.skip_iconify = 1;
         evas_object_move(ec->frame, -10000, -10000);
         return EINA_FALSE;
      }
@@ -409,9 +408,6 @@ _pol_cb_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec)
 
    if (e_mod_pol_client_is_noti(ec))
      e_client_util_move_without_frame(ec, 0, 0);
-
-   if (e_mod_pol_client_is_volume(ec))
-     ec->exp_iconify.skip_iconify = 1;
 
    if (!_pol_client_normal_check(ec)) return;
 
