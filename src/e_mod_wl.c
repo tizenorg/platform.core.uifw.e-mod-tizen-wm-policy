@@ -129,13 +129,16 @@ enum _WM_Policy_Hint_Type
 {
    WM_POLICY_HINT_USER_GEOMETRY = 0,
    WM_POLICY_HINT_FIXED_RESIZE = 1,
-   WM_POLICY_HINT_DEICONIFY_APPROVE_DISABLE = 2
+   WM_POLICY_HINT_DEICONIFY_APPROVE_DISABLE = 2,
+   WM_POLICY_HINT_PROHIBIT_ICONIFY = 3,
 };
+
 static const char *hint_names[] =
 {
    "wm.policy.win.user.geometry",
    "wm.policy.win.fixed.resize",
-   "wm.policy.win.deiconify.approve.disable"
+   "wm.policy.win.deiconify.approve.disable",
+   "wm.policy.win.prohibit.iconify",
 };
 
 static void                _pol_wl_surf_del(Pol_Wl_Surface *psurf);
@@ -1679,6 +1682,19 @@ e_mod_pol_wl_eval_pre_new_client(E_Client *ec)
         else if (!strcmp(hint->hint, hint_names[WM_POLICY_HINT_DEICONIFY_APPROVE_DISABLE]))
           {
              /* TODO: would implement after deiconify approve protocol provided */
+          }
+        else if (!strcmp(hint->hint, hint_names[WM_POLICY_HINT_PROHIBIT_ICONIFY]))
+          {
+             if (!strcmp(hint->val, "1"))
+               {
+                  ec->exp_iconify.skip_iconify = 1;
+                  EC_CHANGED(ec);
+               }
+             else
+               {
+                  ec->exp_iconify.skip_iconify = 0;
+                  EC_CHANGED(ec);
+               }
           }
 
         if (send)
