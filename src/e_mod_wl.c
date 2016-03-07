@@ -8,7 +8,7 @@
 #include <tizen-extension-server-protocol.h>
 #include <tzsh_server.h>
 
-#define APP_DEFINE_GROUP_NAME "launchscreen"
+#define APP_DEFINE_GROUP_NAME "effect"
 
 typedef enum _Tzsh_Srv_Role
 {
