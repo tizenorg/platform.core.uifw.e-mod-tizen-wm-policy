@@ -1,9 +1,9 @@
 %bcond_with x
 %bcond_with wayland
 
-Name:       e-mod-tizen-wm-policy 
+Name:       e-mod-tizen-wm-policy
 Summary:    The Enlightenment WM Policy Module for Tizen
-Version:    0.1.73
+Version:    0.1.74
 Release:    1
 Group:      Graphics & UI Framework/Other
 License:    BSD-2-Clause and Flora-1.1
@@ -12,7 +12,7 @@ BuildRequires: pkgconfig(enlightenment)
 BuildRequires: pkgconfig(ttrace)
 BuildRequires: libsensord-devel
 %if %{with x}
-BuildRequires: pkgconfig(x11) 
+BuildRequires: pkgconfig(x11)
 %endif
 %if %{with wayland}
 BuildRequires: pkgconfig(tizen-extension-server)
