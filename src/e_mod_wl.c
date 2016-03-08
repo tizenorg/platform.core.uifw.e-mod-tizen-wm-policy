@@ -1637,7 +1637,7 @@ _pol_wl_allowed_aux_hint_send(E_Client *ec, int id)
 }
 
 void
-e_mod_pol_wl_eval_pre_new_client(E_Client *ec)
+e_mod_pol_wl_eval_pre_post_fetch(E_Client *ec)
 {
    E_Comp_Wl_Aux_Hint *hint;
    Eina_List *l;
