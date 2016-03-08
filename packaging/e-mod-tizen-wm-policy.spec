@@ -20,6 +20,8 @@ BuildRequires: pkgconfig(eina)
 BuildRequires: pkgconfig(ecore)
 BuildRequires: pkgconfig(edje)
 BuildRequires: pkgconfig(tzsh-server)
+BuildRequires: pkgconfig(cynara-client)
+BuildRequires: pkgconfig(cynara-creds-socket)
 %endif
 
 %description
@@ -33,6 +35,7 @@ export CFLAGS+=" -DE_LOGGING=1"
 %if %{with wayland}
 %reconfigure \
       --enable-wayland-only \
+      --enable-cynara \
       --enable-auto-rotation
 %else
 %reconfigure
