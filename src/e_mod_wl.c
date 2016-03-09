@@ -1753,7 +1753,7 @@ _tzpol_iface_cb_aux_hint_add(struct wl_client *client EINA_UNUSED, struct wl_res
    ec = wl_resource_get_user_data(surf);
    EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   res = e_hints_aux_hint_add_with_pixmap(ec->pixmap, id, name, value);
+   res = e_hints_aux_hint_add(ec, id, name, value);
 
    ELOGF("TZPOL", "HINT_ADD|res_tzpol:0x%08x|id:%d, name:%s, val:%s, res:%d", NULL, NULL, (unsigned int)res_tzpol, id, name, value, res);
 
@@ -1770,7 +1770,7 @@ _tzpol_iface_cb_aux_hint_change(struct wl_client *client EINA_UNUSED, struct wl_
    ec = wl_resource_get_user_data(surf);
    EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   res = e_hints_aux_hint_change_with_pixmap(ec->pixmap, id, value);
+   res = e_hints_aux_hint_change(ec, id, value);
 
    ELOGF("TZPOL", "HINT_CHANGE|res_tzpol:0x%08x|id:%d, val:%s, result:%d", NULL, NULL,  (unsigned int)res_tzpol, id, value, res);
 
@@ -1787,7 +1787,7 @@ _tzpol_iface_cb_aux_hint_del(struct wl_client *client EINA_UNUSED, struct wl_res
    ec = wl_resource_get_user_data(surf);
    EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   res = e_hints_aux_hint_del_with_pixmap(ec->pixmap, id);
+   res = e_hints_aux_hint_del(ec, id);
    ELOGF("TZPOL", "HINT_DEL|res_tzpol:0x%08x|id:%d, result:%d", NULL, NULL,  (unsigned int)res_tzpol, id, res);
 }
 
