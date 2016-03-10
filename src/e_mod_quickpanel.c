@@ -32,7 +32,6 @@ struct _Mover_Data
 
    Evas_Object *smart_obj; //smart object
    Evas_Object *qp_layout_obj; // quickpanel's e_layout_object
-   Evas_Object *base_mirror_obj; // quickpanel base mirror object
    Evas_Object *handler_mirror_obj; // quickpanel handler mirror object
    Evas_Object *base_clip; // clipper for quickapnel base object
    Evas_Object *handler_clip; // clipper for quickpanel handler object
@@ -74,7 +73,6 @@ struct _Mover_Effect_Data
 static Pol_Quickpanel *_pol_quickpanel = NULL;
 static Eina_List *_quickpanel_hooks = NULL;
 static Evas_Smart *_mover_smart = NULL;
-static Ecore_Event_Handler *_buffer_change_hdlr = NULL;
 
 static Pol_Quickpanel *
 _quickpanel_find(E_Client *ec)
@@ -97,14 +95,7 @@ _mover_intercept_show(void *data, Evas_Object *obj)
 
    e = evas_object_evas_get(obj);
 
-   evas_object_color_set(ec->frame, 0, 0, 0, 0);
-
-   // create base_mirror_obj
-   md->base_mirror_obj =  e_comp_object_util_mirror_add(ec->frame);
-   e_layout_pack(md->qp_layout_obj, md->base_mirror_obj);
-   e_layout_child_move(md->base_mirror_obj, 0, 0);
-   e_layout_child_resize(md->base_mirror_obj, ec->w, ec->h);
-   evas_object_show(md->base_mirror_obj);
+   evas_object_move(ec->frame, 0, 0);
 
    // create base_clip
    md->base_clip = evas_object_rectangle_add(e);
@@ -113,7 +104,7 @@ _mover_intercept_show(void *data, Evas_Object *obj)
    e_layout_child_resize(md->base_clip, ec->w, ec->h);
    evas_object_color_set(md->base_clip, 255, 255, 255, 255);
    evas_object_show(md->base_clip);
-   evas_object_clip_set(md->base_mirror_obj, md->base_clip);
+   evas_object_clip_set(ec->frame, md->base_clip);
 
    // create handler_mirror_obj
    md->handler_mirror_obj =  e_comp_object_util_mirror_add(ec->frame);
@@ -174,11 +165,6 @@ _mover_smart_del(Evas_Object *obj)
         evas_object_clip_unset(md->handler_clip);
         e_layout_unpack(md->handler_clip);
         evas_object_del(md->handler_clip);
-     }
-   if (md->base_mirror_obj)
-     {
-        e_layout_unpack(md->base_mirror_obj);
-        evas_object_del(md->base_mirror_obj);
      }
    if (md->handler_mirror_obj)
      {
@@ -590,7 +576,6 @@ _quickpanel_free(Pol_Quickpanel *pol_qp)
      evas_object_del(pol_qp->mover);
 
    E_FREE_FUNC(pol_qp->handler.obj, evas_object_del);
-   E_FREE_FUNC(_buffer_change_hdlr, ecore_event_handler_del);
    E_FREE_LIST(_quickpanel_hooks, e_client_hook_del);
    E_FREE(_pol_quickpanel);
 }
@@ -607,30 +592,6 @@ _quickpanel_hook_client_del(void *d EINA_UNUSED, E_Client *ec)
      return;
 
    _quickpanel_free(pol_qp);
-}
-
-/* HACK
- * there is an issue that quickpanel's first frame is not normal.
- * this handler is to send frame callback to quickpanel client,
- * then quickpanel can have a chance to render one more times.
- */
-static Eina_Bool
-_quickpanel_cb_buffer_change(void *data, int type, void *event)
-{
-   E_Event_Client *ev = event;
-   E_Client *ec;
-
-   ec = ev->ec;
-   if (ec != e_mod_quickpanel_client_get())
-     goto end;
-
-   e_comp_post_update_add(ec);
-
-   ecore_event_handler_del(_buffer_change_hdlr);
-   _buffer_change_hdlr = NULL;
-
-end:
-   return ECORE_CALLBACK_PASS_ON;
 }
 
 static void
@@ -839,13 +800,6 @@ e_mod_quickpanel_client_set(E_Client *ec)
 
    E_CLIENT_HOOK_APPEND(_quickpanel_hooks, E_CLIENT_HOOK_DEL,
                         _quickpanel_hook_client_del, NULL);
-
-   if (!_buffer_change_hdlr)
-     {
-        _buffer_change_hdlr =
-           ecore_event_handler_add(E_EVENT_CLIENT_BUFFER_CHANGE,
-                                   _quickpanel_cb_buffer_change, NULL);
-     }
 
    _pol_quickpanel = pol_qp;
 }
