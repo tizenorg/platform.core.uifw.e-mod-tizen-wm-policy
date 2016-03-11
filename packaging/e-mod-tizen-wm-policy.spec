@@ -22,6 +22,8 @@ BuildRequires: pkgconfig(edje)
 BuildRequires: pkgconfig(tzsh-server)
 %endif
 
+%global TZ_SYS_RO_SHARE  %{?TZ_SYS_RO_SHARE:%TZ_SYS_RO_SHARE}%{!?TZ_SYS_RO_SHARE:/usr/share}
+
 %description
 The Enlightenment WM Policy Module for Tizen
 
@@ -41,9 +43,9 @@ make %{?_smp_mflags}
 
 %install
 # for license notification
-mkdir -p %{buildroot}/usr/share/license
-cp -a %{_builddir}/%{buildsubdir}/COPYING %{buildroot}/usr/share/license/%{name}
-cp -a %{_builddir}/%{buildsubdir}/COPYING.Flora %{buildroot}/usr/share/license/%{name}.Flora
+mkdir -p %{buildroot}/%{TZ_SYS_RO_SHARE}/license
+cp -a %{_builddir}/%{buildsubdir}/COPYING %{buildroot}/%{TZ_SYS_RO_SHARE}/license/%{name}
+cp -a %{_builddir}/%{buildsubdir}/COPYING.Flora %{buildroot}/%{TZ_SYS_RO_SHARE}/license/%{name}.Flora
 
 # install
 %make_install
@@ -51,7 +53,7 @@ cp -a %{_builddir}/%{buildsubdir}/COPYING.Flora %{buildroot}/usr/share/license/%
 %files
 %defattr(-,root,root,-)
 %{_libdir}/enlightenment/modules/e-mod-tizen-wm-policy
-/usr/share/license/%{name}
-/usr/share/license/%{name}.Flora
+%{TZ_SYS_RO_SHARE}/license/%{name}
+%{TZ_SYS_RO_SHARE}/license/%{name}.Flora
 
 %define _unpackaged_files_terminate_build 0
