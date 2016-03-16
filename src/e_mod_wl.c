@@ -1076,9 +1076,11 @@ _tzpol_iface_cb_activate_below_by_res_id(struct wl_client *client EINA_UNUSED, s
      {
         if ((ec->iconic) && (!ec->exp_iconify.by_client))
           e_mod_pol_wl_iconify_state_change_send(ec, 0);
+
+        e_client_activate(ec, EINA_TRUE);
      }
 
-   evas_object_stack_below(ec->frame, below_ec->frame);
+   e_mod_pol_stack_below(ec, below_ec);
 }
 
 static void

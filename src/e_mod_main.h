@@ -152,5 +152,7 @@ EINTERN void             e_mod_pol_stack_cb_client_remove(E_Client *ec);
 EINTERN void             e_mod_pol_stack_hook_pre_fetch(E_Client *ec);
 EINTERN void             e_mod_pol_stack_hook_pre_post_fetch(E_Client *ec);
 
+EINTERN void             e_mod_pol_stack_below(E_Client *ec, E_Client *below_ec);
+
 EINTERN Eina_Bool        e_mod_pol_conf_rot_enable_get(int angle);
 #endif

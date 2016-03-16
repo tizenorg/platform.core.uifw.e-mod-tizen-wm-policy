@@ -249,3 +249,25 @@ e_mod_pol_stack_init(void)
 {
    hash_pol_stack = eina_hash_pointer_new(_pol_stack_cb_data_free);
 }
+
+void
+e_mod_pol_stack_below(E_Client *ec, E_Client *below_ec)
+{
+   EINA_SAFETY_ON_NULL_RETURN(ec);
+   EINA_SAFETY_ON_NULL_RETURN(ec->frame);
+
+   EINA_SAFETY_ON_NULL_RETURN(below_ec);
+   EINA_SAFETY_ON_NULL_RETURN(below_ec->frame);
+
+   evas_object_stack_below(ec->frame, below_ec->frame);
+   if (e_config->transient.iconify)
+     {
+        E_Client *child;
+        Eina_List *list = eina_list_clone(ec->transients);
+
+        EINA_LIST_FREE(list, child)
+          {
+             e_mod_pol_stack_below(child, below_ec);
+          }
+     }
+}
