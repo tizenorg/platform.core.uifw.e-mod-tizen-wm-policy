@@ -3,6 +3,7 @@
 #include "e_mod_quickpanel.h"
 #include "e_mod_indicator.h"
 #include "e_mod_gesture.h"
+#include "e_mod_transit.h"
 
 #define SMART_NAME            "quickpanel_object"
 #define INTERNAL_ENTRY                    \
@@ -45,7 +46,7 @@ struct _Mover_Data
 
    struct
    {
-      Elm_Transit *transit;
+      Pol_Transit *transit;
       Mover_Effect_Data *data;
       int y;
       unsigned int timestamp;
@@ -64,7 +65,7 @@ struct _Handler_Data
 
 struct _Mover_Effect_Data
 {
-   Elm_Transit *transit;
+   Pol_Transit *transit;
    Evas_Object *mover;
    int from_dy;
    int to_dy;
@@ -351,8 +352,8 @@ _mover_obj_move(Evas_Object *mover, int x, int y, unsigned int timestamp)
    return EINA_TRUE;
 }
 
-static Elm_Transit_Effect *
-_mover_obj_effect_data_new(Elm_Transit *transit, Evas_Object *mover, int from_y, int to_y, Eina_Bool visible)
+static Pol_Transit_Effect *
+_mover_obj_effect_data_new(Pol_Transit *transit, Evas_Object *mover, int from_y, int to_y, Eina_Bool visible)
 {
    Mover_Effect_Data *ed;
 
@@ -369,7 +370,7 @@ _mover_obj_effect_data_new(Elm_Transit *transit, Evas_Object *mover, int from_y,
 }
 
 static void
-_mover_obj_effect_op(Elm_Transit_Effect *effect, Elm_Transit *transit, double progress)
+_mover_obj_effect_op(Pol_Transit_Effect *effect, Pol_Transit *transit, double progress)
 {
    Mover_Effect_Data *ed = effect;
    Mover_Data *md;
@@ -392,14 +393,14 @@ _mover_obj_effect_cb_mover_obj_del(void *data, Evas *e EINA_UNUSED, Evas_Object 
    pos = (ed->visible) ? 0 : -10000;
    evas_object_move(md->qp->ec->frame, pos, pos);
 
-   /* make sure NULL before calling elm_transit_del() */
+   /* make sure NULL before calling pol_transit_del() */
    ed->mover = NULL;
 
-   elm_transit_del(ed->transit);
+   pol_transit_del(ed->transit);
 }
 
 static void
-_mover_obj_effect_data_free(Elm_Transit_Effect *effect, Elm_Transit *transit)
+_mover_obj_effect_data_free(Pol_Transit_Effect *effect, Pol_Transit *transit)
 {
    Mover_Data *md;
    Mover_Effect_Data *ed = effect;
@@ -423,8 +424,8 @@ _mover_obj_effect_start(Evas_Object *mover, int from_y, Eina_Bool visible)
 {
    Mover_Data *md;
    E_Client *ec;
-   Elm_Transit *transit;
-   Elm_Transit_Effect *effect;
+   Pol_Transit *transit;
+   Pol_Transit_Effect *effect;
    int to_y;
    double duration;
    const double ref = 0.1;
@@ -432,23 +433,23 @@ _mover_obj_effect_start(Evas_Object *mover, int from_y, Eina_Bool visible)
    md = evas_object_smart_data_get(mover);
    ec = md->qp->ec;
 
-   transit = elm_transit_add();
-   elm_transit_object_add(transit, mover);
-   elm_transit_tween_mode_set(transit, ELM_TRANSIT_TWEEN_MODE_DECELERATE);
+   transit = pol_transit_add();
+   pol_transit_object_add(transit, mover);
+   pol_transit_tween_mode_set(transit, POL_TRANSIT_TWEEN_MODE_DECELERATE);
 
    /* determine the position as a destination */
    to_y = (visible) ? (ec->zone->h - from_y) : (-from_y);
 
    /* determine the transit's duration */
    duration = ((double)abs(to_y) / (ec->zone->h / 2)) * ref;
-   elm_transit_duration_set(transit, duration);
+   pol_transit_duration_set(transit, duration);
 
    /* create and add effect to transit */
    effect = _mover_obj_effect_data_new(transit, mover, from_y, to_y, visible);
-   elm_transit_effect_add(transit, _mover_obj_effect_op, effect, _mover_obj_effect_data_free);
+   pol_transit_effect_add(transit, _mover_obj_effect_op, effect, _mover_obj_effect_data_free);
 
    /* start transit */
-   elm_transit_go(transit);
+   pol_transit_go(transit);
 
    evas_object_event_callback_add(mover, EVAS_CALLBACK_DEL, _mover_obj_effect_cb_mover_obj_del, effect);
 
@@ -467,7 +468,7 @@ _mover_obj_effect_stop(Evas_Object *mover)
 
    evas_object_event_callback_del(mover, EVAS_CALLBACK_DEL, _mover_obj_effect_cb_mover_obj_del);
 
-   E_FREE_FUNC(md->effect_info.transit, elm_transit_del);
+   E_FREE_FUNC(md->effect_info.transit, pol_transit_del);
 }
 
 static Eina_Bool
