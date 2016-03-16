@@ -48,6 +48,8 @@ module_la_SOURCES      = e_mod_config.c \
                          e_mod_keyboard.h \
                          e_mod_stack.c \
                          e_mod_private_data.h \
+                         e_mod_transit.c \
+                         e_mod_transit.h \
                          $(WL_SRC) \
                          $(ROT_SRC)
 
