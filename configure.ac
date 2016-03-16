@@ -48,6 +48,18 @@ fi
 AC_SUBST(ENLIGHTENMENT_CFLAGS)
 AC_SUBST(ENLIGHTENMENT_LIBS)
 
+# Checks for cynara
+have_cynara=no
+AC_ARG_ENABLE(cynara,
+	AS_HELP_STRING([--enable-cynara], [enable cynara]),
+	[have_cynara=$enableval],
+	[have_cynara=no]
+)
+if test "x${have_cynara}" = "xyes"; then
+	PKG_CHECK_MODULES(CYNARA, [cynara-client, cynara-creds-socket, cynara-session])
+	AC_DEFINE([ENABLE_CYNARA],[1],[enable cynara])
+fi
+
 # Checks for ttrace header files
 PKG_CHECK_MODULES(TTRACE,
 		[ttrace],
