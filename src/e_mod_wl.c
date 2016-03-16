@@ -8,6 +8,15 @@
 #include <tizen-extension-server-protocol.h>
 #include <tzsh_server.h>
 
+#ifdef ENABLE_CYNARA
+# include <cynara-session.h>
+# include <cynara-client.h>
+# include <cynara-creds-socket.h>
+#endif
+
+#define PRIVILEGE_NOTIFICATION_LEVEL_SET "http://tizen.org/privilege/window.priority.set"
+#define PRIVILEGE_SCREEN_MODE_SET "http://tizen.org/privilege/display"
+
 #define APP_DEFINE_GROUP_NAME "effect"
 
 typedef enum _Tzsh_Srv_Role
@@ -119,6 +128,9 @@ typedef struct _Pol_Wl
 
    /* tizen_launchscreen_interface */
    Eina_List       *tzlaunchs;                   /* list of Pol_Wl_Tzlaunch */
+#ifdef ENABLE_CYNARA
+   cynara          *p_cynara;
+#endif
 } Pol_Wl;
 
 static Pol_Wl *polwl = NULL;
@@ -1351,6 +1363,72 @@ e_mod_pol_wl_keyboard_geom_broadcast(E_Client *ec)
 // --------------------------------------------------------
 // notification level
 // --------------------------------------------------------
+static Eina_Bool
+_pol_wl_privilege_check(int fd, const char *privilege)
+{
+#ifdef ENABLE_CYNARA
+   static Eina_Bool first = EINA_TRUE;
+   char *client_smack = NULL, *uid = NULL, *client_session = NULL;
+   int ret, pid;
+
+   if ((!polwl->p_cynara))
+     {
+        if (first)
+          {
+             int i;
+
+             //try five times to tolerate temporary failure
+             for (i = 0; i < 5; i++)
+               if (cynara_initialize(&polwl->p_cynara, NULL) == CYNARA_API_SUCCESS)
+                 break;
+
+             first = EINA_FALSE;
+
+             if (!polwl->p_cynara)
+               {
+                  ERR("cynara_initialize completely failed.");
+                  return EINA_TRUE;
+               }
+          }
+        else
+          return EINA_TRUE;
+     }
+
+   ret = cynara_creds_socket_get_client(fd, CLIENT_METHOD_SMACK, &client_smack);
+   if (ret != CYNARA_API_SUCCESS) goto cynara_failed;
+
+   ret = cynara_creds_socket_get_user(fd, USER_METHOD_UID, &uid);
+   if (ret != CYNARA_API_SUCCESS) goto cynara_failed;
+
+   ret = cynara_creds_socket_get_pid(fd, &pid);
+   if (ret != CYNARA_API_SUCCESS) goto cynara_failed;
+
+   client_session = cynara_session_from_pid(pid);
+   if (!client_session) goto cynara_failed;
+
+   ret = cynara_check(polwl->p_cynara,
+                      client_smack,
+                      client_session,
+                      uid,
+                      privilege);
+
+   if (ret == CYNARA_API_ACCESS_ALLOWED)
+     return EINA_TRUE;
+
+   return EINA_FALSE;
+
+cynara_failed:
+   if (client_session) free(client_session);
+   if (uid) free(uid);
+   if (client_smack) free(client_smack);
+
+   return EINA_TRUE;
+#else
+   (void)ec;
+   return EINA_TRUE;
+#endif
+}
+
 static void
 _tzpol_notilv_set(E_Client *ec, int lv)
 {
@@ -1378,16 +1456,28 @@ _tzpol_notilv_set(E_Client *ec, int lv)
 }
 
 static void
-_tzpol_iface_cb_notilv_set(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf, int32_t lv)
+_tzpol_iface_cb_notilv_set(struct wl_client *client, struct wl_resource *res_tzpol, struct wl_resource *surf, int32_t lv)
 {
    E_Client *ec;
    Pol_Wl_Surface *psurf;
+   int fd;
 
    ec = wl_resource_get_user_data(surf);
    EINA_SAFETY_ON_NULL_RETURN(ec);
 
    psurf = _pol_wl_surf_add(ec, res_tzpol);
    EINA_SAFETY_ON_NULL_RETURN(psurf);
+
+   fd = wl_client_get_fd(client);
+   if (!_pol_wl_privilege_check(fd, PRIVILEGE_NOTIFICATION_LEVEL_SET))
+     {
+        tizen_policy_send_notification_done
+           (res_tzpol,
+            surf,
+            -1,
+            TIZEN_POLICY_ERROR_STATE_PERMISSION_DENIED);
+        return;
+     }
 
    _tzpol_notilv_set(ec, lv);
 
@@ -1509,9 +1599,21 @@ static void
 _tzpol_iface_cb_win_scrmode_set(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf, uint32_t mode)
 {
    E_Client *ec;
+   int fd;
 
    ec = wl_resource_get_user_data(surf);
    EINA_SAFETY_ON_NULL_RETURN(ec);
+
+   fd = wl_client_get_fd(client);
+   if (!_pol_wl_privilege_check(fd, PRIVILEGE_SCREEN_MODE_SET))
+     {
+        tizen_policy_send_window_screen_mode_done
+           (res_tzpol,
+            surf,
+            -1,
+            TIZEN_POLICY_ERROR_STATE_PERMISSION_DENIED);
+        return;
+     }
 
    e_mod_pol_wl_win_scrmode_apply();
 
@@ -3020,6 +3122,10 @@ e_mod_pol_wl_init(void)
 
    polwl->tzpols = eina_hash_pointer_new(_pol_wl_tzpol_del);
 
+#ifdef ENABLE_CYNARA
+   if (cynara_initialize(&polwl->p_cynara, NULL) != CYNARA_API_SUCCESS)
+     ERR("cynara_initialize failed.");
+#endif
    return EINA_TRUE;
 
 err:
@@ -3062,6 +3168,11 @@ e_mod_pol_wl_shutdown(void)
      wl_global_destroy(global);
 
    E_FREE_FUNC(polwl->tzpols, eina_hash_free);
+
+#ifdef ENABLE_CYNARA
+   if (polwl->p_cynara)
+     cynara_finish(polwl->p_cynara);
+#endif
 
    E_FREE(polwl);
 }
