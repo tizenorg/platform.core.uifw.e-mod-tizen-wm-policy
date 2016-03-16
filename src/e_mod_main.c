@@ -347,9 +347,6 @@ _pol_cb_hook_client_eval_pre_new_client(void *d EINA_UNUSED, E_Client *ec)
                evas_object_layer_set(ec->frame, ec->layer);
           }
      }
-#ifdef HAVE_WAYLAND_ONLY
-   e_mod_pol_wl_eval_pre_new_client(ec);
-#endif
 }
 
 static void
@@ -368,7 +365,9 @@ _pol_cb_hook_client_eval_pre_post_fetch(void *d EINA_UNUSED, E_Client *ec)
    e_mod_pol_stack_hook_pre_post_fetch(ec);
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_notification_level_fetch(ec);
+   e_mod_pol_wl_eval_pre_post_fetch(ec);
 #endif
+
 }
 
 static void
