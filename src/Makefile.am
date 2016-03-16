@@ -54,8 +54,8 @@ module_la_SOURCES      = e_mod_config.c \
                          $(ROT_SRC)
 
 module_la_LIBADD       =
-module_la_CFLAGS       = @ENLIGHTENMENT_CFLAGS@ @TZSH_SERVER_CFLAGS@
-module_la_LDFLAGS      = -module -avoid-version @ENLIGHTENMENT_LIBS@ @TZSH_SERVER_LIBS@
+module_la_CFLAGS       = @ENLIGHTENMENT_CFLAGS@ @TZSH_SERVER_CFLAGS@ @TTRACE_CFLAGS@ @CYNARA_CFLAGS@
+module_la_LDFLAGS      = -module -avoid-version @ENLIGHTENMENT_LIBS@ @TZSH_SERVER_LIBS@ @TTRACE_LIBS@ @CYNARA_LIBS@
 module_la_DEPENDENCIES = $(top_builddir)/config.h
 
 if HAVE_AUTO_ROTATION
