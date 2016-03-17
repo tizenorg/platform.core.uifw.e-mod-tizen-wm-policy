@@ -1604,7 +1604,8 @@ _tzpol_iface_cb_subsurface_get(struct wl_client *client, struct wl_resource *res
          wl_resource_get_id(surface));
 
    /* ec's parent comes from another process */
-   ec->comp_data->has_extern_parent = EINA_TRUE;
+   if (ec->comp_data)
+     ec->comp_data->has_extern_parent = EINA_TRUE;
 }
 
 static void
@@ -2805,7 +2806,7 @@ _tzlaunch_iface_cb_create_img(struct wl_client *client, struct wl_resource *res_
    if (!res_tzlaunch_img)
      {
         wl_resource_post_error
-           (res_tzlaunch_img,
+           (res_tzlaunch,
             WL_DISPLAY_ERROR_INVALID_OBJECT,
             "Invalid res_tzlaunch's user data");
         return;
