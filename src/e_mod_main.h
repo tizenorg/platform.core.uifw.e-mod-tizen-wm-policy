@@ -95,7 +95,6 @@ struct _Mod
    E_Config_DD     *conf_desk_edd;
    E_Config_DD     *conf_rot_edd;
    Config          *conf;
-   E_Config_Dialog *conf_dialog;
    Eina_List       *launchers; /* launcher window per zone */
    Eina_Inlist     *softkeys; /* softkey ui object per zone */
 };
@@ -114,7 +113,7 @@ extern Eina_Hash *hash_pol_clients;
 EINTERN void             e_mod_pol_conf_init(Mod *mod);
 EINTERN void             e_mod_pol_conf_shutdown(Mod *mod);
 EINTERN Config_Desk     *e_mod_pol_conf_desk_get_by_nums(Config *conf, unsigned int zone_num, int x, int y);
-EINTERN E_Config_Dialog *e_int_config_pol_mobile(Evas_Object *o EINA_UNUSED, const char *params EINA_UNUSED);
+//EINTERN E_Config_Dialog *e_int_config_pol_mobile(Evas_Object *o EINA_UNUSED, const char *params EINA_UNUSED);
 EINTERN Pol_Client      *e_mod_pol_client_get(E_Client *ec);
 EINTERN void             e_mod_pol_allow_user_geometry_set(E_Client *ec, Eina_Bool set);
 EINTERN void             e_mod_pol_desk_add(E_Desk *desk);
