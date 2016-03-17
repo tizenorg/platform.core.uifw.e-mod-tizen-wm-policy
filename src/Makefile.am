@@ -31,6 +31,8 @@ WL_SRC   = e_mod_wl.c \
            e_mod_indicator.h \
            e_mod_volume.c \
            e_mod_volume.h \
+           e_mod_lockscreen.c \
+           e_mod_lockscreen.h \
            e_mod_gesture.c \
            e_mod_gesture.h
 

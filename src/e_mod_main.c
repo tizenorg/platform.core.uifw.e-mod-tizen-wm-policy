@@ -886,6 +886,12 @@ e_mod_pol_client_is_lock_screen(E_Client *ec)
    if (ec->client_type == 2)
      return EINA_TRUE;
 
+   if (!e_util_strcmp(ec->icccm.title, "LOCKSCREEN"))
+     return EINA_TRUE;
+
+   if (!e_util_strcmp(ec->icccm.window_role, "lockscreen"))
+     return EINA_TRUE;
+
    return EINA_FALSE;
 }
 
