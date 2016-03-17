@@ -1030,7 +1030,7 @@ e_modapi_init(E_Module *m)
    Config_Desk *d;
    const Eina_List *l;
    int i, n;
-   char buf[PATH_MAX];
+   //char buf[PATH_MAX];
 
    mod = E_NEW(Mod, 1);
    EINA_SAFETY_ON_NULL_RETURN_VAL(mod, NULL);
@@ -1049,6 +1049,7 @@ e_modapi_init(E_Module *m)
 #endif
 
    /* initialize configure and config data type */
+#if 0
    snprintf(buf, sizeof(buf), "%s/e-module-policy.edj",
             e_module_dir_get(m));
    e_configure_registry_category_add("windows", 50, _("Windows"), NULL,
@@ -1056,6 +1057,7 @@ e_modapi_init(E_Module *m)
    e_configure_registry_item_add("windows/policy-tizen", 150,
                                  _("Tizen Policy"), NULL, buf,
                                  e_int_config_pol_mobile);
+#endif
 
    e_mod_pol_conf_init(mod);
 
@@ -1128,6 +1130,7 @@ e_modapi_shutdown(E_Module *m)
    e_mod_pol_wl_shutdown();
 #endif
 
+#if 0
    e_configure_registry_item_del("windows/policy-tizen");
    e_configure_registry_category_del("windows");
 
@@ -1136,6 +1139,7 @@ e_modapi_shutdown(E_Module *m)
         e_object_del(E_OBJECT(mod->conf_dialog));
         mod->conf_dialog = NULL;
      }
+#endif
 
    e_mod_pol_conf_shutdown(mod);
 
