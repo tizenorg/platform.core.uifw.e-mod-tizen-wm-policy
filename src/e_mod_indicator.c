@@ -27,23 +27,15 @@ _indicator_hook_client_del(void *d, E_Client *ec)
 }
 
 static void
-_quickpanel_client_evas_cb_move(void *data, Evas *evas, Evas_Object *qp_obj, void *event)
+_quickpanel_client_evas_cb_show(void *data, Evas *evas, Evas_Object *qp_obj, void *event)
 {
-   Pol_Indicator *pi = data;
-   int x, y, w, h;
-   int zx, zy, zw, zh;
+   evas_object_hide(((Pol_Indicator*)data)->handler);
+}
 
-   evas_object_geometry_get(qp_obj, &x, &y, &w, &h);
-
-   zx = pi->qp_ec->zone->x;
-   zy = pi->qp_ec->zone->y;
-   zw = pi->qp_ec->zone->w;
-   zh = pi->qp_ec->zone->h;
-
-   if (E_INTERSECTS(x, y, w, h, zx, zy, zw, zh))
-     evas_object_hide(pi->handler);
-   else
-     evas_object_show(pi->handler);
+static void
+_quickpanel_client_evas_cb_hide(void *data, Evas *evas, Evas_Object *qp_obj, void *event)
+{
+   evas_object_show(((Pol_Indicator*)data)->handler);
 }
 
 #undef E_CLIENT_HOOK_APPEND
@@ -77,10 +69,14 @@ e_mod_indicator_create(int w, int h)
    evas_object_layer_set(pi->handler, EVAS_LAYER_MAX);
 
    /* show handler object */
-   evas_object_show(pi->handler);
+   if (!evas_object_visible_get(qp_ec->frame))
+     evas_object_show(pi->handler);
 
-   evas_object_event_callback_add(qp_ec->frame, EVAS_CALLBACK_MOVE,
-                                  _quickpanel_client_evas_cb_move, pi);
+   evas_object_event_callback_add(qp_ec->frame, EVAS_CALLBACK_SHOW,
+                                  _quickpanel_client_evas_cb_show, pi);
+
+   evas_object_event_callback_add(qp_ec->frame, EVAS_CALLBACK_HIDE,
+                                  _quickpanel_client_evas_cb_hide, pi);
 
    E_CLIENT_HOOK_APPEND(indicator_hooks, E_CLIENT_HOOK_DEL,
                         _indicator_hook_client_del, pi);
