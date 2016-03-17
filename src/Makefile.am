@@ -21,20 +21,20 @@ ROT_SRC  += rotation/e_mod_sensord.c \
 endif
 
 if HAVE_WAYLAND_ONLY
-WL_SRC   = e_mod_wl.c \
-           e_mod_wl.h \
-           tizen_policy_ext-protocol.c \
-           tizen_policy_ext-server-protocol.h \
-           e_mod_quickpanel.c \
-           e_mod_quickpanel.h \
-           e_mod_indicator.c \
-           e_mod_indicator.h \
-           e_mod_volume.c \
-           e_mod_volume.h \
-           e_mod_lockscreen.c \
-           e_mod_lockscreen.h \
-           e_mod_gesture.c \
-           e_mod_gesture.h
+WL_SRC   += e_mod_wl.c \
+            e_mod_wl.h \
+            tizen_policy_ext-protocol.c \
+            tizen_policy_ext-server-protocol.h \
+            e_mod_quickpanel.c \
+            e_mod_quickpanel.h \
+            e_mod_indicator.c \
+            e_mod_indicator.h \
+            e_mod_volume.c \
+            e_mod_volume.h \
+            e_mod_lockscreen.c \
+            e_mod_lockscreen.h \
+            e_mod_gesture.c \
+            e_mod_gesture.h
 
 ROT_SRC  += rotation/e_mod_rotation_wl.c \
             rotation/e_mod_rotation_wl.h 
