@@ -428,7 +428,7 @@ _pol_cb_hook_client_desk_set(void *d EINA_UNUSED, E_Client *ec)
    if (ec->new_client) return;
 
    pc = eina_hash_find(hash_pol_clients, &ec);
-   if (!EINA_UNLIKELY(!pc))
+   if (EINA_UNLIKELY(!pc))
      return;
 
    pd = eina_hash_find(hash_pol_desks, &ec->desk);
