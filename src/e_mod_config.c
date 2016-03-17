@@ -1,6 +1,7 @@
 #include "e_mod_main.h"
 
 static void         _pol_conf_desk_add(Config *conf, E_Desk *desk);
+#if 0
 static void         _pol_conf_desk_del(Config *conf, Config_Desk *d);
 static Config_Desk *_pol_conf_desk_get(Config *conf, Config_Desk *d);
 
@@ -10,6 +11,7 @@ static int          _pol_cfd_data_basic_apply(E_Config_Dialog *cfd EINA_UNUSED, 
 static void         _pol_cfd_desk_list_update(E_Config_Dialog_Data *cfdata, E_Zone *zone);
 static void         _pol_cfd_hook_zone_change(void *data, Evas_Object *obj);
 static Evas_Object *_pol_cfd_data_basic_widgets_create(E_Config_Dialog *cfd EINA_UNUSED, Evas *evas, E_Config_Dialog_Data *cfdata);
+#endif
 
 static void
 _pol_conf_desk_add(Config *conf, E_Desk *desk)
@@ -25,6 +27,7 @@ _pol_conf_desk_add(Config *conf, E_Desk *desk)
    conf->desks = eina_list_append(conf->desks, d);
 }
 
+#if 0
 static void
 _pol_conf_desk_del(Config *conf, Config_Desk *d)
 {
@@ -264,6 +267,7 @@ _pol_cfd_data_basic_widgets_create(E_Config_Dialog *cfd EINA_UNUSED, Evas *evas,
 
    return base;
 }
+#endif
 
 void
 e_mod_pol_conf_init(Mod *mod)
@@ -359,6 +363,7 @@ e_mod_pol_conf_desk_get_by_nums(Config *conf, unsigned int zone_num, int x, int 
    return NULL;
 }
 
+#if 0
 E_Config_Dialog *
 e_int_config_pol_mobile(Evas_Object *o EINA_UNUSED, const char *params EINA_UNUSED)
 {
@@ -381,6 +386,7 @@ e_int_config_pol_mobile(Evas_Object *o EINA_UNUSED, const char *params EINA_UNUS
                              "windows/policy-tizen", buf, 0, v, NULL);
    return cfd;
 }
+#endif
 
 EINTERN Eina_Bool
 e_mod_pol_conf_rot_enable_get(int angle)
