@@ -3,6 +3,7 @@
 #include "e_mod_quickpanel.h"
 #include "e_mod_indicator.h"
 #include "e_mod_volume.h"
+#include "e_mod_lockscreen.h"
 
 #include <wayland-server.h>
 #include <tizen-extension-server-protocol.h>
@@ -2114,6 +2115,8 @@ _tzsh_iface_cb_srv_create(struct wl_client *client, struct wl_resource *res_tzsh
      e_mod_quickpanel_client_set(tzsh->ec);
    else if (role == TZSH_SRV_ROLE_VOLUME)
      e_mod_volume_client_set(tzsh->ec);
+   else if (role == TZSH_SRV_ROLE_LOCKSCREEN)
+     e_mod_lockscreen_client_set(tzsh->ec);
 }
 
 // --------------------------------------------------------
