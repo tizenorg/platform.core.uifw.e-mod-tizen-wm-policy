@@ -31,7 +31,7 @@ The Enlightenment WM Policy Module for Tizen
 %setup -q -n %{name}-%{version}
 
 %build
-export CFLAGS+=" -DE_LOGGING=1"
+export CFLAGS+=" -DE_LOGGING=1 -Werror-implicit-function-declaration"
 %if %{with wayland}
 %reconfigure \
       --enable-wayland-only \
