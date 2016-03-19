@@ -10,11 +10,25 @@
    Mover_Data *md;                        \
    md = evas_object_smart_data_get(obj);
 
-#define EVAS_OBJECT_VISIBLE_SET(OBJ, VIS)    \
-do                                           \
-{                                            \
-   if (VIS) evas_object_show(OBJ);           \
-   else evas_object_hide(OBJ);               \
+#define QP_SHOW(EC)              \
+do                               \
+{                                \
+   EC->visible = EINA_TRUE;      \
+   evas_object_show(EC->frame);  \
+} while (0)
+
+#define QP_HIDE(EC)              \
+do                               \
+{                                \
+   EC->visible = EINA_FALSE;     \
+   evas_object_hide(EC->frame);  \
+} while (0)
+
+#define QP_VISIBLE_SET(EC, VIS)  \
+do                               \
+{                                \
+   if (VIS) QP_SHOW(EC);         \
+   else     QP_HIDE(EC);         \
 } while(0)
 
 typedef struct _Pol_Quickpanel Pol_Quickpanel;
@@ -107,7 +121,7 @@ _mover_intercept_show(void *data, Evas_Object *obj)
 
    e = evas_object_evas_get(obj);
 
-   evas_object_show(ec->frame);
+   QP_SHOW(ec);
 
    // create base_clip
    md->base_clip = evas_object_rectangle_add(e);
@@ -386,7 +400,7 @@ _mover_obj_effect_cb_mover_obj_del(void *data, Evas *e EINA_UNUSED, Evas_Object 
 
    ed = data;
    md = evas_object_smart_data_get(ed->mover);
-   EVAS_OBJECT_VISIBLE_SET(md->qp->ec->frame, ed->visible);
+   QP_VISIBLE_SET(md->qp->ec, ed->visible);
 
    /* make sure NULL before calling pol_transit_del() */
    ed->mover = NULL;
@@ -403,7 +417,7 @@ _mover_obj_effect_data_free(Pol_Transit_Effect *effect, Pol_Transit *transit)
    if (ed->mover)
      {
         md = evas_object_smart_data_get(ed->mover);
-        EVAS_OBJECT_VISIBLE_SET(md->qp->ec->frame, ed->visible);
+        QP_VISIBLE_SET(md->qp->ec, ed->visible);
 
         evas_object_event_callback_del(ed->mover, EVAS_CALLBACK_DEL, _mover_obj_effect_cb_mover_obj_del);
         evas_object_del(ed->mover);
@@ -737,7 +751,7 @@ _quickpanel_visibility_change(Pol_Quickpanel *qp, Eina_Bool vis, Eina_Bool with_
              evas_object_del(mover);
           }
 
-        EVAS_OBJECT_VISIBLE_SET(ec->frame, vis);
+        QP_VISIBLE_SET(ec, vis);
      }
 }
 
@@ -745,13 +759,13 @@ static void
 _quickpanel_client_evas_cb_show_block(void *data, Evas *evas, Evas_Object *qp_obj, void *event)
 {
    Pol_Quickpanel *pol_qp = data;
-   Evas_Object *obj = pol_qp->ec->frame;
+   E_Client *ec = pol_qp->ec;
 
    if (pol_qp->show_block)
-     evas_object_hide(obj);
+     QP_HIDE(ec);
    else
      {
-        evas_object_event_callback_del_full(obj,
+        evas_object_event_callback_del_full(ec->frame,
                                             EVAS_CALLBACK_SHOW,
                                             _quickpanel_client_evas_cb_show_block,
                                             pol_qp);
@@ -811,7 +825,7 @@ e_mod_quickpanel_client_set(E_Client *ec)
    // set skip iconify
    ec->exp_iconify.skip_iconify = 1;
 
-   evas_object_hide(ec->frame);
+   QP_HIDE(ec);
 
    // to avoid that quickpanel is shawn, when it's first launched. */
    evas_object_event_callback_add(ec->frame, EVAS_CALLBACK_SHOW,
