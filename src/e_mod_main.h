@@ -48,6 +48,7 @@ struct _Pol_Client
 
    Eina_Bool max_policy_state;
    Eina_Bool allow_user_geom;
+   int       user_geom_ref;
 };
 
 struct _Pol_Softkey
