@@ -90,13 +90,12 @@ e_mod_pol_visibility_shutdown(void)
 }
 
 static Eina_Bool
-_client_tiler_intersects(E_Client *ec, Eina_Tiler *t)
+_client_tiler_intersects(Eina_Tiler *t, int x, int y, int w, int h)
 {
    Eina_Rectangle *r;
    Eina_Iterator *itr;
    Eina_Bool ret = EINA_FALSE;
 
-   if (!ec) return EINA_FALSE;
    if (!t) return EINA_FALSE;
    if (eina_tiler_empty(t)) return EINA_FALSE;
     
@@ -104,7 +103,7 @@ _client_tiler_intersects(E_Client *ec, Eina_Tiler *t)
 
    EINA_ITERATOR_FOREACH(itr, r)
      {
-        if (E_INTERSECTS(ec->x, ec->y, ec->w, ec->h, r->x, r->y, r->w, r->h))
+        if (E_INTERSECTS(x, y, w, h, r->x, r->y, r->w, r->h))
           {
              ret = EINA_TRUE;
              break;
@@ -235,6 +234,10 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
 #ifdef HAVE_WAYLAND_ONLY
    E_Comp_Wl_Client_Data *cdata;
 #endif
+   int x = 0;
+   int y = 0;
+   int w = 0;
+   int h = 0;
 
    if (!zone) return;
 
@@ -272,7 +275,9 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
                }
           }
 
-        if (_client_tiler_intersects(ec, t))
+        e_client_geometry_get(ec, &x, &y, &w, &h);
+
+        if (_client_tiler_intersects(t, x, y, w, h))
           {
              Eina_Bool opaque = EINA_FALSE;
              /* unobscured case */
@@ -308,8 +313,8 @@ e_mod_pol_zone_visibility_calc(E_Zone *zone)
              /* if e_client is not alpha or opaque then delete intersect rect */
              if (!ec->argb || opaque)
                {
-                  EINA_RECTANGLE_SET(&r, ec->x, ec->y,
-                                         ec->w + edge, ec->h + edge);
+                  EINA_RECTANGLE_SET(&r, x, y,
+                                         w + edge, h + edge);
                   eina_tiler_rect_del(t, &r);
                }
           }
