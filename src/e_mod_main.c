@@ -1,6 +1,7 @@
 #include "e_mod_main.h"
 #include "e_mod_rotation.h"
 #include "e_mod_keyboard.h"
+#include "e_mod_transform_mode.h"
 #ifdef HAVE_WAYLAND_ONLY
 #include "e_mod_wl.h"
 #endif
@@ -769,7 +770,33 @@ e_mod_pol_allow_user_geometry_set(E_Client *ec, Eina_Bool set)
    if (EINA_UNLIKELY(!pc))
      return;
 
-   pc->allow_user_geom = set;
+   if (set) pc->user_geom_ref++;
+   else     pc->user_geom_ref--;
+
+   if (pc->user_geom_ref == 1 && !pc->allow_user_geom)
+     {
+        pc->allow_user_geom = EINA_TRUE;
+
+        if (!e_mod_pol_client_is_noti(ec))
+          {
+             ec->netwm.type = E_WINDOW_TYPE_UTILITY;
+             ec->lock_client_location = EINA_FALSE;
+          }
+
+        ec->lock_client_size = EINA_FALSE;
+        ec->placed = 1;
+        EC_CHANGED(ec);
+     }
+   else if (pc->user_geom_ref == 0 && pc->allow_user_geom)
+     {
+        pc->allow_user_geom = EINA_FALSE;
+
+        ec->lock_client_location = EINA_TRUE;
+        ec->lock_client_size = EINA_TRUE;
+        ec->placed = 0;
+        ec->netwm.type = E_WINDOW_TYPE_NORMAL;
+        EC_CHANGED(ec);
+     }
 }
 
 void
@@ -1104,6 +1131,7 @@ e_modapi_init(E_Module *m)
    E_PIXMAP_HOOK_APPEND(hooks_cp,  E_PIXMAP_HOOK_DEL,                 _pol_cb_hook_pixmap_del,                 NULL);
 
    e_mod_pol_rotation_init();
+   e_mod_transform_mode_init();
 
    return mod;
 }
@@ -1144,6 +1172,7 @@ e_modapi_shutdown(E_Module *m)
 #endif
 
    e_mod_pol_conf_shutdown(mod);
+   e_mod_transform_mode_shutdown();
 
    E_FREE(mod);
 

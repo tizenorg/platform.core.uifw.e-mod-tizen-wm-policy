@@ -1858,29 +1858,13 @@ e_mod_pol_wl_eval_pre_post_fetch(E_Client *ec)
           {
              if (!strcmp(hint->val, "1") && (ec->lock_client_location || ec->lock_client_size || !ec->placed))
                {
-                  if (!e_mod_pol_client_is_noti(ec))
-                    {
-                       ec->netwm.type = E_WINDOW_TYPE_UTILITY;
-                       ec->lock_client_location = EINA_FALSE;
-                    }
-
-                  e_mod_pol_allow_user_geometry_set(ec, EINA_TRUE);
-
-                  ec->lock_client_size = EINA_FALSE;
-                  ec->placed = 1;
                   send = EINA_TRUE;
-                  EC_CHANGED(ec);
+                  e_mod_pol_allow_user_geometry_set(ec, EINA_TRUE);
                }
              else if (strcmp(hint->val, "1") && (!ec->lock_client_location || !ec->lock_client_size || ec->placed))
                {
-                  e_mod_pol_allow_user_geometry_set(ec, EINA_FALSE);
-
-                  ec->lock_client_location = EINA_TRUE;
-                  ec->lock_client_size = EINA_TRUE;
-                  ec->placed = 0;
-                  ec->netwm.type = E_WINDOW_TYPE_NORMAL;
                   send = EINA_TRUE;
-                  EC_CHANGED(ec);
+                  e_mod_pol_allow_user_geometry_set(ec, EINA_FALSE);
                }
           }
         else if (!strcmp(hint->hint, hint_names[WM_POLICY_HINT_FIXED_RESIZE]))
