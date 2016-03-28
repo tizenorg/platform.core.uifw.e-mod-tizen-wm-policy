@@ -1366,13 +1366,38 @@ e_mod_pol_wl_keyboard_geom_broadcast(E_Client *ec)
 // --------------------------------------------------------
 // notification level
 // --------------------------------------------------------
+#define SMACK_LABEL_LEN 255
+#define PATH_MAX_LEN 64
+
+static void
+_pol_wl_smack_label_direct_read(int pid, char **client)
+{
+   int ret;
+   int fd = -1;
+   char smack_label[SMACK_LABEL_LEN +1];
+   char path[PATH_MAX_LEN + 1];
+
+   bzero(smack_label, SMACK_LABEL_LEN + 1);
+   bzero(path, PATH_MAX_LEN + 1);
+   snprintf(path, PATH_MAX_LEN, "/proc/%d/attr/current", pid);
+   fd = open(path, O_RDONLY);
+   if (fd == -1) return;
+
+   ret = read(fd, smack_label, SMACK_LABEL_LEN);
+   close(fd);
+   if (ret < 0) return;
+
+   *client = calloc(SMACK_LABEL_LEN + 1, sizeof(char));
+   strncpy(*client, smack_label, SMACK_LABEL_LEN + 1);
+}
+
 static Eina_Bool
 _pol_wl_privilege_check(int fd, const char *privilege)
 {
 #ifdef ENABLE_CYNARA
    char *client = NULL, *user = NULL, *client_session = NULL;
-   pid_t pid;
-   int ret;
+   pid_t pid = 0;
+   int ret = -1;
    Eina_Bool res = EINA_FALSE;
 
    if ((!polwl->p_cynara))
@@ -1382,9 +1407,6 @@ _pol_wl_privilege_check(int fd, const char *privilege)
         return EINA_FALSE;
      }
 
-   ret = cynara_creds_socket_get_client(fd, CLIENT_METHOD_DEFAULT, &client);
-   if (ret != CYNARA_API_SUCCESS) goto cynara_finished;
-
    ret = cynara_creds_socket_get_user(fd, USER_METHOD_DEFAULT, &user);
    if (ret != CYNARA_API_SUCCESS) goto cynara_finished;
 
@@ -1393,6 +1415,13 @@ _pol_wl_privilege_check(int fd, const char *privilege)
 
    client_session = cynara_session_from_pid(pid);
    if (!client_session) goto cynara_finished;
+
+   /* Temporary fix for mis matching socket smack label
+    * ret = cynara_creds_socket_get_client(fd, CLIENT_METHOD_DEFAULT, &client);
+    * if (ret != CYNARA_API_SUCCESS) goto cynara_finished; 
+    */
+   _pol_wl_smack_label_direct_read(pid, &client);
+   if (!client) goto cynara_finished;
 
    ret = cynara_check(polwl->p_cynara,
                       client,
@@ -1404,10 +1433,15 @@ _pol_wl_privilege_check(int fd, const char *privilege)
      res = EINA_TRUE;
 
 cynara_finished:
+   ELOGF("TZPOL",
+         "Privilege Check For %s %s fd:%d client:%s user:%s pid:%u client_session:%s ret:%d",
+         NULL, NULL,
+         privilege, res?"SUCCESS":"FAIL",
+         fd, client?:"N/A", user?:"N/A", pid, client_session?:"N/A", ret);
+
    if (client_session) free(client_session);
    if (user) free(user);
    if (client) free(client);
-
    return res;
 #else
    (void)ec;
