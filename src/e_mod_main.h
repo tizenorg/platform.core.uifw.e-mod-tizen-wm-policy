@@ -138,11 +138,13 @@ EINTERN void             e_mod_pol_softkey_hide(Pol_Softkey *softkey);
 EINTERN void             e_mod_pol_softkey_update(Pol_Softkey *softkey);
 EINTERN Pol_Softkey     *e_mod_pol_softkey_get(E_Zone *zone);
 
-EINTERN void             e_mod_pol_visibility_init(void);
-EINTERN void             e_mod_pol_visibility_shutdown(void);
 EINTERN void             e_mod_pol_zone_visibility_calc(E_Zone *zone);
 EINTERN void             e_mod_pol_visibility_calc(void);
-EINTERN void             e_mod_pol_client_visibility_del(E_Client *ec);
+EINTERN void             e_mod_pol_client_visibility_send(E_Client *ec);
+
+EINTERN void             e_mod_pol_client_iconify_by_visibility(E_Client *ec);
+EINTERN void             e_mod_pol_client_uniconify_by_visibility(E_Client *ec);
+
 EINTERN void             e_mod_pol_client_window_opaque_set(E_Client *ec);
 
 EINTERN void             e_mod_pol_stack_init(void);

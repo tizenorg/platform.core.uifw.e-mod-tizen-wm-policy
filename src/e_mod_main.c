@@ -334,7 +334,6 @@ _pol_cb_hook_client_del(void *d EINA_UNUSED, E_Client *ec)
    e_mod_pol_wl_client_del(ec);
 #endif
    e_mod_pol_stack_cb_client_remove(ec);
-   e_mod_pol_client_visibility_del(ec);
    e_mod_pol_visibility_calc();
 
    pc = eina_hash_find(hash_pol_clients, &ec);
@@ -475,6 +474,24 @@ _pol_cb_hook_client_fullscreen_pre(void* data EINA_UNUSED, E_Client *ec)
    if (ec->internal) return;
 
    ec->skip_fullscreen = 1;
+}
+
+static void
+_pol_cb_hook_client_visibility(void *d EINA_UNUSED, E_Client *ec)
+{
+   if (ec->visibility.changed)
+     {
+        e_mod_pol_client_visibility_send(ec);
+
+        if (ec->visibility.obscured == E_VISIBILITY_UNOBSCURED)
+          {
+             e_mod_pol_client_uniconify_by_visibility(ec);
+          }
+        else
+          {
+             e_mod_pol_client_iconify_by_visibility(ec);
+          }
+     }
 }
 
 static void
@@ -1071,7 +1088,6 @@ e_modapi_init(E_Module *m)
    hash_pol_desks = eina_hash_pointer_new(_pol_cb_desk_data_free);
 
    e_mod_pol_stack_init();
-   e_mod_pol_visibility_init();
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_init();
    e_mod_pol_wl_aux_hint_init();
@@ -1127,6 +1143,7 @@ e_modapi_init(E_Module *m)
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_DESK_SET,            _pol_cb_hook_client_desk_set,            NULL);
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_END,            _pol_cb_hook_client_eval_end,            NULL);
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_FULLSCREEN_PRE,      _pol_cb_hook_client_fullscreen_pre,      NULL);
+   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_VISIBILITY,     _pol_cb_hook_client_visibility,          NULL);
 
    E_PIXMAP_HOOK_APPEND(hooks_cp,  E_PIXMAP_HOOK_DEL,                 _pol_cb_hook_pixmap_del,                 NULL);
 
@@ -1154,7 +1171,6 @@ e_modapi_shutdown(E_Module *m)
    E_FREE_FUNC(hash_pol_clients, eina_hash_free);
 
    e_mod_pol_stack_shutdonw();
-   e_mod_pol_visibility_shutdown();
    e_mod_pol_rotation_shutdown();
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_shutdown();
