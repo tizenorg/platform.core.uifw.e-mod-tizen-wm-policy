@@ -1906,10 +1906,13 @@ _tzpol_iface_cb_aux_hint_add(struct wl_client *client EINA_UNUSED, struct wl_res
 
    res = e_hints_aux_hint_add(ec, id, name, value);
 
-   ELOGF("TZPOL", "HINT_ADD|res_tzpol:0x%08x|id:%d, name:%s, val:%s, res:%d", NULL, NULL, (unsigned int)res_tzpol, id, name, value, res);
+   ELOGF("TZPOL", "HINT_ADD |res_tzpol:0x%08x|id:%d, name:%s, val:%s, res:%d", ec->pixmap, ec, (unsigned int)res_tzpol, id, name, value, res);
 
    if (res)
-     tizen_policy_send_allowed_aux_hint(res_tzpol, surf, id);
+     {
+        tizen_policy_send_allowed_aux_hint(res_tzpol, surf, id);
+        EC_CHANGED(ec);
+     }
 }
 
 static void
@@ -1923,10 +1926,13 @@ _tzpol_iface_cb_aux_hint_change(struct wl_client *client EINA_UNUSED, struct wl_
 
    res = e_hints_aux_hint_change(ec, id, value);
 
-   ELOGF("TZPOL", "HINT_CHANGE|res_tzpol:0x%08x|id:%d, val:%s, result:%d", NULL, NULL,  (unsigned int)res_tzpol, id, value, res);
+   ELOGF("TZPOL", "HINT_CHD |res_tzpol:0x%08x|id:%d, val:%s, result:%d", ec->pixmap, ec, (unsigned int)res_tzpol, id, value, res);
 
    if (res)
-     tizen_policy_send_allowed_aux_hint(res_tzpol, surf, id);
+     {
+        tizen_policy_send_allowed_aux_hint(res_tzpol, surf, id);
+        EC_CHANGED(ec);
+     }
 }
 
 static void
@@ -1939,7 +1945,10 @@ _tzpol_iface_cb_aux_hint_del(struct wl_client *client EINA_UNUSED, struct wl_res
    EINA_SAFETY_ON_NULL_RETURN(ec);
 
    res = e_hints_aux_hint_del(ec, id);
-   ELOGF("TZPOL", "HINT_DEL|res_tzpol:0x%08x|id:%d, result:%d", NULL, NULL,  (unsigned int)res_tzpol, id, res);
+   ELOGF("TZPOL", "HINT_DEL |res_tzpol:0x%08x|id:%d, result:%d", ec->pixmap, ec, (unsigned int)res_tzpol, id, res);
+
+   if (res)
+     EC_CHANGED(ec);
 }
 
 static void
