@@ -18,6 +18,7 @@ typedef struct _Config_Desk  Config_Desk;
 typedef struct _Config_Rot   Config_Rot;
 typedef struct _Config       Config;
 typedef struct _Mod          Mod;
+typedef struct _Pol_Lockscreen_Info Pol_Lockscreen_Info;
 
 struct _Pol_Desk
 {
@@ -107,9 +108,17 @@ struct _E_Config_Dialog_Data
    Evas_Object     *o_desks;
 };
 
+struct _Pol_Lockscreen_Info
+{
+   E_Client  *ec;
+   Eina_Bool  show;
+};
+
 extern Mod *_pol_mod;
 extern Eina_Hash *hash_pol_desks;
 extern Eina_Hash *hash_pol_clients;
+extern Pol_Lockscreen_Info g_lockscreen_info;
+
 
 EINTERN void             e_mod_pol_conf_init(Mod *mod);
 EINTERN void             e_mod_pol_conf_shutdown(Mod *mod);
@@ -120,7 +129,7 @@ EINTERN void             e_mod_pol_allow_user_geometry_set(E_Client *ec, Eina_Bo
 EINTERN void             e_mod_pol_desk_add(E_Desk *desk);
 EINTERN void             e_mod_pol_desk_del(Pol_Desk *pd);
 EINTERN Pol_Client      *e_mod_pol_client_launcher_get(E_Zone *zone);
-EINTERN Eina_Bool        e_mod_pol_client_is_lock_screen(E_Client *ec);
+EINTERN Eina_Bool        e_mod_pol_client_is_lockscreen(E_Client *ec);
 EINTERN Eina_Bool        e_mod_pol_client_is_home_screen(E_Client *ec);
 EINTERN Eina_Bool        e_mod_pol_client_is_quickpanel(E_Client *ec);
 EINTERN Eina_Bool        e_mod_pol_client_is_conformant(E_Client *ec);
@@ -152,6 +161,9 @@ EINTERN void             e_mod_pol_stack_hook_pre_fetch(E_Client *ec);
 EINTERN void             e_mod_pol_stack_hook_pre_post_fetch(E_Client *ec);
 
 EINTERN void             e_mod_pol_stack_below(E_Client *ec, E_Client *below_ec);
+
+EINTERN void             e_mod_pol_stack_clients_restack_above_lockscreen(E_Client *ec_lock, Eina_Bool show);
+EINTERN Eina_Bool        e_mod_pol_stack_check_above_lockscreen(E_Client *ec, E_Layer layer, E_Layer *new_layer, Eina_Bool set_layer);
 
 EINTERN Eina_Bool        e_mod_pol_conf_rot_enable_get(int angle);
 #endif

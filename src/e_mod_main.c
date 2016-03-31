@@ -11,6 +11,11 @@ E_API E_Module_Api e_modapi = { E_MODULE_API_VERSION, "Policy-Mobile" };
 Mod *_pol_mod = NULL;
 Eina_Hash *hash_pol_desks = NULL;
 Eina_Hash *hash_pol_clients = NULL;
+Pol_Lockscreen_Info g_lockscreen_info =
+{
+   NULL,
+   EINA_FALSE
+};
 
 static Eina_List *handlers = NULL;
 static Eina_List *hooks_ec = NULL;
@@ -27,6 +32,7 @@ static void        _pol_cb_hook_client_eval_pre_new_client(void *d EINA_UNUSED, 
 static void        _pol_cb_hook_client_eval_pre_fetch(void *d EINA_UNUSED, E_Client *ec);
 static void        _pol_cb_hook_client_eval_pre_post_fetch(void *d EINA_UNUSED, E_Client *ec);
 static void        _pol_cb_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec);
+static void        _pol_cb_hook_client_eval_post_new_client(void *d EINA_UNUSED, E_Client *ec);
 static void        _pol_cb_hook_client_desk_set(void *d EINA_UNUSED, E_Client *ec);
 static void        _pol_cb_hook_client_eval_end(void *d EINA_UNUSED, E_Client *ec);
 static void        _pol_cb_hook_client_fullscreen_pre(void *data EINA_UNUSED, E_Client *ec);
@@ -333,6 +339,10 @@ _pol_cb_hook_client_del(void *d EINA_UNUSED, E_Client *ec)
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_client_del(ec);
 #endif
+
+   if (e_mod_pol_client_is_lockscreen(ec))
+     e_mod_pol_stack_clients_restack_above_lockscreen(ec, EINA_FALSE);
+
    e_mod_pol_stack_cb_client_remove(ec);
    e_client_visibility_calculate();
 
@@ -434,6 +444,16 @@ _pol_cb_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec)
 
    pc = eina_hash_find(hash_pol_clients, &ec);
    _pol_client_maximize_policy_apply(pc);
+}
+
+static void
+_pol_cb_hook_client_eval_post_new_client(void *d EINA_UNUSED, E_Client *ec)
+{
+   if (e_object_is_del(E_OBJECT(ec))) return;
+   if ((ec->new_client) && (!e_pixmap_usable_get(ec->pixmap))) return;
+
+   if (e_mod_pol_client_is_lockscreen(ec))
+     e_mod_pol_stack_clients_restack_above_lockscreen(ec, EINA_TRUE);
 }
 
 static void
@@ -759,7 +779,7 @@ _pol_cb_client_property(void *data EINA_UNUSED, int type EINA_UNUSED, void *even
              ev->ec->lock_client_stacking = 0;
              return ECORE_CALLBACK_PASS_ON;
           }
-        else if (e_mod_pol_client_is_lock_screen(ev->ec))
+        else if (e_mod_pol_client_is_lockscreen(ev->ec))
           return ECORE_CALLBACK_PASS_ON;
      }
 
@@ -919,7 +939,7 @@ e_mod_pol_client_launcher_get(E_Zone *zone)
 }
 
 Eina_Bool
-e_mod_pol_client_is_lock_screen(E_Client *ec)
+e_mod_pol_client_is_lockscreen(E_Client *ec)
 {
    E_OBJECT_CHECK_RETURN(ec, EINA_FALSE);
    E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, EINA_FALSE);
@@ -1140,6 +1160,7 @@ e_modapi_init(E_Module *m)
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_PRE_FETCH,      _pol_cb_hook_client_eval_pre_fetch,      NULL);
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_PRE_POST_FETCH, _pol_cb_hook_client_eval_pre_post_fetch, NULL);
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_POST_FETCH,     _pol_cb_hook_client_eval_post_fetch,     NULL);
+   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_POST_NEW_CLIENT,_pol_cb_hook_client_eval_post_new_client,NULL);
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_DESK_SET,            _pol_cb_hook_client_desk_set,            NULL);
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_END,            _pol_cb_hook_client_eval_end,            NULL);
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_FULLSCREEN_PRE,      _pol_cb_hook_client_fullscreen_pre,      NULL);

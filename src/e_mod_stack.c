@@ -271,3 +271,223 @@ e_mod_pol_stack_below(E_Client *ec, E_Client *below_ec)
           }
      }
 }
+
+static E_Client *
+_e_mod_pol_stack_find_top_lockscreen(E_Client *ec_lock, E_Client *ec_except)
+{
+   E_Client *ec = NULL;
+   E_Client *ec_top_lock = NULL;
+   int x, y, w, h;
+
+   if (!ec_lock) return NULL;
+
+   E_CLIENT_REVERSE_FOREACH(ec)
+     {
+        if (e_object_is_del(E_OBJECT(ec))) continue;
+        if ((ec != ec_except) &&
+            (e_mod_pol_client_is_lockscreen(ec)))
+          {
+             e_client_geometry_get(ec, &x, &y, &w, &h);
+             if (E_CONTAINS(ec->zone->x, ec->zone->y, ec->zone->w, ec->zone->h,
+                            x, y, w, h))
+               {
+                  ec_top_lock = ec;
+                  break;
+               }
+          }
+     }
+
+   return ec_top_lock;
+}
+
+void
+e_mod_pol_stack_clients_restack_above_lockscreen(E_Client *ec_lock, Eina_Bool show)
+{
+   E_Client *ec = NULL;
+   E_Client *new_lock = NULL;
+   Eina_Bool restack_above = EINA_FALSE;
+
+   if (!ec_lock) return;
+
+   if (show)
+     {
+        new_lock = _e_mod_pol_stack_find_top_lockscreen(ec_lock, NULL);
+        if (!new_lock)
+          new_lock = ec_lock;
+
+        g_lockscreen_info.show = show;
+        g_lockscreen_info.ec = new_lock;
+
+        restack_above = EINA_TRUE;
+     }
+   else
+     {
+        if (ec_lock != g_lockscreen_info.ec)
+          return;
+
+        new_lock = _e_mod_pol_stack_find_top_lockscreen(ec_lock, g_lockscreen_info.ec);
+        if (new_lock)
+          {
+             g_lockscreen_info.show = EINA_TRUE;
+             g_lockscreen_info.ec = new_lock;
+             restack_above = EINA_TRUE;
+          }
+        else
+          {
+             E_Layer org_layer;
+             Eina_List *restore_list = NULL;
+             Eina_List *l = NULL;
+
+             g_lockscreen_info.show = show;
+             g_lockscreen_info.ec = NULL;
+
+             E_CLIENT_FOREACH(ec)
+               {
+                  if (e_object_is_del(E_OBJECT(ec))) continue;
+                  if (ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].set &&
+                      ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].saved)
+                    {
+                       restore_list = eina_list_append(restore_list, ec);
+                    }
+               }
+
+             if (restore_list)
+               {
+                  EINA_LIST_FOREACH(restore_list, l, ec)
+                    {
+                       org_layer = ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].saved_layer;
+                       ELOGF("CHANGE to Original layer", "AboveLock|layer: %d -> %d", ec->pixmap, ec, ec->layer, org_layer);
+                       evas_object_layer_set(ec->frame, org_layer);
+                       ec->layer = org_layer;
+
+                       ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].saved = EINA_FALSE;
+                       ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].saved_layer = 0;
+                    }
+                  eina_list_free(restore_list);
+                  restore_list = NULL;
+               }
+          }
+     }
+
+   if (restack_above)
+     {
+        Eina_List *restack_list = NULL;
+        Eina_List *l = NULL;
+        E_Layer lock_layer = g_lockscreen_info.ec->layer;
+        Eina_Bool passed_new_lock = EINA_FALSE;
+        int x, y, w, h;
+
+        E_CLIENT_REVERSE_FOREACH(ec)
+          {
+             if (e_object_is_del(E_OBJECT(ec))) continue;
+             if (ec == new_lock)
+               {
+                  passed_new_lock = EINA_TRUE;
+                  continue;
+               }
+             if (!passed_new_lock) continue;
+             if (e_mod_pol_client_is_lockscreen(ec)) continue;
+             if (ec->exp_iconify.by_client) continue;
+
+             if (ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].set)
+               {
+                  if (ec->layer <= lock_layer)
+                    {
+                       restack_list = eina_list_append(restack_list, ec);
+                    }
+               }
+
+             if ((!ec->argb) ||
+                 ((ec->argb) &&
+                  (ec->visibility.opaque == 1)))
+               {
+                  e_client_geometry_get(ec, &x, &y, &w, &h);
+                  if (E_CONTAINS(x, y, w, h, ec->zone->x, ec->zone->y, ec->zone->w, ec->zone->h))
+                    {
+                       break;
+                    }
+               }
+          }
+
+        if (restack_list)
+          {
+             EINA_LIST_REVERSE_FOREACH(restack_list, l, ec)
+               {
+                  if (ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].saved == EINA_FALSE)
+                    {
+                       ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].saved = EINA_TRUE;
+                       ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].saved_layer = ec->layer;
+                    }
+
+                  ELOGF("CHANGE to Lockscreen layer", "AboveLock|layer: %d -> %d", ec->pixmap, ec, ec->layer, lock_layer);
+                  if (ec->layer == lock_layer)
+                    evas_object_raise(ec->frame);
+                  else
+                    evas_object_layer_set(ec->frame, lock_layer);
+
+                  ec->layer = lock_layer;
+               }
+             eina_list_free(restack_list);
+             restack_list = NULL;
+          }
+     }
+
+}
+
+Eina_Bool
+e_mod_pol_stack_check_above_lockscreen(E_Client *ec, E_Layer layer, E_Layer *new_layer, Eina_Bool set_layer)
+{
+   E_Layer lock_layer;
+
+   if (!ec) return EINA_FALSE;
+   if (!ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].set)
+     return EINA_FALSE;
+
+   if (g_lockscreen_info.show &&
+       g_lockscreen_info.ec)
+     {
+        lock_layer = g_lockscreen_info.ec->layer;
+        if (layer <= lock_layer)
+          {
+             if (ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].saved == EINA_FALSE)
+               {
+                  ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].saved = EINA_TRUE;
+                  ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].saved_layer = ec->layer;
+               }
+
+             if (set_layer)
+               {
+                  ELOGF("CHANGE to Lockscreen layer", "AboveLock|layer: %d -> %d", ec->pixmap, ec, ec->layer, lock_layer);
+                  if (ec->layer == lock_layer)
+                    evas_object_raise(ec->frame);
+                  else
+                    evas_object_layer_set(ec->frame, lock_layer);
+                  ec->layer = lock_layer;
+               }
+
+             if (new_layer)
+               *new_layer = lock_layer;
+          }
+        else
+          {
+             if (set_layer)
+               {
+                  if (ec->layer != layer)
+                    {
+                       ELOGF("CHANGE to Lockscreen layer", "AboveLock|layer: %d -> %d", ec->pixmap, ec, ec->layer, lock_layer);
+                       evas_object_layer_set(ec->frame, lock_layer);
+                       ec->layer = lock_layer;
+                    }
+               }
+
+             if (new_layer)
+               *new_layer = layer;
+          }
+
+        return EINA_TRUE;
+     }
+
+   return EINA_FALSE;
+
+}
+

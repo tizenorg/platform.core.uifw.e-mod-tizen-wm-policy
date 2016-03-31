@@ -147,6 +147,7 @@ enum _WM_Policy_Hint_Type
    WM_POLICY_HINT_FIXED_RESIZE = 1,
    WM_POLICY_HINT_DEICONIFY_APPROVE_DISABLE = 2,
    WM_POLICY_HINT_ICONIFY = 3,
+   WM_POLICY_HINT_ABOVE_LOCKSCREEN = 4,
 };
 
 static const char *hint_names[] =
@@ -155,6 +156,7 @@ static const char *hint_names[] =
    "wm.policy.win.fixed.resize",
    "wm.policy.win.deiconify.approve.disable",
    "wm.policy.win.iconify",
+   "wm.policy.win.above.lock",
 };
 
 static void                _pol_wl_surf_del(Pol_Wl_Surface *psurf);
@@ -1125,6 +1127,11 @@ _tzpol_iface_cb_activate(struct wl_client *client EINA_UNUSED, struct wl_resourc
      }
    else
      evas_object_raise(ec->frame);
+
+   if (e_mod_pol_client_is_lockscreen(ec))
+     e_mod_pol_stack_clients_restack_above_lockscreen(ec, EINA_TRUE);
+   else
+     e_mod_pol_stack_check_above_lockscreen(ec, ec->layer, NULL, EINA_TRUE);
 }
 
 static void
@@ -1547,6 +1554,9 @@ _tzpol_iface_cb_notilv_set(struct wl_client *client, struct wl_resource *res_tzp
 
    tizen_policy_send_notification_done
      (res_tzpol, surf, lv, TIZEN_POLICY_ERROR_STATE_NONE);
+
+   if (e_mod_pol_client_is_lockscreen(ec))
+     e_mod_pol_stack_clients_restack_above_lockscreen(ec, EINA_TRUE);
 }
 
 void
@@ -1557,6 +1567,7 @@ e_mod_pol_wl_notification_level_fetch(E_Client *ec)
    Pol_Wl_Tzpol *tzpol;
    Eina_Iterator *it;
    Eina_List *l;
+   Eina_Bool changed_stack = EINA_FALSE;
 
    EINA_SAFETY_ON_NULL_RETURN(ec);
 
@@ -1573,8 +1584,15 @@ e_mod_pol_wl_notification_level_fetch(E_Client *ec)
 
           psurf->pending_notilv = EINA_FALSE;
           _tzpol_notilv_set(ec, psurf->notilv);
+          changed_stack = EINA_TRUE;
        }
    eina_iterator_free(it);
+
+   if (changed_stack &&
+       e_mod_pol_client_is_lockscreen(ec))
+     {
+        e_mod_pol_stack_clients_restack_above_lockscreen(ec, EINA_TRUE);
+     }
 }
 
 // --------------------------------------------------------
@@ -1891,6 +1909,37 @@ e_mod_pol_wl_eval_pre_post_fetch(E_Client *ec)
                {
                   ec->exp_iconify.skip_iconify = 0;
                   EC_CHANGED(ec);
+               }
+          }
+        else if (!strcmp(hint->hint, hint_names[WM_POLICY_HINT_ABOVE_LOCKSCREEN]))
+          {
+             if (!strcmp(hint->val, "0"))
+               {
+                  E_Layer original_layer = ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].saved_layer;
+                  if (ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].set &&
+                      ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].saved)
+                    {
+                       // restore original layer
+                       if (original_layer != evas_object_layer_get(ec->frame))
+                         {
+                            evas_object_layer_set(ec->frame, original_layer);
+                            ec->layer = original_layer;
+                         }
+                    }
+                  ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].set = 0;
+                  ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].saved = 0;
+                  ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].saved_layer = 0;
+                  EC_CHANGED(ec);
+               }
+             else if (!strcmp(hint->val, "1"))
+               {
+                  if (!ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].saved)
+                    {
+                       ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].set = 1;
+                       ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].saved = 0;
+                       ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].saved_layer = ec->layer;
+                       EC_CHANGED(ec);
+                    }
                }
           }
 
