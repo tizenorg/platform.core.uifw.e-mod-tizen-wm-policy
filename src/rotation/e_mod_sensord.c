@@ -65,7 +65,8 @@ _sensor_rotation_changed_cb(sensor_t             sensor,
 
     DBG("ROT_EV event:%d angle:%d", event, ang);
 
-    e_zone_rotation_set(zone, ang);
+    //e_zone_rotation_set(zone, ang);
+    e_mod_rot_zone_set(zone, ang);
 
     _pol_sensor.event = event;
 }
