@@ -767,7 +767,7 @@ _pol_wl_pending_bg_client_set(E_Client *ec)
                }
           }
      }
-
+   eina_iterator_free(it);
 }
 
 static E_Pixmap *
