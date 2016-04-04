@@ -47,6 +47,11 @@ struct _Pol_Client
       unsigned int  lock_client_fullscreen : 1;
    } orig;
 
+   struct
+   {
+      unsigned int vkbd_state;
+   } changes;
+
    Eina_Bool max_policy_state;
    Eina_Bool allow_user_geom;
    int       user_geom_ref;

@@ -482,8 +482,23 @@ _pol_cb_hook_client_desk_set(void *d EINA_UNUSED, E_Client *ec)
 static void
 _pol_cb_hook_client_eval_end(void *d EINA_UNUSED, E_Client *ec)
 {
+   Pol_Client *pc;
+
    /* calculate e_client visibility */
    e_client_visibility_calculate();
+
+   if (e_mod_pol_client_is_keyboard(ec))
+     {
+        pc = eina_hash_find(hash_pol_clients, &ec);
+        if (pc)
+          {
+             if (pc->changes.vkbd_state)
+               {
+                  e_mod_pol_wl_keyboard_geom_broadcast(ec);
+                  pc->changes.vkbd_state = 0;
+               }
+          }
+     }
 }
 
 static void
@@ -700,18 +715,80 @@ _pol_cb_client_add(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 }
 
 static Eina_Bool
+_pol_cb_client_show(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
+{
+   E_Event_Client *ev;
+   Pol_Client *pc;
+
+   ev = event;
+   if (!ev) goto end;
+
+#ifdef HAVE_WAYLAND_ONLY
+   if (e_mod_pol_client_is_keyboard(ev->ec))
+     {
+        pc = eina_hash_find(hash_pol_clients, &ev->ec);
+        if (pc)
+          {
+             pc->changes.vkbd_state = 1;
+             EC_CHANGED(ev->ec);
+          }
+     }
+#endif
+
+end:
+   return ECORE_CALLBACK_PASS_ON;
+}
+
+static Eina_Bool
+_pol_cb_client_hide(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
+{
+   E_Event_Client *ev;
+   Pol_Client *pc;
+
+   ev = event;
+   if (!ev) goto end;
+
+#ifdef HAVE_WAYLAND_ONLY
+   if (e_mod_pol_client_is_keyboard(ev->ec))
+     {
+        pc = eina_hash_find(hash_pol_clients, &ev->ec);
+        if (pc)
+          {
+             pc->changes.vkbd_state = 1;
+             EC_CHANGED(ev->ec);
+          }
+     }
+#endif
+
+end:
+   return ECORE_CALLBACK_PASS_ON;
+}
+
+static Eina_Bool
 _pol_cb_client_move(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 {
    E_Event_Client *ev;
+   Pol_Client *pc;
 
    ev = event;
-   if (!ev) return ECORE_CALLBACK_PASS_ON;
+   if (!ev) goto end;
 
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_position_send(ev->ec);
+
+   if (e_mod_pol_client_is_keyboard(ev->ec))
+     {
+        pc = eina_hash_find(hash_pol_clients, &ev->ec);
+        if (pc)
+          {
+             pc->changes.vkbd_state = 1;
+             EC_CHANGED(ev->ec);
+          }
+     }
 #endif
    e_client_visibility_calculate();
 
+end:
    return ECORE_CALLBACK_PASS_ON;
 }
 
@@ -720,6 +797,7 @@ _pol_cb_client_resize(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 {
    E_Event_Client *ev;
    E_Client *ec;
+   Pol_Client *pc;
    int zh = 0;
 
    ev = (E_Event_Client *)event;
@@ -731,7 +809,12 @@ _pol_cb_client_resize(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    if (e_mod_pol_client_is_keyboard(ec))
      {
 #ifdef HAVE_WAYLAND_ONLY
-        e_mod_pol_wl_keyboard_geom_broadcast(ec);
+        pc = eina_hash_find(hash_pol_clients, &ec);
+        if (pc)
+          {
+             pc->changes.vkbd_state = 1;
+             EC_CHANGED(ec);
+          }
 #else
         ;
 #endif
@@ -1147,6 +1230,8 @@ e_modapi_init(E_Module *m)
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_DISPLAY_STATE_CHANGE, _pol_cb_zone_display_state_change,       NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_DESK_SHOW,                 _pol_cb_desk_show,                       NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_ADD,                _pol_cb_client_add,                      NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_SHOW,               _pol_cb_client_show,                     NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_HIDE,               _pol_cb_client_hide,                     NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_MOVE,               _pol_cb_client_move,                     NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_RESIZE,             _pol_cb_client_resize,                   NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_STACK,              _pol_cb_client_stack,                    NULL);
