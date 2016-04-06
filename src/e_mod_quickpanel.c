@@ -539,6 +539,8 @@ _handler_obj_cb_gesture_start(void *data, Evas_Object *handler, int x, int y, un
         evas_object_del(hd->mover);
      }
 
+   e_comp_wl_touch_cancel();
+
    hd->mover = _mover_obj_new_with_move(hd->qp, 0, y, timestamp);
    evas_object_event_callback_add(hd->mover, EVAS_CALLBACK_DEL, _handler_obj_cb_mover_obj_del, hd);
 }
