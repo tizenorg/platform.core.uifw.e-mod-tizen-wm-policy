@@ -315,21 +315,21 @@ e_mod_pol_stack_clients_restack_above_lockscreen(E_Client *ec_lock, Eina_Bool sh
         if (!new_lock)
           new_lock = ec_lock;
 
-        g_lockscreen_info.show = show;
-        g_lockscreen_info.ec = new_lock;
+        g_system_info.lockscreen.show = show;
+        g_system_info.lockscreen.ec = new_lock;
 
         restack_above = EINA_TRUE;
      }
    else
      {
-        if (ec_lock != g_lockscreen_info.ec)
+        if (ec_lock != g_system_info.lockscreen.ec)
           return;
 
-        new_lock = _e_mod_pol_stack_find_top_lockscreen(ec_lock, g_lockscreen_info.ec);
+        new_lock = _e_mod_pol_stack_find_top_lockscreen(ec_lock, g_system_info.lockscreen.ec);
         if (new_lock)
           {
-             g_lockscreen_info.show = EINA_TRUE;
-             g_lockscreen_info.ec = new_lock;
+             g_system_info.lockscreen.show = EINA_TRUE;
+             g_system_info.lockscreen.ec = new_lock;
              restack_above = EINA_TRUE;
           }
         else
@@ -338,8 +338,8 @@ e_mod_pol_stack_clients_restack_above_lockscreen(E_Client *ec_lock, Eina_Bool sh
              Eina_List *restore_list = NULL;
              Eina_List *l = NULL;
 
-             g_lockscreen_info.show = show;
-             g_lockscreen_info.ec = NULL;
+             g_system_info.lockscreen.show = show;
+             g_system_info.lockscreen.ec = NULL;
 
              E_CLIENT_FOREACH(ec)
                {
@@ -373,7 +373,7 @@ e_mod_pol_stack_clients_restack_above_lockscreen(E_Client *ec_lock, Eina_Bool sh
      {
         Eina_List *restack_list = NULL;
         Eina_List *l = NULL;
-        E_Layer lock_layer = g_lockscreen_info.ec->layer;
+        E_Layer lock_layer = g_system_info.lockscreen.ec->layer;
         Eina_Bool passed_new_lock = EINA_FALSE;
         int x, y, w, h;
 
@@ -443,10 +443,10 @@ e_mod_pol_stack_check_above_lockscreen(E_Client *ec, E_Layer layer, E_Layer *new
    if (!ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].set)
      return EINA_FALSE;
 
-   if (g_lockscreen_info.show &&
-       g_lockscreen_info.ec)
+   if (g_system_info.lockscreen.show &&
+       g_system_info.lockscreen.ec)
      {
-        lock_layer = g_lockscreen_info.ec->layer;
+        lock_layer = g_system_info.lockscreen.ec->layer;
         if (layer <= lock_layer)
           {
              if (ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].saved == EINA_FALSE)

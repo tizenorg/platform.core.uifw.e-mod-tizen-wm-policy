@@ -11,10 +11,9 @@ E_API E_Module_Api e_modapi = { E_MODULE_API_VERSION, "Policy-Mobile" };
 Mod *_pol_mod = NULL;
 Eina_Hash *hash_pol_desks = NULL;
 Eina_Hash *hash_pol_clients = NULL;
-Pol_Lockscreen_Info g_lockscreen_info =
+Pol_System_Info g_system_info =
 {
-   NULL,
-   EINA_FALSE
+   {NULL, EINA_FALSE},
 };
 
 static Eina_List *handlers = NULL;

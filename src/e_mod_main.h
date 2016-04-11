@@ -18,7 +18,7 @@ typedef struct _Config_Desk  Config_Desk;
 typedef struct _Config_Rot   Config_Rot;
 typedef struct _Config       Config;
 typedef struct _Mod          Mod;
-typedef struct _Pol_Lockscreen_Info Pol_Lockscreen_Info;
+typedef struct _Pol_System_Info Pol_System_Info;
 
 struct _Pol_Desk
 {
@@ -113,16 +113,19 @@ struct _E_Config_Dialog_Data
    Evas_Object     *o_desks;
 };
 
-struct _Pol_Lockscreen_Info
+struct _Pol_System_Info
 {
-   E_Client  *ec;
-   Eina_Bool  show;
+   struct
+   {
+      E_Client  *ec;
+      Eina_Bool  show;
+   } lockscreen;
 };
 
 extern Mod *_pol_mod;
 extern Eina_Hash *hash_pol_desks;
 extern Eina_Hash *hash_pol_clients;
-extern Pol_Lockscreen_Info g_lockscreen_info;
+extern Pol_System_Info g_system_info;
 
 
 EINTERN void             e_mod_pol_conf_init(Mod *mod);
