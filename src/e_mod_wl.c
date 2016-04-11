@@ -1904,10 +1904,8 @@ e_mod_pol_wl_eval_pre_post_fetch(E_Client *ec)
    Eina_List *l;
    Eina_Bool send;
 
-#ifdef HAVE_WAYLAND_ONLY
-   E_Comp_Wl_Client_Data *cdata = (E_Comp_Wl_Client_Data*)ec->comp_data;
-   if (cdata && !cdata->aux_hint.changed) return;
-#endif
+   if (!ec->comp_data) return;
+   if (!ec->comp_data->aux_hint.changed) return;
 
    EINA_LIST_FOREACH(ec->comp_data->aux_hint.hints, l, hint)
      {
