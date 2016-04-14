@@ -168,6 +168,7 @@ enum _WM_Policy_Hint_Type
    WM_POLICY_HINT_DEICONIFY_APPROVE_DISABLE = 2,
    WM_POLICY_HINT_ICONIFY = 3,
    WM_POLICY_HINT_ABOVE_LOCKSCREEN = 4,
+   WM_POLICY_HINT_GESTURE_DISABLE = 5,
 };
 
 static const char *hint_names[] =
@@ -177,6 +178,7 @@ static const char *hint_names[] =
    "wm.policy.win.deiconify.approve.disable",
    "wm.policy.win.iconify",
    "wm.policy.win.above.lock",
+   "wm.policy.win.gesture.disable",
 };
 
 static void                _pol_wl_surf_del(Pol_Wl_Surface *psurf);
@@ -1950,6 +1952,10 @@ e_mod_pol_wl_eval_pre_post_fetch(E_Client *ec)
         else if (!strcmp(hint->hint, hint_names[WM_POLICY_HINT_DEICONIFY_APPROVE_DISABLE]))
           {
              /* TODO: would implement after deiconify approve protocol provided */
+          }
+        else if (!strcmp(hint->hint, hint_names[WM_POLICY_HINT_GESTURE_DISABLE]))
+          {
+             /* How about to set a flag in E_Client instead of string compare in a gesture module. */
           }
         else if (!strcmp(hint->hint, hint_names[WM_POLICY_HINT_ICONIFY]))
           {
