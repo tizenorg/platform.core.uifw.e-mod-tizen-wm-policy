@@ -47,11 +47,17 @@
 #define CRI(...)     EINA_LOG_DOM_CRIT(_log_dom, __VA_ARGS__)
 
 #define RLOG(LOG, r, f, x...) \
-   LOG("ROT|ec:%08p|name:%10s|"f, r->ec, r->ec?(r->ec->icccm.name?:""):"", ##x)
+   LOG("ROT|ec:%08p|name:%10s|"f, (r?r->ec:NULL), (r?r->ec?(r->ec->icccm.name?:""):"":""), ##x)
 
 #define RDBG(r, f, x...)   RLOG(DBG, r, f, ##x)
 #define RINF(r, f, x...)   RLOG(INF, r, f, ##x)
 #define RERR(r, f, x...)   RLOG(ERR, r, f, ##x)
+
+#define CHANGED(h)               \
+do {                             \
+   h = EINA_TRUE;                \
+   p_rot->changed = EINA_TRUE;   \
+} while (0)
 
 typedef struct _Pol_Rotation     Pol_Rotation;
 typedef struct _Rot_Zone_Data    Rot_Zone_Data;
@@ -61,6 +67,10 @@ struct _Pol_Rotation
 {
    struct wl_global *global;
 
+   Rot_Zone_Data *zdata;
+   Eina_Hash *zdata_hash;
+   Eina_Hash *cdata_hash;
+
    Eina_List *events;
    Eina_List *client_hooks;
    Eina_List *comp_hooks;
@@ -69,12 +79,26 @@ struct _Pol_Rotation
    Ecore_Idle_Exiter   *idle_exiter;
 
    Eina_List *update_list;
+
+   Eina_Bool changed;
 };
 
 struct _Rot_Zone_Data
 {
    E_Zone *zone;
    Rot_Idx curr, prev, next, reserve;
+
+   struct
+   {
+      Rot_Idx curr, prev, next, reserve;
+   } angle;
+
+   int block_count;
+
+   Eina_Bool unknown_state;
+   Eina_Bool wait_for_done;
+   Eina_Bool pending;
+   Eina_Bool changed;
 };
 
 struct _Rot_Client_Data
@@ -85,13 +109,8 @@ struct _Rot_Client_Data
    Rot_Idx curr, prev, next, reserve;
    Rot_Type type;
 
+   Rot_Idx preferred_rot;
    int available_list;
-
-   struct
-   {
-      int available_list;
-      Rot_Idx preferred_rot;
-   } info;
 
    struct
    {
@@ -101,72 +120,33 @@ struct _Rot_Client_Data
 };
 
 const static char          *_dom_name = "e_rot";
-static Pol_Rotation        *_pol_rotation = NULL;
-static Eina_Hash           *_rot_data_hash = NULL;
+
+static Pol_Rotation        *p_rot = NULL;
 static int                  _init_count = 0;
 static int                  _log_dom = -1;
 
-static inline void
-_pol_rotation_register(Pol_Rotation *pr)
-{
-   _pol_rotation = pr;
-}
-
-static inline void
-_pol_rotation_unregister(void)
-{
-   _pol_rotation = NULL;
-}
-
-static inline Pol_Rotation *
-_pol_rotation_get(void)
-{
-   return _pol_rotation;
-}
-
-static Rot_Zone_Data *
-
-
 static void
-_rot_zone_change_list_add(E_Zone *zone)
+_rot_zone_change_list_add(Rot_Zone_Data *zdata)
 {
-   Pol_Rotation *pr;
-
-   pr = _pol_rotation_get();
-   if (EINA_UNLIKELY(!pr))
-     return;
-
-   if ((!pr->changes.zones) ||
-       (!eina_list_data_find(pr->changes.zones, zone)))
-     pr->changes.zones = eina_list_append(pr->changes.zones, zone);
+   if ((!p_rot->changes.zones) ||
+       (!eina_list_data_find(p_rot->changes.zones, zone)))
+     p_rot->changes.zones = eina_list_append(p_rot->changes.zones, zone);
 }
 
 static E_Zone *
 _rot_zone_change_list_find(E_Zone *zone)
 {
-   Pol_Rotation *pr;
-
-   pr = _pol_rotation_get();
-   if (EINA_UNLIKELY(!pr))
-     return;
-
-   return eina_list_data_find(pr->changes.zones, zone)
+   return eina_list_data_find(p_rot->changes.zones, zone)
 }
 
 static void
 _rot_zone_change_list_clear(void)
 {
-   Pol_Rotation *pr;
-
-   pr = _pol_rotation_get();
-   if (EINA_UNLIKELY(!pr))
-     return;
-
-   E_FREE_FUNC(pr->changes.zones, eina_list_free);
+   E_FREE_FUNC(p_rot->changes.zones, eina_list_free);
 }
 
 static Rot_Client_Data *
-_rot_data_new(E_Client *ec, struct wl_resource *resource)
+_rot_client_add(E_Client *ec, struct wl_resource *resource)
 {
    Rot_Client_Data *rdata;
 
@@ -178,22 +158,30 @@ _rot_data_new(E_Client *ec, struct wl_resource *resource)
    rdata->resource = resource;
    rdata->type = ROT_TYPE_UNKNOWN;
 
-   eina_hash_add(_rot_data_hash, &ec, rdata);
+   if (!p_rot->cdata_hash)
+     p_rot->cdata_hash = eina_hash_pointer_new((Eina_Free_Cb)free);
+
+   eina_hash_add(p_rot->cdata_hash, &ec, rdata);
 
    return rdata;
 }
 
 static void
-_rot_data_free(Rot_Client_Data *rdata)
+_rot_client_del(Rot_Client_Data *rdata)
 {
-   eina_hash_del(_rot_data_hash, &rdata->ec, rdata);
-   free(rdata);
+   eina_hash_del(p_rot->cdata_hash, &rdata->ec, rdata);
+}
+
+static void
+_rot_client_clear(void)
+{
+   E_FREE_FUNC(p_rot->cdata_hash, eina_hash_free);
 }
 
 static Rot_Client_Data *
-_rot_data_find(E_Client *ec)
+_rot_client_get(E_Client *ec)
 {
-   return eina_hash_find(_rot_data_hash, &ec);
+   return eina_hash_find(p_rot->cdata_hash, &ec);
 }
 
 /* externally accessible functions */
@@ -269,9 +257,9 @@ _rot_idle_exiter(void *data EINA_UNUSED)
    if (E_EVENT_INFO_ROTATION_MESSAGE == -1)
      return ECORE_CALLBACK_RENEW;
 
-   E_LIST_HANDLER_APPEND(pr->events, E_EVENT_INFO_ROTATION_MESSAGE, _rot_info_cb_message, NULL);
+   E_LIST_HANDLER_APPEND(p_rot->events, E_EVENT_INFO_ROTATION_MESSAGE, _rot_info_cb_message, NULL);
 
-   E_FREE_FUNC(pr->idle_exiter, ecore_idle_exiter_del);
+   E_FREE_FUNC(p_rot->idle_exiter, ecore_idle_exiter_del);
 
    return ECORE_CALLBACK_DONE;
 }
@@ -285,7 +273,7 @@ _rot_wl_destroy(struct wl_resource *resource)
    if (EINA_UNLIKELY(!rdata))
      return;
 
-   _rot_data_free(rdata);
+   _rot_client_del(rdata);
 }
 
 static void
@@ -353,7 +341,7 @@ _rot_wl_cb_available_set(struct wl_client *c EINA_UNUSED, struct wl_resource *re
         strcat(tmpstr, (const char *)tmpnum);
      }
 
-   rdata->info.available_list = angles;
+   rdata->available_list = angles;
 
    RINF(rdata, "Set Available list: %s", tmpstr);
 }
@@ -413,7 +401,7 @@ _rot_wl_cb_rotation_get(struct wl_client *client, struct wl_resource *resource, 
         return;
      }
 
-   rdata = _rot_data_find(ec);
+   rdata = _rot_client_get(ec);
    if (rdata)
      {
         ERR("interface object already existed");
@@ -430,7 +418,7 @@ _rot_wl_cb_rotation_get(struct wl_client *client, struct wl_resource *resource, 
         return;
      }
 
-   rdata = _rot_data_new(ec, new_res);
+   rdata = _rot_client_add(ec, new_res);
    if (EINA_UNLIKELY(!rdata))
      {
         wl_resource_post_no_memory(resource);
@@ -467,15 +455,12 @@ _rot_wl_cb_bind(struct wl_client *client, void *data EINA_UNUSED, uint32_t versi
 static Eina_Bool
 _rot_client_cb_show(void *d, int type EINA_UNUSED, E_Event_Client *ev)
 {
-   Pol_Rotation *pr;
    E_Client *ec;
 
    if (EINA_UNLIKELY(!ev)) goto end;
    if (EINA_UNLIKELY(!ev->ec)) goto end;
 
-   pr = d;
-   if (EINA_LIKELY(pr))
-     pr->changes.rot = EINA_TRUE;
+   p_rot->changes.rot = EINA_TRUE;
 
 end:
    return ECORE_CALLBACK_PASS_ON;
@@ -484,15 +469,12 @@ end:
 static Eina_Bool
 _rot_client_cb_hide(void *d, int type EINA_UNUSED, E_Event_Client *ev)
 {
-   Pol_Rotation *pr;
    E_Client *ec;
 
    if (EINA_UNLIKELY(!ev)) goto end;
    if (EINA_UNLIKELY(!ev->ec)) goto end;
 
-   pr = d;
-   if (EINA_LIKELY(pr))
-     pr->changes.rot = EINA_TRUE;
+   p_rot->changes.rot = EINA_TRUE;
 
 end:
    return ECORE_CALLBACK_PASS_ON;
@@ -501,19 +483,16 @@ end:
 static Eina_Bool
 _rot_client_cb_move(void *d, int type EINA_UNUSED, E_Event_Client *ev)
 {
-   Pol_Rotation *pr;
    Rot_Client_Data *rdata;
 
    if (EINA_UNLIKELY(!ev)) goto end;
    if (EINA_UNLIKELY(!ev->ec)) goto end;
 
-   pr = d;
-   if (EINA_LIKELY(pr))
-     pr->changes.rot = EINA_TRUE;
+   p_rot->changes.rot = EINA_TRUE;
 
-   rdata = _rot_data_find(ev->ec);
+   rdata = _rot_client_get(ev->ec);
    if (rdata)
-     rdata->changes.geom = EINA_TRUE;
+     CHANGED(rdata->changes.geom);
 
 end:
    return ECORE_CALLBACK_PASS_ON;
@@ -522,19 +501,17 @@ end:
 static Eina_Bool
 _rot_client_cb_resize(void *d, int type EINA_UNUSED, E_Event_Client *ev)
 {
-   Pol_Rotation *pr;
    Rot_Client_Data *rdata;
 
    if (EINA_UNLIKELY(!ev)) goto end;
    if (EINA_UNLIKELY(!ev->ec)) goto end;
 
-   pr = d;
-   if (EINA_LIKELY(pr))
-     pr->changes.rot = EINA_TRUE;
+   p_rot->changes.rot = EINA_TRUE;
 
-   rdata = _rot_data_find(ev->ec);
+   rdata = _rot_client_get(ev->ec);
    if (rdata)
-     rdata->changes.geom = EINA_TRUE;
+     CHANGED(rdata->changes.geom);
+
 end:
    return ECORE_CALLBACK_PASS_ON;
 }
@@ -542,19 +519,17 @@ end:
 static Eina_Bool
 _rot_client_cb_stack(void *d, int type EINA_UNUSED, E_Event_Client *ev)
 {
-   Pol_Rotation *pr;
    Rot_Client_Data *rdata;
 
    if (EINA_UNLIKELY(!ev)) goto end;
    if (EINA_UNLIKELY(!ev->ec)) goto end;
 
-   pr = d;
-   if (EINA_LIKELY(pr))
-     pr->changes.rot = EINA_TRUE;
+   p_rot->changes.rot = EINA_TRUE;
 
-   rdata = _rot_data_find(ev->ec);
+   rdata = _rot_client_get(ev->ec);
    if (rdata)
-     rdata->changes.geom = EINA_TRUE;
+     CHANGED(rdata->changes.geom);
+
 end:
    return ECORE_CALLBACK_PASS_ON;
 }
@@ -579,19 +554,25 @@ static void
 _rot_client_hook_del(void *d EINA_UNUSED, E_Client *ec)
 {
    // Do consider E_EVENT_CLIENT_REMOVE
-   // Destroy Rot_Client_Data
    Rot_Client_Data *rdata;
 
    if (EINA_UNLIKELY(!ec))
      return;
 
-   rdata = _rot_data_find(ec);
+   rdata = _rot_client_get(ec);
    if (!rdata)
      return;
 
+   ec->e.fetch.rot.app_set = 0;
+   ec->e.state.rot.preferred_rot = -1;
+
+   if (ec->e.state.rot.available_rots)
+     E_FREE(ec->e.state.rot.available_rots);
+
    wl_resource_set_user_data(rdata->resource, NULL);
    wl_resource_destroy(rdata->resource);
-   _rot_data_free(rdata);
+
+   _rot_client_del(rdata);
 }
 
 static void
@@ -604,7 +585,7 @@ _rot_client_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec)
    uint32_t available_angles = 0;
    Eina_Bool diff = EINA_FALSE;
 
-   rdata = _rot_data_find(ec);
+   rdata = _rot_client_get(ec);
    if (!rdata)
      return;
 
@@ -620,11 +601,11 @@ _rot_client_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec)
              E_FREE(ec->e.state.rot.available_rots);
           }
 
-        nrots = _count_ones(rdata->info.available_list);
+        nrots = _count_ones(rdata->available_list);
         rots = calloc(nrots, sizeof(int));
         for (i = ROT_IDX_0; i <= ROT_IDX_270; i = i << ROT_IDX_0)
           {
-             if (rdata->info.available_list & i)
+             if (rdata->available_list & i)
                rots[j++] = (ffs(i) - 1) * 90;
           }
 
@@ -700,7 +681,7 @@ _rot_client_available_check(E_Client *ec, Rot_Idx rot)
    E_Zone *zone;
    Rot_Client_Data *rdata;
 
-   rdata = _rot_data_find(ec);
+   rdata = _rot_client_get(ec);
    if (!rdata)
      {
         if (rot == ROT_IDX_0)
@@ -712,20 +693,46 @@ _rot_client_available_check(E_Client *ec, Rot_Idx rot)
    return rdata->available_list & rot;
 }
 
-static Eina_Bool
-_rot_idle_enterer(void *data)
+static Eina_List *
+_rot_zone_target_client_list_get(Rot_Zone_Data *zdata)
 {
-   Pol_Rotation *pr;
+   Rot_Client_Data *rdata;
+   E_Client *ec;
+   Eina_List *list;
+   int x, y, w, h;
+
+   E_CLIENT_REVERSE_FOREACH(ec)
+     {
+        if (zdata->zone != ec->zone) continue;
+        if (!ec->visible) continue;
+        if (e_object_is_del(E_OBJECT(ec))) continue;
+
+        list = eina_list_append(list, ec);
+
+        e_client_geometry_get(ec, &x, &y, &w, &h);
+        if (E_CONTAINS(ec->zone->x, ec->zone->y, ec->zone->w, ec->zone->h, x, y, w, h))
+          break;
+     }
+
+   return list;
+}
+
+static Eina_Bool
+_rot_idle_enterer(void *data EINA_UNUSED)
+{
+   Rot_Zone_Data *zdata;
    Rot_Client_Data *rdata;
    E_Client *ec;
    Eina_Iterator *itr;
+   Eina_List *target_list;
    static E_Client *top_bg_ec = NULL;
 
-   pr= data;
-   if (EINA_UNLIKELY(!pr))
+   if (!p_rot->changed)
      goto end;
 
-   itr = eina_hash_iterator_data_new(_rot_data_hash);
+   p_rot->changed = EINA_FALSE;
+
+   itr = eina_hash_iterator_data_new(p_rot->cdata_hash);
    EINA_ITERATOR_FOREACH(itr, rdata)
      {
         /* step 1. determine the rotation type according to geometry */
@@ -742,18 +749,15 @@ _rot_idle_enterer(void *data)
              rdata->changes.geom = EINA_FALSE;
           }
      }
+   eina_iterator_free(itr);
 
-   if (pr->changes.zones)
+   itr = eina_hash_iterator_data_new(p_rot->zdata_hash);
+   EINA_ITERATOR_FOREACH(itr, zdata);
      {
-        E_CLIENT_REVERSE_FOREACH(ec)
-          {
-             if (!_rot_zone_change_list_find(ec->zone)) continue;
-             if (!ec->visible) continue;
-             if (e_object_is_del(E_OBJECT(ec))) continue;
+        if (!zdata->changed) continue;
+        zdata->changed = EINA_FALSE;
 
-
-          }
-        _rot_zone_change_list_clear();
+        target_list = _rot_zone_target_client_list_get(zdata);
      }
 
    EINA_ITERATOR_FOREACH(itr, rdata)
@@ -770,13 +774,13 @@ end:
 }
 
 static void
-_rot_wl_shutdown(Pol_Rotation *pr)
+_rot_wl_shutdown(void)
 {
-   E_FREE_FUNC(pr->global, wl_global_destroy);
+   E_FREE_FUNC(p_rot->global, wl_global_destroy);
 }
 
 static Eina_Bool
-_rot_wl_init(Pol_Rotation *pr)
+_rot_wl_init(void)
 {
    struct wl_global *global;
 
@@ -787,9 +791,63 @@ _rot_wl_init(Pol_Rotation *pr)
         return EINA_FALSE;
      }
 
-   pr->global = global;
+   p_rot->global = global;
 
    return EINA_TRUE;
+}
+
+static Eina_Bool
+_rot_zone_add(E_Zone *zone)
+{
+   Rot_Zone_Data *zdata;
+
+   zdata = calloc(1, sizeof(*zdata));
+   if (!zdata)
+     return EINA_FALSE;
+
+   zdata->zone = zone;
+
+   /* first initializing */
+   if (!p_rot->zdata_hash)
+     p_rot->zdata_hash = eina_hash_pointer_new((Eina_Free_Cb)free);
+
+   eina_hash_add(p_rot->zdata_hash, &zone, zdata);
+
+   return EINA_TRUE;
+}
+
+static void
+_rot_zone_del(E_Zone *zone)
+{
+   eina_hash_del_by_key(p_rot->zdata_hash, &ev->zone);
+}
+
+static void
+_rot_zone_clear(void)
+{
+   E_FREE_FUNC(p_rot->zdata_hash, eina_hash_free);
+}
+
+static Rot_Zone_Data *
+_rot_zone_get(E_Zone *zone)
+{
+   return eina_hash_find(p_rot->zdata_hash, &zone);
+}
+
+static Eina_Bool
+_rot_zone_cb_add(void *d EINA_UNUSED, int type EINA_UNUSED, E_Event_Zone_Add *ev)
+{
+   _rot_zone_add(ev->zone);
+
+   return ECORE_CALLBACK_PASS_ON;
+}
+
+static Eina_Bool
+_rot_zone_cb_del(void *d EINA_UNUSED, int type EINA_UNUSED, E_Event_Zone_Add *ev)
+{
+   _rot_zone_del(ev->zone);
+
+   return ECORE_CALLBACK_PASS_ON;
 }
 
 #undef E_CLIENT_HOOK_APPEND
@@ -815,26 +873,29 @@ _rot_wl_init(Pol_Rotation *pr)
   while (0)
 
 static void
-_rot_event_init(Pol_Rotation *pr)
+_rot_event_init(void)
 {
-   E_LIST_HANDLER_APPEND(pr->events, E_EVENT_CLIENT_SHOW,                _rot_client_cb_show,         pr);
-   E_LIST_HANDLER_APPEND(pr->events, E_EVENT_CLIENT_HIDE,                _rot_client_cb_hide,         pr);
-   E_LIST_HANDLER_APPEND(pr->events, E_EVENT_CLIENT_MOVE,                _rot_client_cb_move,         pr);
-   E_LIST_HANDLER_APPEND(pr->events, E_EVENT_CLIENT_RESIZE,              _rot_client_cb_resize,       pr);
-   E_LIST_HANDLER_APPEND(pr->events, E_EVENT_CLIENT_STACK,               _rot_client_cb_stack,        pr);
+   E_LIST_HANDLER_APPEND(p_rot->events, E_EVENT_ZONE_ADD,                   _rot_zone_cb_add,            NULL);
+   E_LIST_HANDLER_APPEND(p_rot->events, E_EVENT_ZONE_DEL,                   _rot_zone_cb_del,            NULL);
 
-   E_CLIENT_HOOK_APPEND(pr->client_hooks, E_CLIENT_HOOK_NEW_CLIENT,       _rot_client_hook_new,         pr);
-   E_CLIENT_HOOK_APPEND(pr->client_hooks, E_CLIENT_HOOK_DEL,              _rot_client_hook_del,         NULL);
-   E_CLIENT_HOOK_APPEND(pr->client_hooks, E_CLIENT_HOOK_EVAL_FETCH,       _rot_client_hook_eval_fetch,  NULL);
-   E_CLIENT_HOOK_APPEND(pr->client_hooks, E_CLIENT_HOOK_EVAL_END,         _rot_client_hook_eval_end,    NULL);
+   E_LIST_HANDLER_APPEND(p_rot->events, E_EVENT_CLIENT_SHOW,                _rot_client_cb_show,         NULL);
+   E_LIST_HANDLER_APPEND(p_rot->events, E_EVENT_CLIENT_HIDE,                _rot_client_cb_hide,         NULL);
+   E_LIST_HANDLER_APPEND(p_rot->events, E_EVENT_CLIENT_MOVE,                _rot_client_cb_move,         NULL);
+   E_LIST_HANDLER_APPEND(p_rot->events, E_EVENT_CLIENT_RESIZE,              _rot_client_cb_resize,       NULL);
+   E_LIST_HANDLER_APPEND(p_rot->events, E_EVENT_CLIENT_STACK,               _rot_client_cb_stack,        NULL);
 
-   E_COMP_OBJECT_INTERCEPT_HOOK_APPEND(pr->comp_hooks, E_COMP_OBJECT_INTERCEPT_HOOK_SHOW_HELPER, _rot_comp_hook_show, NULL);
-   E_COMP_OBJECT_INTERCEPT_HOOK_APPEND(pr->comp_hooks, E_COMP_OBJECT_INTERCEPT_HOOK_HIDE, _rot_comp_hook_hide, NULL);
+   E_CLIENT_HOOK_APPEND(p_rot->client_hooks, E_CLIENT_HOOK_NEW_CLIENT,       _rot_client_hook_new,         NULL);
+   E_CLIENT_HOOK_APPEND(p_rot->client_hooks, E_CLIENT_HOOK_DEL,              _rot_client_hook_del,         NULL);
+   E_CLIENT_HOOK_APPEND(p_rot->client_hooks, E_CLIENT_HOOK_EVAL_FETCH,       _rot_client_hook_eval_fetch,  NULL);
+   E_CLIENT_HOOK_APPEND(p_rot->client_hooks, E_CLIENT_HOOK_EVAL_END,         _rot_client_hook_eval_end,    NULL);
 
-   pr->idle_enterer = ecore_idle_enterer_add(_rot_idle_enterer, pr);
+   E_COMP_OBJECT_INTERCEPT_HOOK_APPEND(p_rot->comp_hooks, E_COMP_OBJECT_INTERCEPT_HOOK_SHOW_HELPER, _rot_comp_hook_show, NULL);
+   E_COMP_OBJECT_INTERCEPT_HOOK_APPEND(p_rot->comp_hooks, E_COMP_OBJECT_INTERCEPT_HOOK_HIDE, _rot_comp_hook_hide, NULL);
+
+   p_rot->idle_enterer = ecore_idle_enterer_add(_rot_idle_enterer, NULL);
 
    if (E_EVENT_INFO_ROTATION_MESSAGE != -1)
-     E_LIST_HANDLER_APPEND(pr->events, E_EVENT_INFO_ROTATION_MESSAGE, _rot_info_cb_message, NULL);
+     E_LIST_HANDLER_APPEND(p_rot->events, E_EVENT_INFO_ROTATION_MESSAGE, _rot_info_cb_message, NULL);
    else
      {
         /* NOTE:
@@ -843,25 +904,46 @@ _rot_event_init(Pol_Rotation *pr)
          * becuase I expect that e_info_server will be initialized on idler
          * by quick launching.
          */
-        pr->idle_exiter = ecore_idle_exiter_add(_rot_idle_exiter, NULL);
+        p_rot->idle_exiter = ecore_idle_exiter_add(_rot_idle_exiter, NULL);
      }
 }
 
 static void
-_rot_event_shutdown(Pol_Rotation *pr)
+_rot_event_shutdown(void)
 {
-   E_FREE_FUNC(pr->idle_enterer, ecore_idle_enterer_del);
-   E_FREE_FUNC(pr->idle_exiter, ecore_idle_exiter_del);
+   E_FREE_FUNC(p_rot->idle_enterer, ecore_idle_enterer_del);
+   E_FREE_FUNC(p_rot->idle_exiter, ecore_idle_exiter_del);
 
-   E_FREE_LIST(pr->events, ecore_event_del);
-   E_FREE_LIST(pr->client_hooks, e_client_hook_del);
-   E_FREE_LIST(pr->comp_hooks, e_comp_object_intercept_hook_del);
+   E_FREE_LIST(p_rot->events, ecore_event_del);
+   E_FREE_LIST(p_rot->client_hooks, e_client_hook_del);
+   E_FREE_LIST(p_rot->comp_hooks, e_comp_object_intercept_hook_del);
+}
+
+static Eina_Bool
+_rot_zone_init(void)
+{
+   EINA_LIST_FOREACH(e_comp->zones, l, zone)
+     {
+        if (!_rot_zone_add(zone))
+          goto err;
+     }
+
+   return EINA_TRUE;
+err:
+   _rot_zone_clear();
+
+   return EINA_FALSE;
+}
+
+static void
+_rot_zone_shutdown(void)
+{
+   E_FREE_FUNC(p_rot->zdata_hash, eina_hash_free);
 }
 
 EINTERN int
 e_mod_pol_rotation_init(void)
 {
-   Pol_Rotation *pr;
    Eina_List *l;
    E_Zone *zone;
 
@@ -871,7 +953,7 @@ e_mod_pol_rotation_init(void)
    EINA_SAFETY_ON_NULL_RETURN_VAL(e_comp_wl, 0);
    EINA_SAFETY_ON_NULL_RETURN_VAL(e_comp_wl->wl.disp, 0);
 
-   if (EINA_UNLIKELY(_pol_rotation_get()))
+   if (EINA_UNLIKELY(p_rot))
      return 0;
 
    if (!eina_init())
@@ -887,26 +969,23 @@ e_mod_pol_rotation_init(void)
         goto err_log;
      }
 
-   pr = calloc(1, sizeof(*pr));
-   if (!pr)
+   p_rot = calloc(1, sizeof(*p_rot));
+   if (!p_rot)
      goto err_alloc;
 
-   _rot_data_hash = eina_hash_pointer_new(NULL);
-
-   if (!_rot_wl_init(pr))
+   if (!_rot_wl_init())
      {
         ERR("Error initializing '_rot_wl_init'");
         goto err_wl;
      }
 
-   _rot_event_init(pr);
-
-   EINA_LIST_FOREACH(e_comp->zones, l, zone)
+   if (!_rot_zone_init())
      {
-
+        ERR("Error initializing '_rot_zone_init'");
+        goto err_zdata;
      }
 
-   _pol_rotation_register(pr);
+   _rot_event_init();
 
 #ifdef HAVE_AUTO_ROTATION
    if (!e_mod_sensord_init())
@@ -916,8 +995,14 @@ e_mod_pol_rotation_init(void)
 end:
    return ++_init_count;
 
+err_cdata:
+   _rot_zone_shutdown();
+
+err_zdata:
+   _rot_wl_shutdown();
+
 err_wl:
-   free(pr);
+   free(p_rot);
 
 err_alloc:
    eina_log_domain_unregister(_log_dom);
@@ -931,30 +1016,26 @@ err_log:
 EINTERN void
 e_mod_pol_rotation_shutdown(void)
 {
-   Pol_Rotation *pr;
+   Pol_Rotation *p_rot;
 
    if (!_init_count)
      return;
-  --_init_count;
+   --_init_count;
 
-   pr = _pol_rotation_get();
-   if (EINA_UNLIKELY(!pr))
-     return;
+   _rot_client_clear();
 
-   E_FREE_FUNC(_rot_data_hash, eina_hash_free);
+   _rot_event_shutdown();
+   _rot_wl_shutdown();
+   _rot_zone_shutdown();
 
-   _rot_event_shutdown(pr);
-   _rot_wl_shutdown(pr);
    eina_log_domain_unregister(_log_dom);
    eina_shutdown();
 
 #ifdef HAVE_AUTO_ROTATION
-  e_mod_sensord_deinit();
+   e_mod_sensord_deinit();
 #endif
 
-  free(pr);
-
-  _pol_rotation_unregister();
+   E_FREE(p_rot);
 }
 
 static void
@@ -966,66 +1047,69 @@ _rot_zone_event_change_begin_free(void *data EINA_UNUSED, void *ev)
 }
 
 static void
-_rot_zone_set(Pol_Rotation *pr, E_Zone *zone, int rot)
+_rot_zone_rot_set(Rot_Zone_Data *zdata, int rot)
 {
    E_Event_Zone_Rotation_Change_Begin *ev;
    E_Client *ec;
+   Rot_Idx next;
 
-   INF("ROT|zone:%d|rot curr:%d, rot:%d", zone->num, zone->rot.curr, rot);
+   RINF(NULL, "zone:%d|rot curr:%d, rot:%d", zdata->zone->num, zdata->zone->rot.curr, rot);
 
-   if ((zone->rot.wait_for_done) ||
-       (zone->rot.block_count > 0))
+   next = 1 << ((rot / 90) + 1);
+
+   if ((zdata->wait_for_done) ||
+       (zdata->block_count > 0))
      {
-        zone->rot.next = rot;
-        zone->rot.pending = EINA_TRUE;
+        zdata->angle.next = next;
+        zdata->pending = EINA_TRUE;
         return;
      }
 
-   if (zone->rot.curr == rot) return;
+   if (zdata->rot.curr == next) return;
 
-   zone->rot.prev = zone->rot.curr;
-   zone->rot.curr = rot;
-   zone->rot.wait_for_done = EINA_TRUE;
+   zdata->angle.prev = zdata->angle.curr;
+   zdata->angle.curr = next;
+   zdata->wait_for_done = EINA_TRUE;
 
    ev = E_NEW(E_Event_Zone_Rotation_Change_Begin, 1);
    if (ev)
      {
-        ev->zone = zone;
+        ev->zone = zdata->zone;
         e_object_ref(E_OBJECT(ev->zone));
         ecore_event_add(E_EVENT_ZONE_ROTATION_CHANGE_BEGIN,
                         ev, _rot_zone_event_change_begin_free, NULL);
      }
 
-   _rot_zone_change_list_add(zone);
+   CHANGED(zdata->changed);
 }
 
 EINTERN void
-e_mod_rot_zone_set(E_Zone *zone, int rot)
+e_mod_rot_zone_rot_set(E_Zone *zone, int rot)
 {
-   Pol_Rotation *pr;
+   Rot_Zone_Data *zdata;
    E_OBJECT_CHECK(zone);
    E_OBJECT_TYPE_CHECK(zone, E_ZONE_TYPE);
 
    if (!e_config->wm_win_rotation)
      return;
 
-   pr = _pol_rotation_get();
-   if (EINA_UNLIKELY(!pr))
+   zdata = _rot_zone_get(zone);
+   if (!zdata)
      return;
 
    TRACE_DS_BEGIN(ZONE ROTATION SET);
 
    if (rot == -1)
      {
-        zone->rot.unknown_state = EINA_TRUE;
-        ELOGF("ROTATION", "ZONE_ROT |UNKOWN SET|zone:%d|rot curr:%d, rot:%d",
-              NULL, NULL, zone->num, zone->rot.curr, rot);
+        zdata->unknown_state = EINA_TRUE;
+        RINF(NULL, "ZONE_ROT |UNKOWN SET|zone:%d|rot curr:%d, rot:%d",
+             zone->num, zone->rot.curr, rot);
         return;
      }
    else
-     zone->rot.unknown_state = EINA_FALSE;
+     zdata->unknown_state = EINA_FALSE;
 
-   _rot_zone_set(pr, zone, rot);
+   _rot_zone_rot_set(zdata, rot);
 
    TRACE_DS_END();
 }
