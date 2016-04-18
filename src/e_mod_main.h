@@ -120,6 +120,13 @@ struct _Pol_System_Info
       E_Client  *ec;
       Eina_Bool  show;
    } lockscreen;
+
+   struct
+   {
+      int system;
+      int client;
+      Eina_Bool use_client;
+   } brightness;
 };
 
 extern Mod *_pol_mod;

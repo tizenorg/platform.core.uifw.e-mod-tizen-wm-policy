@@ -5,6 +5,8 @@
 #include "e_mod_volume.h"
 #include "e_mod_lockscreen.h"
 
+#include <device/display.h>
+
 #include <wayland-server.h>
 #include <tizen-extension-server-protocol.h>
 #include <tzsh_server.h>
@@ -17,6 +19,7 @@
 
 #define PRIVILEGE_NOTIFICATION_LEVEL_SET "http://tizen.org/privilege/window.priority.set"
 #define PRIVILEGE_SCREEN_MODE_SET "http://tizen.org/privilege/display"
+#define PRIVILEGE_BRIGHTNESS_SET "http://tizen.org/privilege/display"
 
 #define APP_DEFINE_GROUP_NAME "effect"
 
@@ -45,6 +48,12 @@ typedef struct _Pol_Wl_Tzpol
    Eina_List          *psurfs;    /* list of Pol_Wl_Surface */
    Eina_List          *pending_bg;
 } Pol_Wl_Tzpol;
+
+typedef struct _Pol_Wl_Tz_Dpy_Pol
+{
+   struct wl_resource *res_tz_dpy_pol;
+   Eina_List          *dpy_surfs;  // list of Pol_Wl_Dpy_Surface
+} Pol_Wl_Tz_Dpy_Pol;
 
 typedef struct _Pol_Wl_Tzsh
 {
@@ -90,6 +99,15 @@ typedef struct _Pol_Wl_Surface
    Eina_Bool           is_background;
 } Pol_Wl_Surface;
 
+typedef struct _Pol_Wl_Dpy_Surface
+{
+   Pol_Wl_Tz_Dpy_Pol  *tz_dpy_pol;
+   struct wl_resource *surf;
+   E_Client           *ec;
+   Eina_Bool           set;
+   int32_t             brightness;
+} Pol_Wl_Dpy_Surface;
+
 typedef struct _Pol_Wl_Tzlaunch
 {
    struct wl_resource *res_tzlaunch;     /* tizen_launchscreen */
@@ -122,6 +140,8 @@ typedef struct _Pol_Wl
 {
    Eina_List       *globals;                 /* list of wl_global */
    Eina_Hash       *tzpols;                  /* list of Pol_Wl_Tzpol */
+
+   Eina_List       *tz_dpy_pols;             /* list of Pol_Wl_Tz_Dpy_Pol */
 
    /* tizen_ws_shell_interface */
    Eina_List       *tzshs;                   /* list of Pol_Wl_Tzsh */
@@ -2214,6 +2234,302 @@ _tzpol_iface_cb_background_state_unset(struct wl_client *client EINA_UNUSED, str
 }
 
 // --------------------------------------------------------
+// Pol_Wl_Tz_Dpy_Pol
+// --------------------------------------------------------
+static Pol_Wl_Tz_Dpy_Pol *
+_pol_wl_tz_dpy_pol_add(struct wl_resource *res_tz_dpy_pol)
+{
+   Pol_Wl_Tz_Dpy_Pol *tz_dpy_pol;
+
+   tz_dpy_pol = E_NEW(Pol_Wl_Tz_Dpy_Pol, 1);
+   EINA_SAFETY_ON_NULL_RETURN_VAL(tz_dpy_pol, NULL);
+
+   tz_dpy_pol->res_tz_dpy_pol = res_tz_dpy_pol;
+
+   polwl->tz_dpy_pols = eina_list_append(polwl->tz_dpy_pols, tz_dpy_pol);
+
+   return tz_dpy_pol;
+}
+
+static void
+_pol_wl_tz_dpy_pol_del(Pol_Wl_Tz_Dpy_Pol *tz_dpy_pol)
+{
+   Pol_Wl_Dpy_Surface *dpy_surf;
+
+   EINA_SAFETY_ON_NULL_RETURN(tz_dpy_pol);
+
+   polwl->tz_dpy_pols = eina_list_remove(polwl->tz_dpy_pols, tz_dpy_pol);
+
+   EINA_LIST_FREE(tz_dpy_pol->dpy_surfs, dpy_surf)
+     {
+        E_FREE(dpy_surf);
+     }
+
+   E_FREE(tz_dpy_pol);
+}
+
+static Pol_Wl_Tz_Dpy_Pol *
+_pol_wl_tz_dpy_pol_get(struct wl_resource *res_tz_dpy_pol)
+{
+   Eina_List *l;
+   Pol_Wl_Tz_Dpy_Pol *tz_dpy_pol;
+
+   EINA_LIST_FOREACH(polwl->tz_dpy_pols, l, tz_dpy_pol)
+     {
+        if (tz_dpy_pol->res_tz_dpy_pol == res_tz_dpy_pol)
+          return tz_dpy_pol;
+     }
+
+   return NULL;
+}
+
+// --------------------------------------------------------
+// Pol_Wl_Dpy_Surface
+// --------------------------------------------------------
+static Pol_Wl_Dpy_Surface *
+_pol_wl_dpy_surf_find(Pol_Wl_Tz_Dpy_Pol *tz_dpy_pol, E_Client *ec)
+{
+   Eina_List *l;
+   Pol_Wl_Dpy_Surface *dpy_surf;
+
+   EINA_LIST_FOREACH(tz_dpy_pol->dpy_surfs, l, dpy_surf)
+     {
+        if (dpy_surf->ec == ec)
+          return dpy_surf;
+     }
+
+   return NULL;
+}
+
+static Pol_Wl_Dpy_Surface *
+_pol_wl_dpy_surf_add(E_Client *ec, struct wl_resource *res_tz_dpy_pol)
+{
+   Pol_Wl_Tz_Dpy_Pol  *tz_dpy_pol = NULL;
+   Pol_Wl_Dpy_Surface *dpy_surf   = NULL;
+
+   tz_dpy_pol = _pol_wl_tz_dpy_pol_get(res_tz_dpy_pol);
+   EINA_SAFETY_ON_NULL_RETURN_VAL(tz_dpy_pol, NULL);
+
+   dpy_surf = _pol_wl_dpy_surf_find(tz_dpy_pol, ec);
+   if (dpy_surf)
+     return dpy_surf;
+
+   dpy_surf = E_NEW(Pol_Wl_Dpy_Surface, 1);
+   EINA_SAFETY_ON_NULL_RETURN_VAL(dpy_surf, NULL);
+
+   dpy_surf->surf = ec->comp_data->surface;
+   dpy_surf->tz_dpy_pol = tz_dpy_pol;
+   dpy_surf->ec = ec;
+   dpy_surf->brightness = -1;
+
+   tz_dpy_pol->dpy_surfs = eina_list_append(tz_dpy_pol->dpy_surfs, dpy_surf);
+   return dpy_surf;
+}
+
+static void
+_pol_wl_dpy_surf_del(E_Client *ec)
+{
+   Eina_List *l;
+   Pol_Wl_Tz_Dpy_Pol *tz_dpy_pol;
+   Pol_Wl_Dpy_Surface *dpy_surf;
+
+   EINA_SAFETY_ON_NULL_RETURN(ec);
+
+   EINA_LIST_FOREACH(polwl->tz_dpy_pols, l, tz_dpy_pol)
+     {
+        dpy_surf = _pol_wl_dpy_surf_find(tz_dpy_pol, ec);
+        if (dpy_surf)
+          {
+             tz_dpy_pol->dpy_surfs = eina_list_remove(tz_dpy_pol->dpy_surfs, dpy_surf);
+             E_FREE(dpy_surf);
+          }
+     }
+}
+
+// --------------------------------------------------------
+// brightness
+// --------------------------------------------------------
+Eina_Bool _e_mod_system_brightness_get(int *brightness)
+{
+   int error;
+   int sys_brightness = -1;
+
+   if (!brightness) return EINA_FALSE;
+
+   error = device_display_get_brightness(0, &sys_brightness);
+   if (error != DEVICE_ERROR_NONE)
+     {
+        // error
+        return EINA_FALSE;
+     }
+
+   *brightness = sys_brightness;
+
+   return EINA_TRUE;
+}
+
+Eina_Bool _e_mod_system_brightness_set(int brightness)
+{
+   Eina_Bool ret;
+   int error;
+   int num_of_dpy;
+   int id;
+
+   ret = EINA_TRUE;
+
+   error = device_display_get_numbers(&num_of_dpy);
+   if (error != DEVICE_ERROR_NONE)
+     {
+        // error
+        return EINA_FALSE;
+     }
+
+   for (id = 0; id < num_of_dpy; id++)
+     {
+        error = device_display_set_brightness(id, brightness);
+        if (error != DEVICE_ERROR_NONE)
+          {
+             // error
+             ret = EINA_FALSE;
+             break;
+          }
+     }
+
+   return ret;
+}
+
+Eina_Bool _e_mod_pol_change_system_brightness(int new_brightness)
+{
+   Eina_Bool ret;
+   int sys_brightness;
+
+   if (!g_system_info.brightness.use_client)
+     {
+        // save system brightness
+        ret = _e_mod_system_brightness_get(&sys_brightness);
+        if (!ret)
+          {
+             return EINA_FALSE;
+          }
+        g_system_info.brightness.system = sys_brightness;
+     }
+
+   ret = _e_mod_system_brightness_set(new_brightness);
+   if (!ret)
+     {
+        return EINA_FALSE;
+     }
+   g_system_info.brightness.client = new_brightness;
+   g_system_info.brightness.use_client = EINA_TRUE;
+}
+
+Eina_Bool _e_mod_pol_restore_system_brightness(void)
+{
+   Eina_Bool ret;
+
+   if (!g_system_info.brightness.use_client) return EINA_TRUE;
+
+   // restore system brightness
+   ret = _e_mod_system_brightness_set(g_system_info.brightness.system);
+   if (!ret)
+     {
+        return EINA_FALSE;
+     }
+   g_system_info.brightness.use_client = EINA_FALSE;
+
+   // Todo:
+   // if there are another window which set brighteness, then we change brighteness of it
+   // if no, then we rollback system brightness
+
+   return EINA_TRUE;
+}
+
+Eina_Bool e_mod_pol_wl_win_brightness_apply(E_Client *ec)
+{
+   Eina_Bool ret;
+   Eina_List *l;
+   Pol_Wl_Tz_Dpy_Pol *tz_dpy_pol;
+   Pol_Wl_Dpy_Surface *dpy_surf;
+   int ec_visibility;
+
+   EINA_SAFETY_ON_NULL_RETURN_VAL(ec, EINA_FALSE);
+   if (e_object_is_del(E_OBJECT(ec)))
+     ec_visibility = E_VISIBILITY_FULLY_OBSCURED;
+   else
+     ec_visibility = ec->visibility.obscured;
+
+   EINA_LIST_FOREACH(polwl->tz_dpy_pols, l, tz_dpy_pol)
+     {
+        dpy_surf = _pol_wl_dpy_surf_find(tz_dpy_pol, ec);
+        if (dpy_surf)
+          break;
+     }
+
+   if (!dpy_surf) return EINA_FALSE;
+   if (!dpy_surf->set) return EINA_FALSE;
+
+   // use system brightness
+   if (dpy_surf->brightness < 0)
+     {
+        ELOGF("TZ_DPY_POL", "Restore system brightness. Win(0x%08x)'s brightness:%d", ec->pixmap, ec, e_client_util_win_get(ec), dpy_surf->brightness);
+        ret = _e_mod_pol_restore_system_brightness();
+        return ret;
+     }
+
+   if (ec_visibility == E_VISIBILITY_UNOBSCURED)
+     {
+        ELOGF("TZ_DPY_POL", "Change system brightness(%d). Win(0x%08x) is un-obscured", ec->pixmap, ec, dpy_surf->brightness, e_client_util_win_get(ec));
+        ret = _e_mod_pol_change_system_brightness(dpy_surf->brightness);
+        if (!ret) return EINA_FALSE;
+     }
+   else
+     {
+        ELOGF("TZ_DPY_POL", "Restore system brightness. Win(0x%08x) is obscured", ec->pixmap, ec, e_client_util_win_get(ec));
+        ret = _e_mod_pol_restore_system_brightness();
+        if (!ret) return EINA_FALSE;
+     }
+
+   return EINA_TRUE;
+}
+
+static void
+_tz_dpy_pol_iface_cb_brightness_set(struct wl_client *client, struct wl_resource *res_tz_dpy_pol, struct wl_resource *surf, int32_t brightness)
+{
+   E_Client *ec;
+   Pol_Wl_Dpy_Surface *dpy_surf;
+   int fd;
+
+   ec = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
+
+   dpy_surf = _pol_wl_dpy_surf_add(ec, res_tz_dpy_pol);
+   EINA_SAFETY_ON_NULL_RETURN(dpy_surf);
+
+   fd = wl_client_get_fd(client);
+   if (!_pol_wl_privilege_check(fd, PRIVILEGE_BRIGHTNESS_SET))
+     {
+        ELOGF("TZ_DPY_POL",
+              "Privilege Check Failed! DENY set_brightness",
+              ec->pixmap, ec);
+
+        tizen_display_policy_send_window_brightness_done
+           (res_tz_dpy_pol,
+            surf,
+            -1,
+            TIZEN_DISPLAY_POLICY_ERROR_STATE_PERMISSION_DENIED);
+        return;
+     }
+   ELOGF("TZ_DPY_POL", "Set Win(0x%08x)'s brightness:%d", ec->pixmap, ec, e_client_util_win_get(ec), brightness);
+   dpy_surf->set = EINA_TRUE;
+   dpy_surf->brightness = brightness;
+
+   e_mod_pol_wl_win_brightness_apply(ec);
+
+   tizen_display_policy_send_window_brightness_done
+      (res_tz_dpy_pol, surf, brightness, TIZEN_DISPLAY_POLICY_ERROR_STATE_NONE);
+}
+
+// --------------------------------------------------------
 // tizen_policy_interface
 // --------------------------------------------------------
 static const struct tizen_policy_interface _tzpol_iface =
@@ -2285,6 +2601,53 @@ _tzpol_cb_bind(struct wl_client *client, void *data EINA_UNUSED, uint32_t ver, u
 
 err:
    ERR("Could not create tizen_policy_interface res: %m");
+   wl_client_post_no_memory(client);
+}
+
+// --------------------------------------------------------
+// tizen_display_policy_interface
+// --------------------------------------------------------
+static const struct tizen_display_policy_interface _tz_dpy_pol_iface =
+{
+   _tz_dpy_pol_iface_cb_brightness_set,
+};
+
+static void
+_tz_dpy_pol_cb_unbind(struct wl_resource *res_tz_dpy_pol)
+{
+   Pol_Wl_Tz_Dpy_Pol *tz_dpy_pol;
+
+   tz_dpy_pol = _pol_wl_tz_dpy_pol_get(res_tz_dpy_pol);
+   EINA_SAFETY_ON_NULL_RETURN(tz_dpy_pol);
+
+   _pol_wl_tz_dpy_pol_del(tz_dpy_pol);
+}
+
+static void
+_tz_dpy_pol_cb_bind(struct wl_client *client, void *data EINA_UNUSED, uint32_t ver, uint32_t id)
+{
+   Pol_Wl_Tz_Dpy_Pol *tz_dpy_pol;
+   struct wl_resource *res_tz_dpy_pol;
+
+   EINA_SAFETY_ON_NULL_GOTO(polwl, err);
+
+   res_tz_dpy_pol = wl_resource_create(client,
+                                       &tizen_display_policy_interface,
+                                       ver,
+                                       id);
+   EINA_SAFETY_ON_NULL_GOTO(res_tz_dpy_pol, err);
+
+   tz_dpy_pol = _pol_wl_tz_dpy_pol_add(res_tz_dpy_pol);
+   EINA_SAFETY_ON_NULL_GOTO(tz_dpy_pol, err);
+
+   wl_resource_set_implementation(res_tz_dpy_pol,
+                                  &_tz_dpy_pol_iface,
+                                  NULL,
+                                  _tz_dpy_pol_cb_unbind);
+   return;
+
+err:
+   ERR("Could not create tizen_display_policy_interface res: %m");
    wl_client_post_no_memory(client);
 }
 
@@ -3325,6 +3688,7 @@ e_mod_pol_wl_client_del(E_Client *ec)
 
    e_mod_pol_wl_pixmap_del(ec->pixmap);
    _pol_wl_tzsh_client_unset(ec);
+   _pol_wl_dpy_surf_del(ec);
 }
 
 void
@@ -3395,11 +3759,20 @@ e_mod_pol_wl_init(void)
    polwl = E_NEW(Pol_Wl, 1);
    EINA_SAFETY_ON_NULL_RETURN_VAL(polwl, EINA_FALSE);
 
+   /* create globals */
    global = wl_global_create(e_comp_wl->wl.disp,
                              &tizen_policy_interface,
                              1,
                              NULL,
                              _tzpol_cb_bind);
+   EINA_SAFETY_ON_NULL_GOTO(global, err);
+   polwl->globals = eina_list_append(polwl->globals, global);
+
+   global = wl_global_create(e_comp_wl->wl.disp,
+                             &tizen_display_policy_interface,
+                             1,
+                             NULL,
+                             _tz_dpy_pol_cb_bind);
    EINA_SAFETY_ON_NULL_GOTO(global, err);
    polwl->globals = eina_list_append(polwl->globals, global);
 
@@ -3436,6 +3809,7 @@ e_mod_pol_wl_shutdown(void)
    Pol_Wl_Tzsh *tzsh;
    Pol_Wl_Tzsh_Srv *tzsh_srv;
    Pol_Wl_Tzlaunch *tzlaunch;
+   Pol_Wl_Tz_Dpy_Pol *tz_dpy_pol;
    struct wl_global *global;
    int i;
 
@@ -3451,6 +3825,17 @@ e_mod_pol_wl_shutdown(void)
 
    EINA_LIST_FREE(polwl->tzshs, tzsh)
      wl_resource_destroy(tzsh->res_tzsh);
+
+   EINA_LIST_FREE(polwl->tz_dpy_pols, tz_dpy_pol)
+     {
+        Pol_Wl_Dpy_Surface *dpy_surf;
+        EINA_LIST_FREE(tz_dpy_pol->dpy_surfs, dpy_surf)
+          {
+             E_FREE(dpy_surf);
+          }
+        wl_resource_destroy(tz_dpy_pol->res_tz_dpy_pol);
+        E_FREE(tz_dpy_pol);
+     }
 
    EINA_LIST_FREE(polwl->tzlaunchs, tzlaunch)
      wl_resource_destroy(tzlaunch->res_tzlaunch);

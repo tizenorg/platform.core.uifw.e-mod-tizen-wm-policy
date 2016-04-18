@@ -14,6 +14,7 @@ Eina_Hash *hash_pol_clients = NULL;
 Pol_System_Info g_system_info =
 {
    {NULL, EINA_FALSE},
+   { -1, -1, EINA_FALSE}
 };
 
 static Eina_List *handlers = NULL;
@@ -335,6 +336,8 @@ _pol_cb_hook_client_del(void *d EINA_UNUSED, E_Client *ec)
    if (EINA_UNLIKELY(!ec))
      return;
 
+   e_mod_pol_wl_win_brightness_apply(ec);
+
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_client_del(ec);
 #endif
@@ -525,6 +528,8 @@ _pol_cb_hook_client_visibility(void *d EINA_UNUSED, E_Client *ec)
           {
              e_mod_pol_client_iconify_by_visibility(ec);
           }
+
+        e_mod_pol_wl_win_brightness_apply(ec);
      }
 }
 
