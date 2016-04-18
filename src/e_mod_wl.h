@@ -34,5 +34,8 @@ void      e_mod_pol_wl_win_scrmode_apply(void);
 void      e_mod_pol_wl_aux_hint_init(void);
 void      e_mod_pol_wl_eval_pre_post_fetch(E_Client *ec);
 
+/* window brightness */
+Eina_Bool e_mod_pol_wl_win_brightness_apply(E_Client *ec);
+
 #endif /* HAVE_WAYLAND_ONLY */
 #endif /* E_MOD_WL_H */

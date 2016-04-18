@@ -11,6 +11,7 @@ Source0:    %{name}-%{version}.tar.bz2
 BuildRequires: pkgconfig(enlightenment)
 BuildRequires: pkgconfig(ttrace)
 BuildRequires: libsensord-devel
+BuildRequires: pkgconfig(capi-system-device)
 %if %{with x}
 BuildRequires: pkgconfig(x11)
 %endif
