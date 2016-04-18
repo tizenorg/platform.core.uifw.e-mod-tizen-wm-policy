@@ -3400,7 +3400,7 @@ _tzlaunchimg_iface_cb_destroy(struct wl_client *client EINA_UNUSED, struct wl_re
 }
 
 static void
-_tzlaunchimg_iface_cb_launch(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzlaunchimg, const char *pfname, uint32_t ftype, uint32_t indicator, uint32_t angle)
+_tzlaunchimg_iface_cb_launch(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzlaunchimg, const char *pfname, uint32_t ftype, uint32_t angle, uint32_t indicator)
 {
    Pol_Wl_Tzlaunch_Img *tzlaunchimg;
    Evas_Load_Error err;
