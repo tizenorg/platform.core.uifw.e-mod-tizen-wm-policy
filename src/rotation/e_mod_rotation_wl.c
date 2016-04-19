@@ -18,6 +18,7 @@
  * license.
  */
 #include "e_mod_rotation_wl.h"
+#include "e_mod_rotation_private.h"
 
 #ifdef HAVE_WAYLAND_ONLY
 
@@ -236,6 +237,9 @@ _e_tizen_rotation_ack_angle_change_cb(struct wl_client *client,
         ec->e.state.rot.ang.prev = ec->e.state.rot.ang.curr;
         ec->e.state.rot.ang.curr = TIZEN_ROTATION_ANGLE_TO_INT(rot->cur_angle);
 
+        EINF(ec, "Rotation Done: prev %d cur %d",
+             ec->e.state.rot.ang.prev, ec->e.state.rot.ang.curr);
+
         if (TIZEN_ROTATION_ANGLE_TO_INT(rot->cur_angle) == ec->e.state.rot.ang.next)
           {
              ec->e.state.rot.ang.next = -1;
@@ -363,6 +367,7 @@ _e_tizen_rotation_send_angle_change(E_Client *ec, int angle)
    rot->cur_angle = tz_angle;
    rot->serial = serial;
 
+   EINF(ec, "Event Change Rotation: angle %d", angle);
    EINA_LIST_FOREACH(rot->rotation_list, l, resource)
      {
         tizen_rotation_send_angle_change(resource, tz_angle, serial);
@@ -507,6 +512,7 @@ _e_client_rotation_change_done(void)
 static Eina_Bool
 _e_client_rotation_change_done_timeout(void *data __UNUSED__)
 {
+   INF("Timeout ROTATION_DONE");
    _e_client_rotation_change_done();
    return ECORE_CALLBACK_CANCEL;
 }
@@ -1272,6 +1278,9 @@ _rot_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec)
         if (_prev_preferred_rot != ec->e.state.rot.preferred_rot)
           ec->e.fetch.rot.need_rotation = EINA_TRUE;
 
+        EINF(ec, "Fetch Preferred: preferred (prev %d cur %d)",
+            _prev_preferred_rot, ec->e.state.rot.preferred_rot);
+
         ec->e.fetch.rot.preferred_rot = 0;
      }
    if (ec->e.fetch.rot.available_rots)
@@ -1343,6 +1352,26 @@ _rot_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec)
                }
            }
         /* check avilable_angles end*/
+
+        /* Print fetch information */
+          {
+             Eina_Strbuf *b = eina_strbuf_new();
+
+             EINF(ec, "Fetch Available");
+             if (_prev_count > 0)
+               {
+                  for (i = 0; i < _prev_count; i++)
+                    eina_strbuf_append_printf(b, "%d ", _prev_rots[i]);
+                  INF("\tprev %s", eina_strbuf_string_get(b));
+                  eina_strbuf_reset(b);
+               }
+
+             for (i = 0; i < count; i++)
+               eina_strbuf_append_printf(b, "%d ", rots[i]);
+             INF("\tcur %s", eina_strbuf_string_get(b));
+
+             eina_strbuf_free(b);
+          }
 
         if (diff) ec->e.fetch.rot.need_rotation = EINA_TRUE;
         ec->e.fetch.rot.available_rots = 0;

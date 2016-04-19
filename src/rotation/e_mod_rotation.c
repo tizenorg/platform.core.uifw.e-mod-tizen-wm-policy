@@ -19,11 +19,15 @@
  */
 #include "e_mod_rotation.h"
 #include "e_mod_utils.h"
+#include "e_mod_rotation_private.h"
 
 #ifdef HAVE_AUTO_ROTATION
 #include "e_mod_sensord.h"
 #endif
 
+const static char *_wr_log_dom_name = "e-rot";
+
+int _wr_log_dom = -1;
 static Eina_List *_event_handlers = NULL;
 
 /* externally accessible functions */
@@ -108,6 +112,13 @@ _e_mod_pol_rotation_cb_idle_exiter(void *data EINA_UNUSED)
 EINTERN void
 e_mod_pol_rotation_init(void)
 {
+   if (!eina_init())
+     return;
+
+   _wr_log_dom = eina_log_domain_register(_wr_log_dom_name, EINA_COLOR_GREEN);
+   if (_wr_log_dom < 0)
+     goto err_log;
+
 #ifdef HAVE_AUTO_ROTATION
    e_mod_sensord_init();
 #endif
@@ -130,6 +141,9 @@ e_mod_pol_rotation_init(void)
          */
         ecore_idle_exiter_add(_e_mod_pol_rotation_cb_idle_exiter, NULL);
      }
+
+err_log:
+   eina_shutdown();
 }
 
 EINTERN void
@@ -143,4 +157,7 @@ e_mod_pol_rotation_shutdown(void)
 #endif
 
   E_FREE_LIST(_event_handlers, ecore_event_handler_del);
+
+  eina_log_domain_unregister(_wr_log_dom);
+  eina_shutdown();
 }
