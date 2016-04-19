@@ -138,14 +138,12 @@ static void       e_zone_rotation_sub_set(E_Zone *zone, int rotation) EINA_UNUSE
 /* e_client event, hook, intercept callbacks */
 static Eina_Bool _rot_cb_zone_rotation_change_begin(void *data EINA_UNUSED, int ev_type EINA_UNUSED, E_Event_Zone_Rotation_Change_Begin *ev);
 static void      _rot_hook_new_client(void *d EINA_UNUSED, E_Client *ec);
-static void      _rot_hook_new_client_post(void *d EINA_UNUSED, E_Client *ec);
 static void      _rot_hook_client_del(void *d EINA_UNUSED, E_Client *ec);
 static void      _rot_hook_eval_end(void *d EINA_UNUSED, E_Client *ec);
 static void      _rot_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec);
 static Eina_Bool _rot_intercept_hook_show_helper(void *d EINA_UNUSED, E_Client *ec);
 static Eina_Bool _rot_intercept_hook_hide(void *d EINA_UNUSED, E_Client *ec);
 static Eina_Bool _rot_cb_idle_enterer(void *data EINA_UNUSED);
-static void      _rot_cb_evas_show(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event_info EINA_UNUSED);
 
 /* local subsystem functions */
 static Policy_Ext_Rotation*
@@ -1202,6 +1200,26 @@ _rot_cb_zone_rotation_change_begin(void *data EINA_UNUSED, int ev_type EINA_UNUS
    return ECORE_CALLBACK_RENEW;
 }
 
+static Eina_Bool
+_rot_cb_buffer_change(void *data EINA_UNUSED, int ev_type EINA_UNUSED, E_Event_Client *ev)
+{
+   if (EINA_UNLIKELY(!ev))
+     goto end;
+
+   if (EINA_UNLIKELY(!ev->ec))
+     goto end;
+
+   if (ev->ec->e.state.rot.pending_show)
+     {
+        DBG("Buffer Changed: force add update list to send frame until pending show");
+        /* consider e_pixmap_image_clear() instead of update_add() */
+        e_comp_post_update_add(ev->ec);
+     }
+
+end:
+   return ECORE_CALLBACK_RENEW;
+}
+
 static void
 _rot_hook_new_client(void *d EINA_UNUSED, E_Client *ec)
 {
@@ -1225,15 +1243,6 @@ _rot_hook_new_client(void *d EINA_UNUSED, E_Client *ec)
 
    if (rot->available_angles)
      ec->e.fetch.rot.available_rots = 1;
-}
-
-static void
-_rot_hook_new_client_post(void *d EINA_UNUSED, E_Client *ec)
-{
-   if (!ec->frame)
-      return;
-
-   evas_object_event_callback_add(ec->frame, EVAS_CALLBACK_SHOW, _rot_cb_evas_show, ec);
 }
 
 static void
@@ -1443,13 +1452,19 @@ _rot_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec)
 static Eina_Bool
 _rot_intercept_hook_show_helper(void *d EINA_UNUSED, E_Client *ec)
 {
-   // newly created window that has to be rotated will be shown after rotation done.
-   // so, skip at this time. it will be called again after GETTING ROT_DONE.
+   if (ec->e.state.rot.pending_show)
+     return EINA_FALSE;
 
-   //TODO: Check below code is really need?
-   if (ec->e.state.rot.ang.next != -1)
+   DBG("Rotation Zone Set: Intercept Show");
+   _e_client_rotation_zone_set(ec->zone, ec);
+   if (ec->changes.rotation)
      {
+        EINF(ec, "Postpone show: ang %d", ec->e.state.rot.ang.next);
+        /* consider e_pixmap_image_clear() instead of update_add() */
+        e_comp_post_update_add(ec);
         ec->e.state.rot.pending_show = 1;
+        /* to be invoked 'eval_end' */
+        EC_CHANGED(ec);
         return EINA_FALSE;
      }
 
@@ -1534,20 +1549,6 @@ _rot_cb_idle_enterer(void *data EINA_UNUSED)
    return ECORE_CALLBACK_RENEW;
 }
 
-static void
-_rot_cb_evas_show(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event_info EINA_UNUSED)
-{
-   E_Client *ec = data;
-   if (!ec->iconic)
-     {
-        if (ec->e.state.rot.support)
-          {
-             if (ec->e.state.rot.ang.next == -1)
-               _e_client_rotation_zone_set(ec->zone, ec);
-          }
-     }
-}
-
 #undef E_CLIENT_HOOK_APPEND
 #define E_CLIENT_HOOK_APPEND(l, t, cb, d) \
   do                                      \
@@ -1590,11 +1591,11 @@ e_mod_rot_wl_init(void)
 
    E_LIST_HANDLER_APPEND(rot_handlers, E_EVENT_ZONE_ROTATION_CHANGE_BEGIN,
                          _rot_cb_zone_rotation_change_begin, NULL);
+   E_LIST_HANDLER_APPEND(rot_handlers, E_EVENT_CLIENT_BUFFER_CHANGE,
+                         _rot_cb_buffer_change, NULL);
 
    E_CLIENT_HOOK_APPEND(rot_hooks, E_CLIENT_HOOK_NEW_CLIENT,
                         _rot_hook_new_client, NULL);
-   E_CLIENT_HOOK_APPEND(rot_hooks, E_CLIENT_HOOK_NEW_CLIENT_POST,
-                        _rot_hook_new_client_post, NULL);
    E_CLIENT_HOOK_APPEND(rot_hooks, E_CLIENT_HOOK_DEL,
                         _rot_hook_client_del, NULL);
    E_CLIENT_HOOK_APPEND(rot_hooks, E_CLIENT_HOOK_EVAL_END,
