@@ -537,8 +537,7 @@ _e_client_rotation_is_dependent_parent(const E_Client *ec)
    if (!ec) return EINA_FALSE;
    if ((!ec->parent) || (!evas_object_visible_get(ec->parent->frame))) return EINA_FALSE;
    if (ec->netwm.type == E_WINDOW_TYPE_NORMAL) return EINA_FALSE;
-   if ((!ec->e.state.rot.support) &&
-       (!ec->e.state.rot.app_set)) return EINA_FALSE;
+   if (!ec->e.state.rot.support) return EINA_FALSE;
    return EINA_TRUE;
 }
 
@@ -677,7 +676,7 @@ e_client_rotation_is_available(const E_Client *ec, int ang)
    if (!ec) return EINA_FALSE;
 
    if (ang < 0) goto fail;
-   if ((!ec->e.state.rot.support) && (!ec->e.state.rot.app_set)) goto fail;
+   if (!ec->e.state.rot.support) goto fail;
    if (e_object_is_del(E_OBJECT(ec))) goto fail;
 
    if (ec->e.state.rot.preferred_rot == -1)
@@ -877,7 +876,7 @@ e_client_rotation_recommend_angle_get(const E_Client *ec)
    zone = ec->zone;
 
    if (ec->e.state.rot.type == E_CLIENT_ROTATION_TYPE_DEPENDENT) goto end;
-   if ((!ec->e.state.rot.app_set) && (!ec->e.state.rot.support)) goto end;
+   if (!ec->e.state.rot.support) goto end;
 
    if (ec->e.state.rot.preferred_rot != -1)
      {
@@ -1158,19 +1157,11 @@ _rot_hook_new_client(void *d EINA_UNUSED, E_Client *ec)
    rot = eina_hash_find(hash_policy_ext_rotation, &ec);
    if (!rot) return;
 
-   ec->e.fetch.rot.support = 1;
-
    if (rot->preferred_angle)
-     {
-        ec->e.fetch.rot.app_set = 1;
-        ec->e.fetch.rot.preferred_rot = 1;
-     }
+     ec->e.fetch.rot.preferred_rot = 1;
 
    if (rot->available_angles)
-     {
-        ec->e.fetch.rot.app_set = 1;
-        ec->e.fetch.rot.available_rots = 1;
-     }
+     ec->e.fetch.rot.available_rots = 1;
 }
 
 static void
@@ -1191,7 +1182,6 @@ _rot_hook_client_del(void *d EINA_UNUSED, E_Client *ec)
    _e_client_rotation_list_remove(ec);
    if (rot.async_list) rot.async_list = eina_list_remove(rot.async_list, ec);
 
-   ec->e.fetch.rot.app_set = 0;
    ec->e.state.rot.preferred_rot = -1;
 
    if (ec->e.state.rot.available_rots)
@@ -1490,7 +1480,7 @@ _rot_cb_evas_show(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED,
    E_Client *ec = data;
    if (!ec->iconic)
      {
-        if ((ec->e.state.rot.support) || (ec->e.state.rot.app_set))
+        if (ec->e.state.rot.support)
           {
              if (ec->e.state.rot.ang.next == -1)
                {
