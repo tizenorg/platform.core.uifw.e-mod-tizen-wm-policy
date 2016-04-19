@@ -827,6 +827,8 @@ e_mod_quickpanel_client_set(E_Client *ec)
    // set skip iconify
    ec->exp_iconify.skip_iconify = 1;
 
+   ec->e.state.rot.type = E_CLIENT_ROTATION_TYPE_DEPENDENT;
+
    QP_HIDE(ec);
 
    // to avoid that quickpanel is shawn, when it's first launched. */
