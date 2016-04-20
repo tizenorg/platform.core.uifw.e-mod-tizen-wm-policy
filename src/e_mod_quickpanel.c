@@ -4,6 +4,7 @@
 #include "e_mod_indicator.h"
 #include "e_mod_gesture.h"
 #include "e_mod_transit.h"
+#include "e_mod_rotation.h"
 
 #define SMART_NAME            "quickpanel_object"
 #define INTERNAL_ENTRY                    \
@@ -95,6 +96,7 @@ struct _Mover_Effect_Data
 };
 
 static Pol_Quickpanel *_pol_quickpanel = NULL;
+static Eina_List *_quickpanel_events = NULL;
 static Eina_List *_quickpanel_hooks = NULL;
 static Evas_Smart *_mover_smart = NULL;
 
@@ -122,6 +124,11 @@ _mover_intercept_show(void *data, Evas_Object *obj)
    e = evas_object_evas_get(obj);
 
    QP_SHOW(ec);
+
+   /* force update */
+   e_comp_object_damage(ec->frame, 0, 0, ec->w, ec->h);
+   e_comp_object_dirty(ec->frame);
+   e_comp_object_render(ec->frame);
 
    // create base_clip
    md->base_clip = evas_object_rectangle_add(e);
@@ -203,6 +210,8 @@ _mover_smart_del(Evas_Object *obj)
    evas_object_color_set(ec->frame, ec->netwm.opacity, ec->netwm.opacity, ec->netwm.opacity, ec->netwm.opacity);
 
    md->qp->mover = NULL;
+
+   e_zone_rotation_block_set(md->qp->ec->zone, "quickpanel-mover", EINA_FALSE);
 
    free(md);
 }
@@ -314,6 +323,8 @@ _mover_obj_new(Pol_Quickpanel *qp)
    evas_object_show(mover);
 
    qp->mover = mover;
+
+   e_zone_rotation_block_set(qp->ec->zone, "quickpanel-mover", EINA_TRUE);
 
    return mover;
 }
@@ -774,6 +785,46 @@ _quickpanel_client_evas_cb_show_block(void *data, Evas *evas, Evas_Object *qp_ob
      }
 }
 
+static Eina_Bool
+_quickpanel_cb_buffer_change(void *data, int type, void *event)
+{
+   E_Event_Client *ev = event;
+   E_Client *ec;
+
+   ec = ev->ec;
+   if (ec != e_mod_quickpanel_client_get())
+     goto end;
+
+   if (ec->visible)
+     goto end;
+
+   e_comp_client_post_update_add(ec);
+
+end:
+   return ECORE_CALLBACK_PASS_ON;
+}
+
+static Eina_Bool
+_quickpanel_cb_rotation_done(void *data, int type, void *event)
+{
+   E_Event_Client *ev = event;
+   E_Client *ec;
+
+   ec = ev->ec;
+   if (ec != e_mod_quickpanel_client_get())
+     goto end;
+
+   if (!ec->visible)
+     goto end;
+
+   /* force update */
+   e_comp_object_damage(ec->frame, 0, 0, ec->w, ec->h);
+   e_comp_object_dirty(ec->frame);
+
+end:
+   return ECORE_CALLBACK_PASS_ON;
+}
+
 #undef E_CLIENT_HOOK_APPEND
 #define E_CLIENT_HOOK_APPEND(l, t, cb, d) \
   do                                      \
@@ -828,6 +879,7 @@ e_mod_quickpanel_client_set(E_Client *ec)
    ec->exp_iconify.skip_iconify = 1;
 
    ec->e.state.rot.type = E_CLIENT_ROTATION_TYPE_DEPENDENT;
+   e_mod_pol_rotation_force_update_add(ec);
 
    QP_HIDE(ec);
 
@@ -837,6 +889,9 @@ e_mod_quickpanel_client_set(E_Client *ec)
 
    E_CLIENT_HOOK_APPEND(_quickpanel_hooks, E_CLIENT_HOOK_DEL,
                         _quickpanel_hook_client_del, NULL);
+
+   E_LIST_HANDLER_APPEND(_quickpanel_events, E_EVENT_CLIENT_BUFFER_CHANGE,       _quickpanel_cb_buffer_change, NULL);
+   E_LIST_HANDLER_APPEND(_quickpanel_events, E_EVENT_CLIENT_ROTATION_CHANGE_END, _quickpanel_cb_rotation_done, NULL);
 
    _pol_quickpanel = pol_qp;
 }
