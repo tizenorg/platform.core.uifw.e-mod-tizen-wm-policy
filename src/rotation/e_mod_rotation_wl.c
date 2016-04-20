@@ -17,6 +17,7 @@
  * Please, see the COPYING file for the original copyright owner and
  * license.
  */
+#include "e_mod_main.h"
 #include "e_mod_rotation_wl.h"
 #include "e_mod_rotation_private.h"
 
@@ -47,6 +48,7 @@ struct _E_Client_Rotation
 {
    Eina_List     *list;
    Eina_List     *async_list;
+   Eina_List     *force_update_list;
    Ecore_Timer   *done_timer;
    Eina_Bool      screen_lock;
    Eina_Bool      fetch;
@@ -61,6 +63,7 @@ struct _E_Client_Rotation
 /* local subsystem variables */
 static E_Client_Rotation rot =
 {
+   NULL,
    NULL,
    NULL,
    NULL,
@@ -526,6 +529,12 @@ _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec)
      }
 
 do_rotate:
+   EINA_LIST_FOREACH(rot.force_update_list, l, ec)
+     {
+        if (!eina_list_data_find(target_list, ec))
+          target_list = eina_list_append(target_list, ec);
+     }
+
    EINA_LIST_FOREACH(target_list, l, ec)
       ret = e_client_rotation_set(ec, angle);
 
@@ -1213,7 +1222,7 @@ _rot_cb_buffer_change(void *data EINA_UNUSED, int ev_type EINA_UNUSED, E_Event_C
      {
         DBG("Buffer Changed: force add update list to send frame until pending show");
         /* consider e_pixmap_image_clear() instead of update_add() */
-        e_comp_post_update_add(ev->ec);
+        e_comp_client_post_update_add(ev->ec);
      }
 
 end:
@@ -1461,7 +1470,7 @@ _rot_intercept_hook_show_helper(void *d EINA_UNUSED, E_Client *ec)
      {
         EINF(ec, "Postpone show: ang %d", ec->e.state.rot.ang.next);
         /* consider e_pixmap_image_clear() instead of update_add() */
-        e_comp_post_update_add(ec);
+        e_comp_client_post_update_add(ec);
         ec->e.state.rot.pending_show = 1;
         /* to be invoked 'eval_end' */
         EC_CHANGED(ec);
@@ -1620,6 +1629,7 @@ e_mod_rot_wl_shutdown(void)
 {
 #ifdef HAVE_WAYLAND_ONLY
    E_FREE_FUNC(hash_policy_ext_rotation, eina_hash_free);
+   E_FREE_FUNC(rot.force_update_list, eina_list_free);
 
    E_FREE_LIST(rot_hooks, e_client_hook_del);
    E_FREE_LIST(rot_handlers, ecore_event_handler_del);
@@ -1631,4 +1641,16 @@ e_mod_rot_wl_shutdown(void)
          rot_idle_enterer = NULL;
      }
 #endif
+}
+
+EINTERN void
+e_mod_pol_rotation_force_update_add(E_Client *ec)
+{
+   rot.force_update_list = eina_list_append(rot.force_update_list, ec);
+}
+
+EINTERN void
+e_mod_pol_rotation_force_update_del(E_Client *ec)
+{
+   rot.force_update_list = eina_list_remove(rot.force_update_list, ec);
 }
