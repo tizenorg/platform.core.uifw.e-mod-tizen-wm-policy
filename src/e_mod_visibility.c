@@ -77,6 +77,10 @@ _e_mod_pol_client_iconify_by_visibility(E_Client *ec)
    if (ec->iconic) return;
    if (ec->exp_iconify.by_client) return;
    if (ec->exp_iconify.skip_iconify) return;
+#ifdef HAVE_WAYLAND_ONLY
+   E_Comp_Wl_Client_Data *cdata = (E_Comp_Wl_Client_Data *)ec->comp_data;
+   if (cdata && !cdata->mapped) return;
+#endif
 
    if (e_config->transient.iconify)
      {
@@ -111,6 +115,10 @@ _e_mod_pol_client_uniconify_by_visibility(E_Client *ec)
    if (!ec->iconic) return;
    if (ec->exp_iconify.by_client) return;
    if (ec->exp_iconify.skip_iconify) return;
+#ifdef HAVE_WAYLAND_ONLY
+   E_Comp_Wl_Client_Data *cdata = (E_Comp_Wl_Client_Data *)ec->comp_data;
+   if (cdata && !cdata->mapped) return;
+#endif
 
    ELOGF("UNICONIFY_BY_WM", "win:0x%08x", ec->pixmap, ec, e_client_util_win_get(ec));
    ec->exp_iconify.not_raise = 1;
