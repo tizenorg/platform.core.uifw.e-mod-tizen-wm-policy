@@ -26,6 +26,8 @@ static void        _pol_client_del(Pol_Client *pc);
 static Eina_Bool   _pol_client_normal_check(E_Client *ec);
 static void        _pol_client_maximize_policy_apply(Pol_Client *pc);
 static void        _pol_client_maximize_policy_cancel(Pol_Client *pc);
+static void        _pol_client_floating_policy_apply(Pol_Client *pc);
+static void        _pol_client_floating_policy_cancel(Pol_Client *pc);
 static void        _pol_client_launcher_set(Pol_Client *pc);
 
 static void        _pol_cb_hook_client_eval_pre_new_client(void *d EINA_UNUSED, E_Client *ec);
@@ -137,6 +139,13 @@ _pol_client_normal_check(E_Client *ec)
      goto cancel_max;
    else if (!e_util_strcmp("e_demo", ec->icccm.window_role))
      goto cancel_max;
+   else if (e_mod_pol_client_is_floating(ec))
+     {
+        pc = eina_hash_find(hash_pol_clients, &ec);
+        _pol_client_maximize_policy_cancel(pc);
+        _pol_client_floating_policy_apply(pc);
+        return EINA_FALSE;
+     }
 #ifdef HAVE_WAYLAND_ONLY
    else if (e_mod_pol_client_is_subsurface(ec))
      goto cancel_max;
@@ -320,6 +329,84 @@ _pol_client_maximize_policy_cancel(Pol_Client *pc)
 }
 
 static void
+_pol_client_floating_policy_apply(Pol_Client *pc)
+{
+   E_Client *ec;
+
+   if (pc->flt_policy_state) return;
+
+   pc->flt_policy_state = EINA_TRUE;
+   ec = pc->ec;
+
+#undef _SET
+# define _SET(a) pc->orig.a = pc->ec->a
+   _SET(fullscreen);
+   _SET(lock_client_stacking);
+   _SET(lock_user_shade);
+   _SET(lock_client_shade);
+   _SET(lock_user_maximize);
+   _SET(lock_client_maximize);
+   _SET(lock_user_fullscreen);
+   _SET(lock_client_fullscreen);
+#undef _SET
+
+   ec->skip_fullscreen = 1;
+   ec->lock_client_stacking = 1;
+   ec->lock_user_shade = 1;
+   ec->lock_client_shade = 1;
+   ec->lock_user_maximize = 1;
+   ec->lock_client_maximize = 1;
+   ec->lock_user_fullscreen = 1;
+   ec->lock_client_fullscreen = 1;
+}
+
+static void
+_pol_client_floating_policy_cancel(Pol_Client *pc)
+{
+   E_Client *ec;
+   Eina_Bool changed = EINA_FALSE;
+
+   if (!pc->flt_policy_state) return;
+
+   pc->flt_policy_state = EINA_FALSE;
+   ec = pc->ec;
+
+   if ((pc->orig.fullscreen != ec->fullscreen) &&
+       (pc->orig.fullscreen))
+     {
+        ec->need_fullscreen = 1;
+        changed = EINA_TRUE;
+     }
+
+   if (pc->orig.maximized != ec->maximized)
+     {
+        if (pc->orig.maximized)
+          ec->changes.need_maximize = 1;
+        else
+          e_client_unmaximize(ec, ec->maximized);
+
+        changed = EINA_TRUE;
+     }
+
+   ec->skip_fullscreen = 0;
+
+#undef _SET
+# define _SET(a) ec->a = pc->orig.a
+   _SET(fullscreen);
+   _SET(lock_client_stacking);
+   _SET(lock_user_shade);
+   _SET(lock_client_shade);
+   _SET(lock_user_maximize);
+   _SET(lock_client_maximize);
+   _SET(lock_user_fullscreen);
+   _SET(lock_client_fullscreen);
+#undef _SET
+
+   if (changed)
+     EC_CHANGED(pc->ec);
+}
+
+static void
 _pol_cb_hook_client_new(void *d EINA_UNUSED, E_Client *ec)
 {
    if (EINA_UNLIKELY(!ec))
@@ -376,6 +463,14 @@ _pol_cb_hook_client_eval_pre_new_client(void *d EINA_UNUSED, E_Client *ec)
              ELOGF("NOTI", "         |ec->layer:%d object->layer:%d", ec->pixmap, ec, ec->layer, ly);
              if (ly != ec->layer)
                evas_object_layer_set(ec->frame, ec->layer);
+          }
+     }
+   if (e_mod_pol_client_is_floating(ec))
+     {
+        if (ec->frame)
+          {
+             if (ec->layer != E_LAYER_CLIENT_ABOVE)
+               evas_object_layer_set(ec->frame, E_LAYER_CLIENT_ABOVE);
           }
      }
 }
@@ -436,6 +531,15 @@ _pol_cb_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec)
         return;
      }
 
+   if (e_mod_pol_client_is_floating(ec))
+     {
+        Pol_Client *pc;
+        pc = eina_hash_find(hash_pol_clients, &ec);
+        _pol_client_maximize_policy_cancel(pc);
+        _pol_client_floating_policy_apply(pc);
+        return;
+     }
+
    if (e_mod_pol_client_is_noti(ec))
      e_client_util_move_without_frame(ec, 0, 0);
 
@@ -445,6 +549,10 @@ _pol_cb_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec)
    if (!pd) return;
 
    pc = eina_hash_find(hash_pol_clients, &ec);
+
+   if (pc->flt_policy_state)
+     _pol_client_floating_policy_cancel(pc);
+
    _pol_client_maximize_policy_apply(pc);
 }
 
@@ -1143,6 +1251,20 @@ e_mod_pol_client_is_subsurface(E_Client *ec)
    return EINA_FALSE;
 }
 #endif
+
+Eina_Bool
+e_mod_pol_client_is_floating(E_Client *ec)
+{
+   Pol_Client *pc;
+
+   E_OBJECT_CHECK_RETURN(ec, EINA_FALSE);
+   E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, EINA_FALSE);
+
+   if (EINA_UNLIKELY(!ec))
+     return EINA_FALSE;
+
+   return ec->floating;
+}
 
 static Eina_Bool
 _pol_cb_module_defer_job(void *data EINA_UNUSED)
