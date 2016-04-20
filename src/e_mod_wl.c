@@ -1047,6 +1047,7 @@ _tzpos_iface_cb_set(struct wl_client *client EINA_UNUSED, struct wl_resource *re
      {
         ec->x = ec->client.x = x;
         ec->y = ec->client.y = y;
+        ec->placed = 1;
      }
 }
 
