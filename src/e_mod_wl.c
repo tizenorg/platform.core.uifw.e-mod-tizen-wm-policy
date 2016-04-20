@@ -2253,6 +2253,50 @@ _tzpol_iface_cb_background_state_unset(struct wl_client *client EINA_UNUSED, str
      }
 }
 
+static void
+_pol_wl_floating_mode_apply(E_Client *ec, Eina_Bool floating)
+{
+   if (ec->floating == floating) return;
+
+   ec->floating = floating;
+
+   if (ec->frame)
+     {
+        if (floating)
+          evas_object_layer_set(ec->frame, E_LAYER_CLIENT_ABOVE);
+        else
+          evas_object_layer_set(ec->frame, E_LAYER_CLIENT_NORMAL);
+     }
+
+   EC_CHANGED(ec);
+}
+
+static void
+_tzpol_iface_cb_floating_mode_set(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf)
+{
+   E_Client *ec;
+
+   ec = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
+
+   ELOGF("TZPOL", "FLOATING Set", ec, ec->pixmap);
+
+   _pol_wl_floating_mode_apply(ec, EINA_TRUE);
+}
+
+static void
+_tzpol_iface_cb_floating_mode_unset(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf)
+{
+   E_Client *ec;
+
+   ec = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
+
+   ELOGF("TZPOL", "FLOATING Unset", ec, ec->pixmap);
+
+   _pol_wl_floating_mode_apply(ec, EINA_FALSE);
+}
+
 // --------------------------------------------------------
 // Pol_Wl_Tz_Dpy_Pol
 // --------------------------------------------------------
@@ -2588,6 +2632,8 @@ static const struct tizen_policy_interface _tzpol_iface =
    _tzpol_iface_cb_supported_aux_hints_get,
    _tzpol_iface_cb_background_state_set,
    _tzpol_iface_cb_background_state_unset,
+   _tzpol_iface_cb_floating_mode_set,
+   _tzpol_iface_cb_floating_mode_unset,
 };
 
 static void
