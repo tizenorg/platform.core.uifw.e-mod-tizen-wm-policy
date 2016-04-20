@@ -53,6 +53,7 @@ struct _Pol_Client
    } changes;
 
    Eina_Bool max_policy_state;
+   Eina_Bool flt_policy_state;
    Eina_Bool allow_user_geom;
    int       user_geom_ref;
 };
@@ -151,6 +152,7 @@ EINTERN Eina_Bool        e_mod_pol_client_is_conformant(E_Client *ec);
 EINTERN Eina_Bool        e_mod_pol_client_is_volume(E_Client *ec);
 EINTERN Eina_Bool        e_mod_pol_client_is_volume_tv(E_Client *ec);
 EINTERN Eina_Bool        e_mod_pol_client_is_noti(E_Client *ec);
+EINTERN Eina_Bool        e_mod_pol_client_is_floating(E_Client *ec);
 #ifdef HAVE_WAYLAND_ONLY
 EINTERN Eina_Bool        e_mod_pol_client_is_subsurface(E_Client *ec);
 #endif
