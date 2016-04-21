@@ -17,7 +17,9 @@
  * Please, see the COPYING file for the original copyright owner and
  * license.
  */
+#include "e_mod_main.h"
 #include "e_mod_rotation_wl.h"
+#include "e_mod_rotation_private.h"
 
 #ifdef HAVE_WAYLAND_ONLY
 
@@ -46,6 +48,7 @@ struct _E_Client_Rotation
 {
    Eina_List     *list;
    Eina_List     *async_list;
+   Eina_List     *force_update_list;
    Ecore_Timer   *done_timer;
    Eina_Bool      screen_lock;
    Eina_Bool      fetch;
@@ -60,6 +63,7 @@ struct _E_Client_Rotation
 /* local subsystem variables */
 static E_Client_Rotation rot =
 {
+   NULL,
    NULL,
    NULL,
    NULL,
@@ -104,7 +108,7 @@ static const struct tizen_policy_ext_interface _e_tizen_policy_ext_interface =
 
 /* local subsystem e_client_rotation related functions */
 static void      _e_client_rotation_list_remove(E_Client *ec);
-static Eina_Bool _e_client_rotation_zone_set(E_Zone *zone);
+static Eina_Bool _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec);
 static void      _e_client_rotation_change_done(void);
 static Eina_Bool _e_client_rotation_change_done_timeout(void *data);
 static void      _e_client_rotation_change_message_send(E_Client *ec);
@@ -137,14 +141,12 @@ static void       e_zone_rotation_sub_set(E_Zone *zone, int rotation) EINA_UNUSE
 /* e_client event, hook, intercept callbacks */
 static Eina_Bool _rot_cb_zone_rotation_change_begin(void *data EINA_UNUSED, int ev_type EINA_UNUSED, E_Event_Zone_Rotation_Change_Begin *ev);
 static void      _rot_hook_new_client(void *d EINA_UNUSED, E_Client *ec);
-static void      _rot_hook_new_client_post(void *d EINA_UNUSED, E_Client *ec);
 static void      _rot_hook_client_del(void *d EINA_UNUSED, E_Client *ec);
 static void      _rot_hook_eval_end(void *d EINA_UNUSED, E_Client *ec);
 static void      _rot_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec);
 static Eina_Bool _rot_intercept_hook_show_helper(void *d EINA_UNUSED, E_Client *ec);
 static Eina_Bool _rot_intercept_hook_hide(void *d EINA_UNUSED, E_Client *ec);
 static Eina_Bool _rot_cb_idle_enterer(void *data EINA_UNUSED);
-static void      _rot_cb_evas_show(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event_info EINA_UNUSED);
 
 /* local subsystem functions */
 static Policy_Ext_Rotation*
@@ -236,6 +238,9 @@ _e_tizen_rotation_ack_angle_change_cb(struct wl_client *client,
         ec->e.state.rot.ang.prev = ec->e.state.rot.ang.curr;
         ec->e.state.rot.ang.curr = TIZEN_ROTATION_ANGLE_TO_INT(rot->cur_angle);
 
+        EINF(ec, "Rotation Done: prev %d cur %d",
+             ec->e.state.rot.ang.prev, ec->e.state.rot.ang.curr);
+
         if (TIZEN_ROTATION_ANGLE_TO_INT(rot->cur_angle) == ec->e.state.rot.ang.next)
           {
              ec->e.state.rot.ang.next = -1;
@@ -255,8 +260,8 @@ _e_tizen_rotation_ack_angle_change_cb(struct wl_client *client,
      }
    else // rotation fail
      {
-        int angle = e_client_rotation_recommend_angle_get(ec);
-        if (angle != -1) e_client_rotation_set(ec, angle);
+        DBG("Rotation Zone Set: Rotation Done(fail case)");
+        _e_client_rotation_zone_set(ec->zone, ec);
      }
 
    // check angle change serial
@@ -363,6 +368,7 @@ _e_tizen_rotation_send_angle_change(E_Client *ec, int angle)
    rot->cur_angle = tz_angle;
    rot->serial = serial;
 
+   EINF(ec, "Send Change Rotation: angle %d", angle);
    EINA_LIST_FOREACH(rot->rotation_list, l, resource)
      {
         tizen_rotation_send_angle_change(resource, tz_angle, serial);
@@ -413,59 +419,132 @@ _e_client_rotation_list_remove(E_Client *ec)
    ec->changes.rotation = 0;
 }
 
+/* TODO need to optimize */
 static Eina_Bool
-_e_client_rotation_zone_set(E_Zone *zone)
+_e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec)
 {
-   E_Client *ec = NULL;
-   Eina_Bool res = EINA_FALSE;
-   Eina_Bool ret = EINA_FALSE;
-   E_Zone *ez;
-   Eina_List *zl;
+   E_Client *ec;
+   Eina_List *target_list = NULL, *l;
+   int i, angle;
+   Eina_Bool can_rotate = EINA_TRUE, ret = EINA_FALSE;
 
    TRACE_DS_BEGIN(CLIENT ROTATION ZONE SET);
 
-   /* step 1. make the list needs to be rotated. */
-   EINA_LIST_FOREACH(e_comp->zones, zl, ez)
+   if (include_ec)
+     target_list = eina_list_append(target_list, include_ec);
+
+   INF("<<< Try to set zone rotation");
+   E_CLIENT_REVERSE_FOREACH(ec)
      {
-        Eina_List *l;
-
-        if (ez != zone) continue;
-
-        EINA_LIST_REVERSE_FOREACH(e_comp->clients, l, ec)
+        if (ec->zone != zone) continue;
+        if (!ec->visible) continue;
+        if (e_object_is_del(E_OBJECT(ec))) continue;
+        if (!e_util_strcmp("wl_pointer-cursor", ec->icccm.window_role))
           {
-             if (!e_util_strcmp("wl_pointer-cursor", ec->icccm.window_role))
-               {
-                  e_client_cursor_map_apply(ec, zone->rot.curr, ec->x, ec->y);
-                  continue;
-               }
-             if((!ec->zone) || (ec->zone != zone)) continue;
+             e_client_cursor_map_apply(ec, zone->rot.curr, ec->x, ec->y);
+             continue;
+          }
 
-             // if this window has parent and window type isn't "E_WINDOW_TYPE_NORMAL",
-             // it will be rotated when parent do rotate itself.
-             // so skip here.
-             if ((ec->parent) &&
-                 (ec->netwm.type != E_WINDOW_TYPE_NORMAL)) continue;
+        EINF(ec, "Append to rotation target list");
+        target_list = eina_list_append(target_list, ec);
 
-             // default type is "E_CLIENT_ROTATION_TYPE_NORMAL",
-             // but it can be changed to "E_CLIENT_ROTATION_TYPE_DEPENDENT" by illume according to its policy.
-             // if it's not normal type window, will be rotated by illume.
-             // so skip here.
-             if (ec->e.state.rot.type != E_CLIENT_ROTATION_TYPE_NORMAL) continue;
-
-             if ((!evas_object_visible_get(ec->frame)) ||
-                 (!E_INTERSECTS(ec->zone->x, ec->zone->y, ec->zone->w, ec->zone->h,
-                                ec->x, ec->y, ec->w, ec->h))) continue;
-
-             res = e_client_rotation_set(ec, zone->rot.curr);
-             if (!res)
-               {
-                  ;
-               }
-             else ret = EINA_TRUE;
+        if ((ec->x == zone->x) && (ec->y == zone->y) &&
+            (ec->w == zone->w) && (ec->h == zone->h) &&
+            (ec->e.state.rot.type == E_CLIENT_ROTATION_TYPE_NORMAL))
+          {
+             EINF(ec, "Found Topmost Fullscreen Window");
+             break;
           }
      }
 
+   angle = zone->rot.curr;
+   EINA_LIST_FOREACH(target_list, l, ec)
+     {
+        if (!e_client_rotation_is_available(ec, angle))
+          {
+             EINF(ec, "Failed to set rotation with zone: not able to rotate given angle %d", angle);
+             angle = _e_client_rotation_curr_next_get(ec);
+             can_rotate = EINA_FALSE;
+             break;
+          }
+     }
+
+   if (!can_rotate)
+     {
+        can_rotate = EINA_TRUE;
+        EINA_LIST_FOREACH(target_list, l, ec)
+          {
+             if (!e_client_rotation_is_available(ec, angle))
+               {
+                  EINF(ec, "Failed to set with exist client: not able to rotate given angle %d", angle);
+                  can_rotate = EINA_FALSE;
+                  break;
+               }
+          }
+     }
+   else
+     {
+        INF("Set rotation of zone according to angle of zone: %d", angle);
+        goto do_rotate;
+     }
+
+   if (!can_rotate)
+     {
+        for (i = 0; i < 360; i += 90)
+          {
+             if ((i == zone->rot.curr) || (i == angle))
+               continue;
+
+             can_rotate = EINA_TRUE;
+
+             EINA_LIST_FOREACH(target_list, l, ec)
+               {
+                  if (!e_client_rotation_is_available(ec, i))
+                    {
+                       EINF(ec, "Failed to set zone rotation: not able to rotate given angle %d", i);
+                       can_rotate = EINA_FALSE;
+                       break;
+                    }
+               }
+
+             if (can_rotate == EINA_TRUE)
+               {
+                  angle = i;
+                  INF("Set rotation of zone according to common angle of clients: %d", angle);
+                  break;
+               }
+          }
+     }
+   else
+     {
+        INF("Set rotation of zone according to angle of exist clients: %d", angle);
+        goto do_rotate;
+     }
+
+
+   if (!can_rotate)
+     {
+        INF("Failed to find angle to be rotated");
+        goto end;
+     }
+
+do_rotate:
+   EINA_LIST_FOREACH(rot.force_update_list, l, ec)
+     {
+        if (!eina_list_data_find(target_list, ec))
+          target_list = eina_list_append(target_list, ec);
+     }
+
+   EINA_LIST_FOREACH(target_list, l, ec)
+      ret = e_client_rotation_set(ec, angle);
+
+end:
+   if (target_list)
+     eina_list_free(target_list);
+
    TRACE_DS_END();
+
+   INF("End to set zone rotation: %s >>>", ret ? "Change" : "Stay");
    return ret;
 }
 
@@ -507,6 +586,7 @@ _e_client_rotation_change_done(void)
 static Eina_Bool
 _e_client_rotation_change_done_timeout(void *data __UNUSED__)
 {
+   INF("Timeout ROTATION_DONE");
    _e_client_rotation_change_done();
    return ECORE_CALLBACK_CANCEL;
 }
@@ -531,8 +611,7 @@ _e_client_rotation_is_dependent_parent(const E_Client *ec)
    if (!ec) return EINA_FALSE;
    if ((!ec->parent) || (!evas_object_visible_get(ec->parent->frame))) return EINA_FALSE;
    if (ec->netwm.type == E_WINDOW_TYPE_NORMAL) return EINA_FALSE;
-   if ((!ec->e.state.rot.support) &&
-       (!ec->e.state.rot.app_set)) return EINA_FALSE;
+   if (!ec->e.state.rot.support) return EINA_FALSE;
    return EINA_TRUE;
 }
 
@@ -668,43 +747,36 @@ e_client_rotation_next_angle_get(const E_Client *ec)
 static Eina_Bool
 e_client_rotation_is_available(const E_Client *ec, int ang)
 {
-   if (!ec) return EINA_FALSE;
+   Eina_Bool ret = EINA_FALSE;
+   unsigned int i;
 
-   if (ang < 0) goto fail;
-   if ((!ec->e.state.rot.support) && (!ec->e.state.rot.app_set)) goto fail;
-   if (e_object_is_del(E_OBJECT(ec))) goto fail;
+   if (ang < 0) return EINA_FALSE;
+   if (!ec->e.state.rot.support)
+     goto no_hint;
 
    if (ec->e.state.rot.preferred_rot == -1)
      {
-        unsigned int i;
-
-        if (ec->e.state.rot.app_set)
+        if (ec->e.state.rot.available_rots &&
+            ec->e.state.rot.count)
           {
-             if (ec->e.state.rot.available_rots &&
-                 ec->e.state.rot.count)
+             for (i = 0; i < ec->e.state.rot.count; i++)
                {
-                  Eina_Bool found = EINA_FALSE;
-                  for (i = 0; i < ec->e.state.rot.count; i++)
+                  if (ec->e.state.rot.available_rots[i] == ang)
                     {
-                       if (ec->e.state.rot.available_rots[i] == ang)
-                         {
-                            found = EINA_TRUE;
-                         }
+                       ret = EINA_TRUE;
+                       break;
                     }
-                  if (found) goto success;
                }
           }
         else
-          {
-             goto success;
-          }
+          goto no_hint;
      }
-   else if (ec->e.state.rot.preferred_rot == ang) goto success;
+   else if (ec->e.state.rot.preferred_rot == ang)
+     ret = EINA_TRUE;
 
-fail:
-   return EINA_FALSE;
-success:
-   return EINA_TRUE;
+   return ret;
+no_hint:
+   return (ang == 0);
 }
 
 /**
@@ -871,7 +943,7 @@ e_client_rotation_recommend_angle_get(const E_Client *ec)
    zone = ec->zone;
 
    if (ec->e.state.rot.type == E_CLIENT_ROTATION_TYPE_DEPENDENT) goto end;
-   if ((!ec->e.state.rot.app_set) && (!ec->e.state.rot.support)) goto end;
+   if (!ec->e.state.rot.support) goto end;
 
    if (ec->e.state.rot.preferred_rot != -1)
      {
@@ -937,6 +1009,8 @@ _e_zone_rotation_set_internal(E_Zone *zone, int rot)
    if ((zone->rot.wait_for_done) ||
        (zone->rot.block_count > 0))
      {
+        INF("Pending Zone Rotation: wait_for_done %d block_count %d",
+            zone->rot.wait_for_done, zone->rot.block_count);
         zone->rot.next = rot;
         zone->rot.pending = EINA_TRUE;
         return;
@@ -1122,7 +1196,8 @@ _rot_cb_zone_rotation_change_begin(void *data EINA_UNUSED, int ev_type EINA_UNUS
 {
    if ((!ev) || (!ev->zone)) return ECORE_CALLBACK_PASS_ON;
 
-   if (!_e_client_rotation_zone_set(ev->zone))
+   DBG("Rotation Zone Set: Rotation Change Begin");
+   if (!_e_client_rotation_zone_set(ev->zone, NULL))
      {
         /* The WM will decide to cancel zone rotation at idle time.
          * Because, the policy module can make list of rotation windows
@@ -1131,6 +1206,26 @@ _rot_cb_zone_rotation_change_begin(void *data EINA_UNUSED, int ev_type EINA_UNUS
         rot.cancel.zone = ev->zone;
      }
 
+   return ECORE_CALLBACK_RENEW;
+}
+
+static Eina_Bool
+_rot_cb_buffer_change(void *data EINA_UNUSED, int ev_type EINA_UNUSED, E_Event_Client *ev)
+{
+   if (EINA_UNLIKELY(!ev))
+     goto end;
+
+   if (EINA_UNLIKELY(!ev->ec))
+     goto end;
+
+   if (ev->ec->e.state.rot.pending_show)
+     {
+        DBG("Buffer Changed: force add update list to send frame until pending show");
+        /* consider e_pixmap_image_clear() instead of update_add() */
+        e_comp_client_post_update_add(ev->ec);
+     }
+
+end:
    return ECORE_CALLBACK_RENEW;
 }
 
@@ -1152,28 +1247,11 @@ _rot_hook_new_client(void *d EINA_UNUSED, E_Client *ec)
    rot = eina_hash_find(hash_policy_ext_rotation, &ec);
    if (!rot) return;
 
-   ec->e.fetch.rot.support = 1;
-
    if (rot->preferred_angle)
-     {
-        ec->e.fetch.rot.app_set = 1;
-        ec->e.fetch.rot.preferred_rot = 1;
-     }
+     ec->e.fetch.rot.preferred_rot = 1;
 
    if (rot->available_angles)
-     {
-        ec->e.fetch.rot.app_set = 1;
-        ec->e.fetch.rot.available_rots = 1;
-     }
-}
-
-static void
-_rot_hook_new_client_post(void *d EINA_UNUSED, E_Client *ec)
-{
-   if (!ec->frame)
-      return;
-
-   evas_object_event_callback_add(ec->frame, EVAS_CALLBACK_SHOW, _rot_cb_evas_show, ec);
+     ec->e.fetch.rot.available_rots = 1;
 }
 
 static void
@@ -1185,7 +1263,6 @@ _rot_hook_client_del(void *d EINA_UNUSED, E_Client *ec)
    _e_client_rotation_list_remove(ec);
    if (rot.async_list) rot.async_list = eina_list_remove(rot.async_list, ec);
 
-   ec->e.fetch.rot.app_set = 0;
    ec->e.state.rot.preferred_rot = -1;
 
    if (ec->e.state.rot.available_rots)
@@ -1272,6 +1349,9 @@ _rot_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec)
         if (_prev_preferred_rot != ec->e.state.rot.preferred_rot)
           ec->e.fetch.rot.need_rotation = EINA_TRUE;
 
+        EINF(ec, "Fetch Preferred: preferred (prev %d cur %d)",
+            _prev_preferred_rot, ec->e.state.rot.preferred_rot);
+
         ec->e.fetch.rot.preferred_rot = 0;
      }
    if (ec->e.fetch.rot.available_rots)
@@ -1344,17 +1424,34 @@ _rot_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec)
            }
         /* check avilable_angles end*/
 
+        /* Print fetch information */
+          {
+             Eina_Strbuf *b = eina_strbuf_new();
+
+             EINF(ec, "Fetch Available");
+             if (_prev_count > 0)
+               {
+                  for (i = 0; i < _prev_count; i++)
+                    eina_strbuf_append_printf(b, "%d ", _prev_rots[i]);
+                  INF("\tprev %s", eina_strbuf_string_get(b));
+                  eina_strbuf_reset(b);
+               }
+
+             for (i = 0; i < count; i++)
+               eina_strbuf_append_printf(b, "%d ", rots[i]);
+             INF("\tcur %s", eina_strbuf_string_get(b));
+
+             eina_strbuf_free(b);
+          }
+
         if (diff) ec->e.fetch.rot.need_rotation = EINA_TRUE;
         ec->e.fetch.rot.available_rots = 0;
      }
 
-   if ((ec->e.fetch.rot.need_rotation) &&
-       (ec->e.state.rot.type == E_CLIENT_ROTATION_TYPE_NORMAL))
+   if (ec->e.fetch.rot.need_rotation)
      {
-        int ang = 0;
-
-        ang = e_client_rotation_recommend_angle_get(ec);
-        e_client_rotation_set(ec, ang);
+        DBG("Rotation Zone Set: Fetch Hint");
+        _e_client_rotation_zone_set(ec->zone, ec);
      }
 
    if (ec->e.fetch.rot.need_rotation)
@@ -1364,13 +1461,19 @@ _rot_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec)
 static Eina_Bool
 _rot_intercept_hook_show_helper(void *d EINA_UNUSED, E_Client *ec)
 {
-   // newly created window that has to be rotated will be shown after rotation done.
-   // so, skip at this time. it will be called again after GETTING ROT_DONE.
+   if (ec->e.state.rot.pending_show)
+     return EINA_FALSE;
 
-   //TODO: Check below code is really need?
-   if (ec->e.state.rot.ang.next != -1)
+   DBG("Rotation Zone Set: Intercept Show");
+   _e_client_rotation_zone_set(ec->zone, ec);
+   if (ec->changes.rotation)
      {
+        EINF(ec, "Postpone show: ang %d", ec->e.state.rot.ang.next);
+        /* consider e_pixmap_image_clear() instead of update_add() */
+        e_comp_client_post_update_add(ec);
         ec->e.state.rot.pending_show = 1;
+        /* to be invoked 'eval_end' */
+        EC_CHANGED(ec);
         return EINA_FALSE;
      }
 
@@ -1455,23 +1558,6 @@ _rot_cb_idle_enterer(void *data EINA_UNUSED)
    return ECORE_CALLBACK_RENEW;
 }
 
-static void
-_rot_cb_evas_show(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event_info EINA_UNUSED)
-{
-   E_Client *ec = data;
-   if (!ec->iconic)
-     {
-        if ((ec->e.state.rot.support) || (ec->e.state.rot.app_set))
-          {
-             if (ec->e.state.rot.ang.next == -1)
-               {
-                  int rotation = e_client_rotation_recommend_angle_get(ec);
-                  if (rotation != -1) e_client_rotation_set(ec, rotation);
-               }
-          }
-     }
-}
-
 #undef E_CLIENT_HOOK_APPEND
 #define E_CLIENT_HOOK_APPEND(l, t, cb, d) \
   do                                      \
@@ -1514,11 +1600,11 @@ e_mod_rot_wl_init(void)
 
    E_LIST_HANDLER_APPEND(rot_handlers, E_EVENT_ZONE_ROTATION_CHANGE_BEGIN,
                          _rot_cb_zone_rotation_change_begin, NULL);
+   E_LIST_HANDLER_APPEND(rot_handlers, E_EVENT_CLIENT_BUFFER_CHANGE,
+                         _rot_cb_buffer_change, NULL);
 
    E_CLIENT_HOOK_APPEND(rot_hooks, E_CLIENT_HOOK_NEW_CLIENT,
                         _rot_hook_new_client, NULL);
-   E_CLIENT_HOOK_APPEND(rot_hooks, E_CLIENT_HOOK_NEW_CLIENT_POST,
-                        _rot_hook_new_client_post, NULL);
    E_CLIENT_HOOK_APPEND(rot_hooks, E_CLIENT_HOOK_DEL,
                         _rot_hook_client_del, NULL);
    E_CLIENT_HOOK_APPEND(rot_hooks, E_CLIENT_HOOK_EVAL_END,
@@ -1543,6 +1629,7 @@ e_mod_rot_wl_shutdown(void)
 {
 #ifdef HAVE_WAYLAND_ONLY
    E_FREE_FUNC(hash_policy_ext_rotation, eina_hash_free);
+   E_FREE_FUNC(rot.force_update_list, eina_list_free);
 
    E_FREE_LIST(rot_hooks, e_client_hook_del);
    E_FREE_LIST(rot_handlers, ecore_event_handler_del);
@@ -1554,4 +1641,16 @@ e_mod_rot_wl_shutdown(void)
          rot_idle_enterer = NULL;
      }
 #endif
+}
+
+EINTERN void
+e_mod_pol_rotation_force_update_add(E_Client *ec)
+{
+   rot.force_update_list = eina_list_append(rot.force_update_list, ec);
+}
+
+EINTERN void
+e_mod_pol_rotation_force_update_del(E_Client *ec)
+{
+   rot.force_update_list = eina_list_remove(rot.force_update_list, ec);
 }

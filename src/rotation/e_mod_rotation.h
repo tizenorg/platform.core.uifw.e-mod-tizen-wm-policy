@@ -27,9 +27,12 @@ e_zone_rotation_block_set(E_Zone *zone EINA_UNUSED, const char *name_hint EINA_U
 }
 #endif /* HAVE_WAYLAND_ONLY */
 
+EINTERN Eina_Bool e_zone_rotation_block_set(E_Zone *zone, const char *name_hint, Eina_Bool set);
 EINTERN int e_client_rotation_curr_angle_get(const E_Client *ec);
 EINTERN void e_mod_pol_rotation_init(void);
 EINTERN void e_mod_pol_rotation_shutdown(void);
+EINTERN void e_mod_pol_rotation_force_update_add(E_Client *ec);
+EINTERN void e_mod_pol_rotation_force_update_del(E_Client *ec);
 
 #include "e_mod_rotation.x"
 #endif
