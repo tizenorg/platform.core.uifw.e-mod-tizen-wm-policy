@@ -5,6 +5,7 @@ typedef struct _Pol_Gesture Pol_Gesture;
 
 typedef enum
 {
+   POL_GESTURE_TYPE_NONE,
    POL_GESTURE_TYPE_LINE,
    POL_GESTURE_TYPE_FLICK,
 } Pol_Gesture_Type;

@@ -10,6 +10,7 @@ struct _Pol_Gesture
 
    struct
    {
+      int x;
       int y;
       int timestamp;
       Eina_Bool pressed; /* to avoid processing that happened mouse move right after mouse up */
@@ -44,11 +45,13 @@ _gesture_obj_cb_mouse_up(void *data, Evas *evas EINA_UNUSED, Evas_Object *obj, v
 static Eina_Bool
 _gesture_line_check(Pol_Gesture *gesture, int x, int y)
 {
-   int dy;
+   int dx, dy;
    const int sensitivity = 50; /* FIXME: hard coded, it sould be configurable. */
 
+   dx = x - gesture->mouse_info.x;
    dy = y - gesture->mouse_info.y;
-   if (abs(dy) < sensitivity)
+   if ((abs(dy) < sensitivity) &&
+       (abs(dx) < sensitivity))
      return EINA_FALSE;
 
    return EINA_TRUE;
@@ -86,6 +89,9 @@ _gesture_check(Pol_Gesture *gesture, Evas_Object *obj, int x, int y, unsigned in
 
    switch (gesture->type)
      {
+      case POL_GESTURE_TYPE_NONE:
+         ret = EINA_TRUE;
+         break;
       case POL_GESTURE_TYPE_LINE:
          ret = _gesture_line_check(gesture, x, y);
          break;
@@ -131,15 +137,23 @@ _gesture_obj_cb_mouse_move(void *data, Evas *evas EINA_UNUSED, Evas_Object *obj,
 }
 
 static void
-_gesture_obj_cb_mouse_down(void *data, Evas *evas EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event)
+_gesture_obj_cb_mouse_down(void *data, Evas *evas EINA_UNUSED, Evas_Object *obj, void *event)
 {
    Pol_Gesture *gesture = data;
    Evas_Event_Mouse_Down *ev = event;
 
    gesture->active = EINA_FALSE;
    gesture->mouse_info.pressed = EINA_TRUE;
+   gesture->mouse_info.x = ev->canvas.x;
    gesture->mouse_info.y = ev->canvas.y;
    gesture->mouse_info.timestamp = ev->timestamp;
+
+   gesture->active = _gesture_check(gesture, obj, ev->canvas.x, ev->canvas.y, ev->timestamp);
+   if (gesture->active)
+     {
+        if (gesture->cb.start)
+          gesture->cb.start(gesture->cb.data, obj, ev->canvas.x, ev->canvas.y, ev->timestamp);
+     }
 }
 
 EINTERN Pol_Gesture *

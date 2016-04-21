@@ -1,7 +1,6 @@
 #include "e_mod_wl.h"
 #include "e_mod_main.h"
 #include "e_mod_quickpanel.h"
-#include "e_mod_indicator.h"
 #include "e_mod_volume.h"
 #include "e_mod_lockscreen.h"
 
