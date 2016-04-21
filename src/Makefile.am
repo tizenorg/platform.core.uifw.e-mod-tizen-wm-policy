@@ -29,8 +29,6 @@ WL_SRC   += e_mod_wl.c \
             tizen_policy_ext-server-protocol.h \
             e_mod_quickpanel.c \
             e_mod_quickpanel.h \
-            e_mod_indicator.c \
-            e_mod_indicator.h \
             e_mod_volume.c \
             e_mod_volume.h \
             e_mod_lockscreen.c \
@@ -56,6 +54,8 @@ module_la_SOURCES      = e_mod_config.c \
                          e_mod_transit.h \
                          e_mod_transform_mode.c \
                          e_mod_transform_mode.h \
+                         e_mod_region.c \
+                         e_mod_region.h \
                          $(WL_SRC) \
                          $(ROT_SRC)
 
