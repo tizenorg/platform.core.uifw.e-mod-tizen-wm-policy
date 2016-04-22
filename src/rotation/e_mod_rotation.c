@@ -24,6 +24,8 @@
 #include "e_mod_sensord.h"
 #endif
 
+#include "e_mod_rotation_settings.h"
+
 static Eina_List *_event_handlers = NULL;
 
 /* externally accessible functions */
@@ -108,6 +110,7 @@ _e_mod_pol_rotation_cb_idle_exiter(void *data EINA_UNUSED)
 EINTERN void
 e_mod_pol_rotation_init(void)
 {
+   e_mod_rot_settings_init();
 #ifdef HAVE_AUTO_ROTATION
    e_mod_sensord_init();
 #endif
@@ -135,12 +138,13 @@ e_mod_pol_rotation_init(void)
 EINTERN void
 e_mod_pol_rotation_shutdown(void)
 {
+   e_mod_rot_settings_shutdown();
 #ifdef HAVE_AUTO_ROTATION
-  e_mod_sensord_deinit();
+   e_mod_sensord_deinit();
 #endif
 #ifdef HAVE_WAYLAND_ONLY
-  e_mod_rot_wl_shutdown();
+   e_mod_rot_wl_shutdown();
 #endif
 
-  E_FREE_LIST(_event_handlers, ecore_event_handler_del);
+   E_FREE_LIST(_event_handlers, ecore_event_handler_del);
 }
