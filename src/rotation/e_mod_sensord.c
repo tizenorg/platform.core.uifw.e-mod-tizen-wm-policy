@@ -15,6 +15,7 @@ struct _Pol_Sensord
    int                             retry_count;
    Eina_Bool                       lock;
    Eina_Bool                       connected;
+   int                             angle;
 };
 
 /* static global variables */
@@ -68,6 +69,7 @@ _sensor_rotation_changed_cb(sensor_t             sensor,
     e_zone_rotation_set(zone, ang);
 
     _pol_sensor.event = event;
+    _pol_sensor.angle = ang;
 }
 
 static Eina_Bool
@@ -196,10 +198,18 @@ _sensor_disconnect(void)
 
    _pol_sensor.handle = -1;
    _pol_sensor.connected = EINA_FALSE;
+   _pol_sensor.angle = -1;
    ERR("sensord_disconnect succeeded");
    return EINA_TRUE;
 error:
    return EINA_FALSE;
+}
+
+EINTERN int
+e_mod_sensord_cur_angle_get(void)
+{
+   if (_pol_sensor.connected) return _pol_sensor.angle;
+   return -1;
 }
 
 EINTERN Eina_Bool
@@ -207,6 +217,7 @@ e_mod_sensord_init(void)
 {
    _pol_sensor.connected = EINA_FALSE;
    _pol_sensor.retry_count = 0;
+   _pol_sensor.angle = -1;
    return _sensor_connect();
 }
 

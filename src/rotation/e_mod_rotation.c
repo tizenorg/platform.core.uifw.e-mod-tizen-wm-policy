@@ -22,9 +22,11 @@
 
 #ifdef HAVE_AUTO_ROTATION
 #include "e_mod_sensord.h"
+#include <vconf.h>
 #endif
 
 static Eina_List *_event_handlers = NULL;
+static Eina_Bool rot_lock = EINA_FALSE;
 
 /* externally accessible functions */
 /**
@@ -105,10 +107,55 @@ _e_mod_pol_rotation_cb_idle_exiter(void *data EINA_UNUSED)
    return ECORE_CALLBACK_DONE;
 }
 
+#ifdef HAVE_AUTO_ROTATION
+static void
+_e_mod_pol_rotation_lock(int rot)
+{
+   E_Zone *zone;
+   Eina_List *l;
+   const char *name_hint = "vconf";
+   Eina_Bool lock = !rot;
+
+   if (lock == rot_lock)  return;
+
+   EINA_LIST_FOREACH(e_comp->zones, l, zone)
+     {
+        if (lock) e_zone_rotation_set(zone, 0);
+        // TODO: expand/seperate auto_rotate policy (by settings or sensor)
+        else e_zone_rotation_set(zone, e_mod_sensord_cur_angle_get());
+
+        e_zone_rotation_block_set(zone, name_hint, lock);
+     }
+   rot_lock = lock;
+}
+
+static void
+_e_mod_pol_rotation_cb_autorotate(keynode_t *node, void *data)
+{
+
+   int rot;
+
+   rot = vconf_keynode_get_bool(node);
+   if (rot < 0) return;
+
+   _e_mod_pol_rotation_lock(rot);
+}
+#endif
+
 EINTERN void
 e_mod_pol_rotation_init(void)
 {
 #ifdef HAVE_AUTO_ROTATION
+   int rot = 0;
+   if (vconf_get_bool(VCONFKEY_SETAPPL_AUTO_ROTATE_SCREEN_BOOL, &rot) == VCONF_OK)
+     {
+        vconf_notify_key_changed(VCONFKEY_SETAPPL_AUTO_ROTATE_SCREEN_BOOL,
+                                 _e_mod_pol_rotation_cb_autorotate,
+                                 NULL);
+        // if vconf auto_rotate is false, rotation by sensor is blocked
+        if (rot == 0) _e_mod_pol_rotation_lock(rot);
+     }
+
    e_mod_sensord_init();
 #endif
 #ifdef HAVE_WAYLAND_ONLY
