@@ -32,6 +32,8 @@ typedef enum _Tzsh_Srv_Role
    TZSH_SRV_ROLE_LOCKSCREEN,
    TZSH_SRV_ROLE_INDICATOR,
    TZSH_SRV_ROLE_TVSERVICE,
+   TZSH_SRV_ROLE_SCREENSAVER_MNG,
+   TZSH_SRV_ROLE_SCREENSAVER,
    TZSH_SRV_ROLE_MAX
 } Tzsh_Srv_Role;
 
@@ -160,6 +162,9 @@ typedef struct _Pol_Wl
 static Pol_Wl *polwl = NULL;
 
 E_Launch_Screen   *launch_scrn=NULL;
+
+static Eina_List *handlers = NULL;
+static struct wl_resource *_scrsaver_mng_res = NULL; // TODO
 
 enum _WM_Policy_Hint_Type
 {
@@ -514,12 +519,14 @@ _pol_wl_tzsh_srv_role_get(const char *name)
 {
    Tzsh_Srv_Role role = TZSH_SRV_ROLE_UNKNOWN;
 
-   if      (!e_util_strcmp(name, "call"      )) role = TZSH_SRV_ROLE_CALL;
-   else if (!e_util_strcmp(name, "volume"    )) role = TZSH_SRV_ROLE_VOLUME;
-   else if (!e_util_strcmp(name, "quickpanel")) role = TZSH_SRV_ROLE_QUICKPANEL;
-   else if (!e_util_strcmp(name, "lockscreen")) role = TZSH_SRV_ROLE_LOCKSCREEN;
-   else if (!e_util_strcmp(name, "indicator" )) role = TZSH_SRV_ROLE_INDICATOR;
-   else if (!e_util_strcmp(name, "tvsrv"     )) role = TZSH_SRV_ROLE_TVSERVICE;
+   if      (!e_util_strcmp(name, "call"               )) role = TZSH_SRV_ROLE_CALL;
+   else if (!e_util_strcmp(name, "volume"             )) role = TZSH_SRV_ROLE_VOLUME;
+   else if (!e_util_strcmp(name, "quickpanel"         )) role = TZSH_SRV_ROLE_QUICKPANEL;
+   else if (!e_util_strcmp(name, "lockscreen"         )) role = TZSH_SRV_ROLE_LOCKSCREEN;
+   else if (!e_util_strcmp(name, "indicator"          )) role = TZSH_SRV_ROLE_INDICATOR;
+   else if (!e_util_strcmp(name, "tvsrv"              )) role = TZSH_SRV_ROLE_TVSERVICE;
+   else if (!e_util_strcmp(name, "screensaver_manager")) role = TZSH_SRV_ROLE_SCREENSAVER_MNG;
+   else if (!e_util_strcmp(name, "screensaver"        )) role = TZSH_SRV_ROLE_SCREENSAVER;
 
    return role;
 }
@@ -2774,12 +2781,102 @@ _tzsh_srv_iface_cb_quickpanel_get(struct wl_client *client, struct wl_resource *
    wl_resource_set_implementation(res, &_tzsh_srv_qp_iface, tzsh_srv, NULL);
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+static void
+_tzsh_srv_scrsaver_cb_release(struct wl_client *client EINA_UNUSED, struct wl_resource *resource)
+{
+   wl_resource_destroy(resource);
+}
+
+static const struct tws_service_screensaver_interface _tzsh_srv_scrsaver_iface =
+{
+   _tzsh_srv_scrsaver_cb_release
+};
+
+static void
+_tzsh_srv_iface_cb_scrsaver_get(struct wl_client *client, struct wl_resource *res_tzsh_srv, uint32_t id)
+{
+   Pol_Wl_Tzsh_Srv *tzsh_srv;
+   struct wl_resource *res;
+
+   tzsh_srv = wl_resource_get_user_data(res_tzsh_srv);
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_srv);
+
+   if (!eina_list_data_find(polwl->tzsh_srvs, tzsh_srv))
+     return;
+
+   res = wl_resource_create(client, &tws_service_screensaver_interface, 1, id);
+   if (!res)
+     {
+        wl_client_post_no_memory(client);
+        return;
+     }
+
+   wl_resource_set_implementation(res, &_tzsh_srv_scrsaver_iface, tzsh_srv, NULL);
+}
+
+static void
+_tzsh_srv_scrsaver_mng_cb_destroy(struct wl_client *client EINA_UNUSED, struct wl_resource *resource)
+{
+   _scrsaver_mng_res = NULL;
+   wl_resource_destroy(resource);
+}
+
+static void
+_tzsh_srv_scrsaver_mng_cb_idle_time_set(struct wl_client *client EINA_UNUSED, struct wl_resource *resource, uint32_t time)
+{
+   Pol_Wl_Tzsh_Srv *tzsh_srv;
+   double timeout;
+
+   tzsh_srv = wl_resource_get_user_data(resource);
+
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_srv);
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_srv->tzsh);
+
+   /* convert time to seconds (double) from milliseconds (unsigned int) */
+   timeout = (double)time * 0.001f;
+
+   e_screensaver_timeout_set(timeout);
+}
+
+static const struct tws_service_screensaver_manager_interface _tzsh_srv_scrsaver_mng_iface =
+{
+   _tzsh_srv_scrsaver_mng_cb_destroy,
+   _tzsh_srv_scrsaver_mng_cb_idle_time_set
+};
+
+static void
+_tzsh_srv_iface_cb_scrsaver_mng_get(struct wl_client *client, struct wl_resource *res_tzsh_srv, uint32_t id)
+{
+   Pol_Wl_Tzsh_Srv *tzsh_srv;
+   struct wl_resource *res;
+
+   tzsh_srv = wl_resource_get_user_data(res_tzsh_srv);
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_srv);
+
+   if (!eina_list_data_find(polwl->tzsh_srvs, tzsh_srv))
+     return;
+
+   res = wl_resource_create(client, &tws_service_screensaver_manager_interface, 1, id);
+   if (!res)
+     {
+        wl_client_post_no_memory(client);
+        return;
+     }
+
+   _scrsaver_mng_res = res;
+
+   wl_resource_set_implementation(res, &_tzsh_srv_scrsaver_mng_iface, tzsh_srv, NULL);
+}
+
 static const struct tws_service_interface _tzsh_srv_iface =
 {
    _tzsh_srv_iface_cb_destroy,
    _tzsh_srv_iface_cb_region_set,
    _tzsh_srv_iface_cb_indicator_get,
-   _tzsh_srv_iface_cb_quickpanel_get
+   _tzsh_srv_iface_cb_quickpanel_get,
+   _tzsh_srv_iface_cb_scrsaver_mng_get,
+   _tzsh_srv_iface_cb_scrsaver_get
 };
 
 static void
@@ -2884,6 +2981,10 @@ _tzsh_iface_cb_srv_create(struct wl_client *client, struct wl_resource *res_tzsh
    else if (role == TZSH_SRV_ROLE_VOLUME)
      e_mod_volume_client_set(tzsh->ec);
    else if (role == TZSH_SRV_ROLE_LOCKSCREEN)
+     e_mod_lockscreen_client_set(tzsh->ec);
+   else if (role == TZSH_SRV_ROLE_SCREENSAVER_MNG)
+     e_mod_lockscreen_client_set(tzsh->ec);
+   else if (role == TZSH_SRV_ROLE_SCREENSAVER)
      e_mod_lockscreen_client_set(tzsh->ec);
 }
 
@@ -3683,6 +3784,21 @@ err:
    wl_client_post_no_memory(client);
 }
 
+static Eina_Bool
+_pol_wl_cb_scrsaver_on(void *data EINA_UNUSED, int type EINA_UNUSED, void *event EINA_UNUSED)
+{
+   if (_scrsaver_mng_res)
+     tws_service_screensaver_manager_send_idle(_scrsaver_mng_res);
+   return ECORE_CALLBACK_PASS_ON;
+}
+
+static Eina_Bool
+_pol_wl_cb_scrsaver_off(void *data EINA_UNUSED, int type EINA_UNUSED, void *event EINA_UNUSED)
+{
+   if (_scrsaver_mng_res)
+     tws_service_screensaver_manager_send_active(_scrsaver_mng_res);
+   return ECORE_CALLBACK_PASS_ON;
+}
 
 // --------------------------------------------------------
 // public functions
@@ -3808,6 +3924,10 @@ e_mod_pol_wl_init(void)
    if (cynara_initialize(&polwl->p_cynara, NULL) != CYNARA_API_SUCCESS)
      ERR("cynara_initialize failed.");
 #endif
+
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_SCREENSAVER_ON,  _pol_wl_cb_scrsaver_on,  NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_SCREENSAVER_OFF, _pol_wl_cb_scrsaver_off, NULL);
+
    return EINA_TRUE;
 
 err:
@@ -3832,6 +3952,8 @@ e_mod_pol_wl_shutdown(void)
    int i;
 
    EINA_SAFETY_ON_NULL_RETURN(polwl);
+
+   E_FREE_LIST(handlers, ecore_event_handler_del);
 
    for (i = 0; i < TZSH_SRV_ROLE_MAX; i++)
      {
