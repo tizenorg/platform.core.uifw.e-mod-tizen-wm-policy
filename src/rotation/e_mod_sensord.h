@@ -4,5 +4,6 @@
 
 EINTERN Eina_Bool e_mod_sensord_init(void);
 EINTERN Eina_Bool e_mod_sensord_deinit(void);
+EINTERN int       e_mod_sensord_cur_angle_get(void);
 
 #endif

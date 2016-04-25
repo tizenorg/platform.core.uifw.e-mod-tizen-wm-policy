@@ -25,6 +25,8 @@
 #include "e_mod_sensord.h"
 #endif
 
+#include "e_mod_rotation_settings.h"
+
 const static char *_wr_log_dom_name = "e-rot";
 
 int _wr_log_dom = -1;
@@ -119,6 +121,7 @@ e_mod_pol_rotation_init(void)
    if (_wr_log_dom < 0)
      goto err_log;
 
+   e_mod_rot_settings_init();
 #ifdef HAVE_AUTO_ROTATION
    e_mod_sensord_init();
 #endif
@@ -149,6 +152,7 @@ err_log:
 EINTERN void
 e_mod_pol_rotation_shutdown(void)
 {
+  e_mod_rot_settings_shutdown();
 #ifdef HAVE_AUTO_ROTATION
   e_mod_sensord_deinit();
 #endif

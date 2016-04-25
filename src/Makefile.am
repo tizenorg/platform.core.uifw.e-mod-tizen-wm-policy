@@ -13,7 +13,9 @@ pkg_LTLIBRARIES        = module.la
 
 WL_SRC   =
 ROT_SRC  = rotation/e_mod_rotation.c \
-           rotation/e_mod_rotation.h
+           rotation/e_mod_rotation.h \
+           rotation/e_mod_rotation_settings.c \
+           rotation/e_mod_rotation_settings.h
 
 if HAVE_AUTO_ROTATION
 ROT_SRC  += rotation/e_mod_sensord.c \
