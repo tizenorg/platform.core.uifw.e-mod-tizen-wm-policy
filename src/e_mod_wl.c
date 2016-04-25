@@ -6,7 +6,6 @@
 #include "e_mod_lockscreen.h"
 
 #include <device/display.h>
-
 #include <wayland-server.h>
 #include <tizen-extension-server-protocol.h>
 #include <tzsh_server.h>
@@ -2444,6 +2443,8 @@ _e_mod_pol_change_system_brightness(int new_brightness)
      }
    g_system_info.brightness.client = new_brightness;
    g_system_info.brightness.use_client = EINA_TRUE;
+
+   return EINA_TRUE;
 }
 
 static Eina_Bool
