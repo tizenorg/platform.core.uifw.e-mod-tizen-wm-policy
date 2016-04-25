@@ -112,7 +112,6 @@ static Eina_Bool _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec)
 static void      _e_client_rotation_change_done(void);
 static Eina_Bool _e_client_rotation_change_done_timeout(void *data);
 static void      _e_client_rotation_change_message_send(E_Client *ec);
-static Eina_Bool _e_client_rotation_is_dependent_parent(const E_Client *ec);
 static int       _e_client_rotation_curr_next_get(const E_Client *ec);
 static void      _e_client_event_client_rotation_change_begin_send(E_Client *ec);
 static void      _e_client_event_client_rotation_change_begin_free(void *data, void *ev);
@@ -130,10 +129,8 @@ static int        e_client_rotation_next_angle_get(const E_Client *ec);
 static Eina_Bool  e_client_rotation_is_available(const E_Client *ec, int ang);
 static Eina_Bool  e_client_rotation_set(E_Client *ec, int rotation);
 static void       e_client_rotation_change_request(E_Client *ec, int rotation);
-static int        e_client_rotation_recommend_angle_get(const E_Client *ec);
 
 /* e_zone_roation functions */
-static int        e_zone_rotation_get(E_Zone *zone);
 static void       e_zone_rotation_update_done(E_Zone *zone);
 static void       e_zone_rotation_update_cancel(E_Zone *zone);
 static void       e_zone_rotation_sub_set(E_Zone *zone, int rotation) EINA_UNUSED;
@@ -605,16 +602,6 @@ _e_client_rotation_change_message_send(E_Client *ec)
    e_client_rotation_change_request(ec, rotation);
 }
 
-static Eina_Bool
-_e_client_rotation_is_dependent_parent(const E_Client *ec)
-{
-   if (!ec) return EINA_FALSE;
-   if ((!ec->parent) || (!evas_object_visible_get(ec->parent->frame))) return EINA_FALSE;
-   if (ec->netwm.type == E_WINDOW_TYPE_NORMAL) return EINA_FALSE;
-   if (!ec->e.state.rot.support) return EINA_FALSE;
-   return EINA_TRUE;
-}
-
 static int
 _e_client_rotation_curr_next_get(const E_Client *ec)
 {
@@ -924,74 +911,6 @@ e_client_rotation_change_request(E_Client *ec, int rotation)
      }
 }
 
-/**
- * @describe
- *  Get the angle that this e_client should be rotated.
- * @param      ec             e_client
- * @return     Eina_Bool      -1: There is no need to be rotated.
- *                            != -1: The angle that this e_client should be rotated.
- */
-static int
-e_client_rotation_recommend_angle_get(const E_Client *ec)
-{
-   E_Zone *zone = NULL;
-   int ret_ang = -1;
-
-   E_OBJECT_CHECK_RETURN(ec, ret_ang);
-   E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, ret_ang);
-
-   zone = ec->zone;
-
-   if (ec->e.state.rot.type == E_CLIENT_ROTATION_TYPE_DEPENDENT) goto end;
-   if (!ec->e.state.rot.support) goto end;
-
-   if (ec->e.state.rot.preferred_rot != -1)
-     {
-        ret_ang = ec->e.state.rot.preferred_rot;
-     }
-   else if ((ec->e.state.rot.available_rots) &&
-            (ec->e.state.rot.count))
-     {
-        unsigned int i;
-        int current_ang = _e_client_rotation_curr_next_get(ec);
-        Eina_Bool found = EINA_FALSE;
-        Eina_Bool found_curr_ang = EINA_FALSE;
-
-        if (_e_client_rotation_is_dependent_parent(ec))
-          {
-             ret_ang = _e_client_rotation_curr_next_get(ec->parent);
-          }
-        else
-          {
-             ret_ang = e_zone_rotation_get(zone);
-          }
-
-        for (i = 0; i < ec->e.state.rot.count; i++)
-          {
-             if (ec->e.state.rot.available_rots[i] == ret_ang)
-               {
-                  found = EINA_TRUE;
-                  break;
-               }
-             if (ec->e.state.rot.available_rots[i] == current_ang)
-               found_curr_ang = EINA_TRUE;
-          }
-
-        if (!found)
-          {
-             if (found_curr_ang)
-               ret_ang = current_ang;
-             else
-               ret_ang = ec->e.state.rot.available_rots[0];
-          }
-     }
-   else
-     ;
-
-end:
-   return ret_ang;
-}
-
 /* e_zone_roation functions */
 static void
 _e_zone_rotation_set_internal(E_Zone *zone, int rot)
@@ -1068,15 +987,6 @@ e_zone_rotation_sub_set(E_Zone *zone, int rotation)
    if ((zone->rot.unknown_state) &&
        (zone->rot.curr != rotation))
      _e_zone_rotation_set_internal(zone, rotation);
-}
-
-static int
-e_zone_rotation_get(E_Zone *zone)
-{
-   E_OBJECT_CHECK_RETURN(zone, -1);
-   E_OBJECT_TYPE_CHECK_RETURN(zone, E_ZONE_TYPE, -1);
-   if (!zone->rot.unknown_state) return zone->rot.curr;
-   else return zone->rot.sub;
 }
 
 EINTERN Eina_Bool
