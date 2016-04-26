@@ -1255,8 +1255,6 @@ e_mod_pol_client_is_subsurface(E_Client *ec)
 Eina_Bool
 e_mod_pol_client_is_floating(E_Client *ec)
 {
-   Pol_Client *pc;
-
    E_OBJECT_CHECK_RETURN(ec, EINA_FALSE);
    E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, EINA_FALSE);
 
