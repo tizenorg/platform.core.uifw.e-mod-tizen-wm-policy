@@ -627,6 +627,8 @@ _quickpanel_hook_client_del(void *d EINA_UNUSED, E_Client *ec)
      return;
 
    _quickpanel_free(pol_qp);
+
+   e_mod_pol_rotation_force_update_del(ec);
 }
 
 static void
