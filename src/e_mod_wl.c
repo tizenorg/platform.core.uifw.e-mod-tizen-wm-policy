@@ -1925,8 +1925,8 @@ _pol_wl_allowed_aux_hint_send(E_Client *ec, int id)
    eina_iterator_free(it);
 }
 
-void
-e_mod_pol_wl_eval_pre_post_fetch(E_Client *ec)
+static void
+_pol_wl_aux_hint_apply(E_Client *ec)
 {
    E_Comp_Wl_Aux_Hint *hint;
    Eina_List *l;
@@ -1937,9 +1937,17 @@ e_mod_pol_wl_eval_pre_post_fetch(E_Client *ec)
 
    EINA_LIST_FOREACH(ec->comp_data->aux_hint.hints, l, hint)
      {
+        if (!hint->changed) continue;
+
         send = EINA_FALSE;
         if (!strcmp(hint->hint, hint_names[WM_POLICY_HINT_USER_GEOMETRY]))
           {
+             if (hint->deleted)
+               {
+                  e_mod_pol_allow_user_geometry_set(ec, EINA_FALSE);
+                  continue;
+               }
+
              if (!strcmp(hint->val, "1") && (ec->lock_client_location || ec->lock_client_size || !ec->placed))
                {
                   send = EINA_TRUE;
@@ -1961,6 +1969,12 @@ e_mod_pol_wl_eval_pre_post_fetch(E_Client *ec)
           }
         else if (!strcmp(hint->hint, hint_names[WM_POLICY_HINT_GESTURE_DISABLE]))
           {
+             if (hint->deleted)
+               {
+                  ec->gesture_disable = EINA_FALSE;
+                  continue;
+               }
+
              if (atoi(hint->val) == 1)
                {
                   ec->gesture_disable = EINA_TRUE;
@@ -1972,6 +1986,13 @@ e_mod_pol_wl_eval_pre_post_fetch(E_Client *ec)
           }
         else if (!strcmp(hint->hint, hint_names[WM_POLICY_HINT_ICONIFY]))
           {
+             if (hint->deleted)
+               {
+                  ec->exp_iconify.skip_iconify = 0;
+                  EC_CHANGED(ec);
+                  continue;
+               }
+
              if (!strcmp(hint->val, "disable"))
                {
                   ec->exp_iconify.skip_iconify = 1;
@@ -1985,7 +2006,8 @@ e_mod_pol_wl_eval_pre_post_fetch(E_Client *ec)
           }
         else if (!strcmp(hint->hint, hint_names[WM_POLICY_HINT_ABOVE_LOCKSCREEN]))
           {
-             if (!strcmp(hint->val, "0"))
+             if ((hint->deleted) ||
+                 (!strcmp(hint->val, "0")))
                {
                   E_Layer original_layer = ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].saved_layer;
                   if (ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].set &&
@@ -2018,6 +2040,14 @@ e_mod_pol_wl_eval_pre_post_fetch(E_Client *ec)
         if (send)
           _pol_wl_allowed_aux_hint_send(ec, hint->id);
      }
+}
+
+void
+e_mod_pol_wl_eval_pre_post_fetch(E_Client *ec)
+{
+   if (!ec) return;
+
+   _pol_wl_aux_hint_apply(ec);
 }
 
 static void
