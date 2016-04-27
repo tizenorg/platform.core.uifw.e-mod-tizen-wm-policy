@@ -1007,7 +1007,7 @@ _quickpanel_indicator_object_new(Pol_Quickpanel *qp)
    if (!indi_obj)
      return NULL;
 
-   evas_object_repeat_events_set(indi_obj, EINA_TRUE);
+   evas_object_repeat_events_set(indi_obj, EINA_FALSE);
    /* FIXME: make me move to explicit layer something like POL_LAYER */
    evas_object_layer_set(indi_obj, EVAS_LAYER_MAX - 1);
 
