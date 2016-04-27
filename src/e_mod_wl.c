@@ -1948,12 +1948,12 @@ _pol_wl_aux_hint_apply(E_Client *ec)
                   continue;
                }
 
-             if (!strcmp(hint->val, "1") && (ec->lock_client_location || ec->lock_client_size || !ec->placed))
+             if (!strcmp(hint->val, "1"))
                {
                   send = EINA_TRUE;
                   e_mod_pol_allow_user_geometry_set(ec, EINA_TRUE);
                }
-             else if (strcmp(hint->val, "1") && (!ec->lock_client_location || !ec->lock_client_size || ec->placed))
+             else if (strcmp(hint->val, "1"))
                {
                   send = EINA_TRUE;
                   e_mod_pol_allow_user_geometry_set(ec, EINA_FALSE);
