@@ -45,9 +45,16 @@ struct _Pol_Quickpanel
 
    Eina_List *hooks;
    Eina_List *events;
+   Ecore_Idle_Enterer *idle_enterer;
+
+   struct
+   {
+      Eina_Bool visible;
+   } changes;
 
    Rot_Idx rotation;
 
+   Eina_Bool visible;
    Eina_Bool show_block;
 };
 
@@ -87,6 +94,7 @@ struct _Mover_Effect_Data
 
 static Pol_Quickpanel *_pol_quickpanel = NULL;
 static Evas_Smart *_mover_smart = NULL;
+static Eina_Bool _changed = EINA_FALSE;
 
 static Pol_Quickpanel *
 _quickpanel_get()
@@ -337,6 +345,7 @@ _mover_obj_new(Pol_Quickpanel *qp)
    evas_object_resize(mover, qp->ec->w, qp->ec->h);
    evas_object_show(mover);
 
+   qp->mover = mover;
    qp->show_block = EINA_FALSE;
 
    return mover;
@@ -658,7 +667,7 @@ _region_obj_cb_gesture_start(void *data, Evas_Object *handler, int x, int y, uns
 
    e_comp_wl_touch_cancel();
 
-   qp->mover = _mover_obj_new_with_move(qp, x, y, timestamp);
+   _mover_obj_new_with_move(qp, x, y, timestamp);
 }
 
 static void
@@ -702,6 +711,7 @@ _quickpanel_free(Pol_Quickpanel *qp)
    E_FREE_FUNC(qp->mover, evas_object_del);
    E_FREE_FUNC(qp->indi_obj, evas_object_del);
    E_FREE_FUNC(qp->handler_obj, evas_object_del);
+   E_FREE_FUNC(qp->idle_enterer, ecore_idle_enterer_del);
    E_FREE_LIST(qp->events, ecore_event_handler_del);
    E_FREE_LIST(qp->hooks, e_client_hook_del);
    E_FREE(_pol_quickpanel);
@@ -998,6 +1008,98 @@ end:
    return ECORE_CALLBACK_PASS_ON;
 }
 
+/* NOTE: if the state(show/hide/stack) of windows which are stacked below
+ * quickpanel is changed, we close the quickpanel.
+ * the most major senario is that quickpanel should be closed when WiFi popup to
+ * show the available connection list is shown by click the button on
+ * the quickpanel to turn on the WiFi.
+ * @see  _quickpanel_cb_client_show(), _quickpanel_cb_client_hide(),
+ *       _quickpanel_cb_client_stack()
+ *       _quickpanel_idle_enter()
+ */
+static Eina_Bool
+_quickpanel_cb_client_show(void *data, int type, void *event)
+{
+   Pol_Quickpanel *qp;
+   E_Event_Client *ev = event;
+   E_Client *ec;
+
+   qp = data;
+   if (EINA_UNLIKELY(!qp))
+     goto end;
+
+   ec = ev->ec;
+   if (EINA_UNLIKELY(!ec))
+     goto end;
+
+   if (qp->ec == ec)
+     qp->visible = EINA_TRUE;
+   else if (qp->visible)
+     {
+        qp->changes.visible = EINA_TRUE;
+        _changed = EINA_TRUE;
+     }
+
+end:
+   return ECORE_CALLBACK_PASS_ON;
+}
+
+static Eina_Bool
+_quickpanel_cb_client_hide(void *data, int type, void *event)
+{
+   Pol_Quickpanel *qp;
+   E_Event_Client *ev = event;
+   E_Client *ec;
+
+   qp = data;
+   if (EINA_UNLIKELY(!qp))
+     goto end;
+
+   ec = ev->ec;
+   if (EINA_UNLIKELY(!ec))
+     goto end;
+
+   if (qp->ec == ec)
+     qp->visible = EINA_FALSE;
+   else if (qp->visible)
+     {
+        qp->changes.visible = EINA_TRUE;
+        _changed = EINA_TRUE;
+     }
+
+end:
+   return ECORE_CALLBACK_PASS_ON;
+}
+
+static Eina_Bool
+_quickpanel_cb_client_stack(void *data, int type, void *event)
+{
+   Pol_Quickpanel *qp;
+   E_Event_Client *ev = event;
+   E_Client *ec;
+
+   qp = data;
+   if (EINA_UNLIKELY(!qp))
+     goto end;
+
+   ec = ev->ec;
+   if (EINA_UNLIKELY(!ec))
+     goto end;
+
+   if (qp->ec == ec)
+     goto end;
+
+   if (qp->visible)
+     {
+        qp->changes.visible = EINA_TRUE;
+        _changed = EINA_TRUE;
+     }
+
+end:
+   return ECORE_CALLBACK_PASS_ON;
+}
+
+
 static Evas_Object *
 _quickpanel_indicator_object_new(Pol_Quickpanel *qp)
 {
@@ -1017,6 +1119,29 @@ _quickpanel_indicator_object_new(Pol_Quickpanel *qp)
                        _region_obj_cb_gesture_end, qp);
 
    return indi_obj;
+}
+
+static Eina_Bool
+_quickpanel_idle_enter(void *data)
+{
+   Pol_Quickpanel *qp;
+
+   if (!_changed)
+     goto end;
+   _changed = EINA_FALSE;
+
+   qp = data;
+   if (EINA_UNLIKELY(!qp))
+     goto end;
+
+   if (qp->changes.visible)
+     {
+        e_mod_quickpanel_hide();
+        qp->changes.visible = EINA_FALSE;
+     }
+
+end:
+   return ECORE_CALLBACK_RENEW;
 }
 
 #undef E_CLIENT_HOOK_APPEND
@@ -1092,11 +1217,16 @@ e_mod_quickpanel_client_set(E_Client *ec)
    evas_object_event_callback_add(ec->frame, EVAS_CALLBACK_HIDE, _quickpanel_client_evas_cb_hide, qp);
    evas_object_event_callback_add(ec->frame, EVAS_CALLBACK_MOVE, _quickpanel_client_evas_cb_move, qp);
 
-   E_CLIENT_HOOK_APPEND(qp->hooks,   E_CLIENT_HOOK_DEL,                       _quickpanel_hook_client_del,  qp);
-   E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_BUFFER_CHANGE,            _quickpanel_cb_buffer_change, qp);
-   E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_ROTATION_CHANGE_BEGIN,    _quickpanel_cb_rotation_begin, qp);
-   E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_ROTATION_CHANGE_CANCEL,   _quickpanel_cb_rotation_cancel, qp);
-   E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_ROTATION_CHANGE_END,      _quickpanel_cb_rotation_done, qp);
+   E_CLIENT_HOOK_APPEND(qp->hooks,   E_CLIENT_HOOK_DEL,                       _quickpanel_hook_client_del,     qp);
+   E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_BUFFER_CHANGE,            _quickpanel_cb_buffer_change,    qp);
+   E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_ROTATION_CHANGE_BEGIN,    _quickpanel_cb_rotation_begin,   qp);
+   E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_ROTATION_CHANGE_CANCEL,   _quickpanel_cb_rotation_cancel,  qp);
+   E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_ROTATION_CHANGE_END,      _quickpanel_cb_rotation_done,    qp);
+   E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_SHOW,                     _quickpanel_cb_client_show,      qp);
+   E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_HIDE,                     _quickpanel_cb_client_hide,      qp);
+   E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_STACK,                    _quickpanel_cb_client_stack,     qp);
+
+   qp->idle_enterer = ecore_idle_enterer_add(_quickpanel_idle_enter, qp);
 }
 
 EINTERN E_Client *
