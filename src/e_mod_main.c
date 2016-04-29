@@ -573,15 +573,32 @@ _pol_cb_hook_client_desk_set(void *d EINA_UNUSED, E_Client *ec)
    Pol_Desk *pd;
 
    if (e_object_is_del(E_OBJECT(ec))) return;
-   if (!_pol_client_normal_check(ec)) return;
+   if ((!ec->new_client) && (!_pol_client_normal_check(ec))) return;
    if (ec->internal) return;
-   if (ec->new_client) return;
 
    pc = eina_hash_find(hash_pol_clients, &ec);
    if (EINA_UNLIKELY(!pc))
      return;
 
    pd = eina_hash_find(hash_pol_desks, &ec->desk);
+
+   if (ec->new_client)
+     {
+        /* with this config, all new clients have to be maximized */
+        if (_pol_mod->conf->max_new_client)
+          {
+             ec->lock_client_size = 1;
+             ec->lock_client_location = 1;
+             ec->borderless = 1;
+             ec->skip_fullscreen = 1;
+
+             e_client_maximize(ec, E_MAXIMIZE_EXPAND | E_MAXIMIZE_BOTH);
+
+             pc->max_policy_state = EINA_TRUE;
+             _pol_client_maximize_pre(pc);
+          }
+        return;
+     }
 
    if (pd)
      _pol_client_maximize_policy_apply(pc);

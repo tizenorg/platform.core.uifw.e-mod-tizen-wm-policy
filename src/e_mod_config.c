@@ -305,6 +305,7 @@ e_mod_pol_conf_init(Mod *mod)
    E_CONFIG_LIST(D, T, desks, mod->conf_desk_edd);
    E_CONFIG_VAL(D, T, use_softkey, INT);
    E_CONFIG_VAL(D, T, softkey_size, INT);
+   E_CONFIG_VAL(D, T, max_new_client, UINT);
    E_CONFIG_LIST(D, T, rotations, mod->conf_rot_edd);
 #undef T
 #undef D
@@ -319,6 +320,7 @@ e_mod_pol_conf_init(Mod *mod)
         conf->launcher.type = E_WINDOW_TYPE_NORMAL;
         conf->use_softkey = 1;
         conf->softkey_size = 42;
+        conf->max_new_client = 1;
 
         zone = e_zone_current_get();
         desk = e_desk_current_get(zone);
