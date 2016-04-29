@@ -2373,6 +2373,34 @@ _tzpol_iface_cb_floating_mode_unset(struct wl_client *client EINA_UNUSED, struct
    _pol_wl_floating_mode_apply(ec, EINA_FALSE);
 }
 
+static void
+_tzpol_iface_cb_stack_mode_set(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf, uint32_t mode)
+{
+   E_Client *ec;
+
+   ec = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
+
+   ELOGF("TZPOL", "STACK Mode Set. mode:%d", ec, ec->pixmap, mode);
+
+   if (ec->frame)
+     {
+        if (mode == TIZEN_POLICY_STACK_MODE_ABOVE)
+          {
+             evas_object_layer_set(ec->frame, E_LAYER_CLIENT_ABOVE);
+          }
+        else if (mode == TIZEN_POLICY_STACK_MODE_BELOW)
+          {
+             evas_object_layer_set(ec->frame, E_LAYER_CLIENT_BELOW);
+          }
+        else
+          {
+             evas_object_layer_set(ec->frame, E_LAYER_CLIENT_NORMAL);
+          }
+        EC_CHANGED(ec);
+     }
+}
+
 // --------------------------------------------------------
 // Pol_Wl_Tz_Dpy_Pol
 // --------------------------------------------------------
@@ -2712,6 +2740,7 @@ static const struct tizen_policy_interface _tzpol_iface =
    _tzpol_iface_cb_background_state_unset,
    _tzpol_iface_cb_floating_mode_set,
    _tzpol_iface_cb_floating_mode_unset,
+   _tzpol_iface_cb_stack_mode_set,
 };
 
 static void
