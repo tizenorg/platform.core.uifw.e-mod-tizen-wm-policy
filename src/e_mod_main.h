@@ -146,6 +146,7 @@ EINTERN void             e_mod_pol_allow_user_geometry_set(E_Client *ec, Eina_Bo
 EINTERN void             e_mod_pol_desk_add(E_Desk *desk);
 EINTERN void             e_mod_pol_desk_del(Pol_Desk *pd);
 EINTERN Pol_Client      *e_mod_pol_client_launcher_get(E_Zone *zone);
+EINTERN void             e_mod_pol_client_floating_update(E_Client *ec, Eina_Bool floating);
 EINTERN Eina_Bool        e_mod_pol_client_is_lockscreen(E_Client *ec);
 EINTERN Eina_Bool        e_mod_pol_client_is_home_screen(E_Client *ec);
 EINTERN Eina_Bool        e_mod_pol_client_is_quickpanel(E_Client *ec);

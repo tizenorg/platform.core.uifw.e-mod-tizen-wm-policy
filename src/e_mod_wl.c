@@ -2330,24 +2330,6 @@ _tzpol_iface_cb_background_state_unset(struct wl_client *client EINA_UNUSED, str
 }
 
 static void
-_pol_wl_floating_mode_apply(E_Client *ec, Eina_Bool floating)
-{
-   if (ec->floating == floating) return;
-
-   ec->floating = floating;
-
-   if (ec->frame)
-     {
-        if (floating)
-          evas_object_layer_set(ec->frame, E_LAYER_CLIENT_ABOVE);
-        else
-          evas_object_layer_set(ec->frame, E_LAYER_CLIENT_NORMAL);
-     }
-
-   EC_CHANGED(ec);
-}
-
-static void
 _tzpol_iface_cb_floating_mode_set(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf)
 {
    E_Client *ec;
@@ -2357,7 +2339,8 @@ _tzpol_iface_cb_floating_mode_set(struct wl_client *client EINA_UNUSED, struct w
 
    ELOGF("TZPOL", "FLOATING Set", ec, ec->pixmap);
 
-   _pol_wl_floating_mode_apply(ec, EINA_TRUE);
+   e_mod_pol_client_floating_update(ec, EINA_TRUE);
+
 }
 
 static void
@@ -2370,7 +2353,7 @@ _tzpol_iface_cb_floating_mode_unset(struct wl_client *client EINA_UNUSED, struct
 
    ELOGF("TZPOL", "FLOATING Unset", ec, ec->pixmap);
 
-   _pol_wl_floating_mode_apply(ec, EINA_FALSE);
+   e_mod_pol_client_floating_update(ec, EINA_FALSE);
 }
 
 static void

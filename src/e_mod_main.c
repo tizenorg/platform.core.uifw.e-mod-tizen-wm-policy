@@ -341,6 +341,7 @@ _pol_client_floating_policy_apply(Pol_Client *pc)
 #undef _SET
 # define _SET(a) pc->orig.a = pc->ec->a
    _SET(fullscreen);
+   _SET(maximized);
    _SET(lock_client_stacking);
    _SET(lock_user_shade);
    _SET(lock_client_shade);
@@ -348,7 +349,22 @@ _pol_client_floating_policy_apply(Pol_Client *pc)
    _SET(lock_client_maximize);
    _SET(lock_user_fullscreen);
    _SET(lock_client_fullscreen);
+   _SET(lock_client_size);
 #undef _SET
+
+   if (!ec->borderless)
+     {
+        ec->borderless = 1;
+        ec->border.changed = 1;
+        EC_CHANGED(pc->ec);
+     }
+
+   if (ec->maximized)
+     {
+        e_client_unmaximize(ec, ec->maximized);
+        ec->changes.need_maximize = 0;
+        EC_CHANGED(pc->ec);
+     }
 
    ec->skip_fullscreen = 1;
    ec->lock_client_stacking = 1;
@@ -358,6 +374,7 @@ _pol_client_floating_policy_apply(Pol_Client *pc)
    ec->lock_client_maximize = 1;
    ec->lock_user_fullscreen = 1;
    ec->lock_client_fullscreen = 1;
+   ec->lock_client_size = 0;
 }
 
 static void
@@ -378,13 +395,9 @@ _pol_client_floating_policy_cancel(Pol_Client *pc)
         changed = EINA_TRUE;
      }
 
-   if (pc->orig.maximized != ec->maximized)
+   if (pc->orig.maximized)
      {
-        if (pc->orig.maximized)
-          ec->changes.need_maximize = 1;
-        else
-          e_client_unmaximize(ec, ec->maximized);
-
+        ec->changes.need_maximize = 1;
         changed = EINA_TRUE;
      }
 
@@ -393,6 +406,7 @@ _pol_client_floating_policy_cancel(Pol_Client *pc)
 #undef _SET
 # define _SET(a) ec->a = pc->orig.a
    _SET(fullscreen);
+   _SET(maximized);
    _SET(lock_client_stacking);
    _SET(lock_user_shade);
    _SET(lock_client_shade);
@@ -1279,6 +1293,46 @@ e_mod_pol_client_is_floating(E_Client *ec)
      return EINA_FALSE;
 
    return ec->floating;
+}
+
+void
+e_mod_pol_client_floating_update(E_Client *ec, Eina_Bool floating)
+{
+   Pol_Client *pc = NULL;
+
+   if (ec->floating == floating) return;
+
+   pc = eina_hash_find(hash_pol_clients, &ec);
+   if (!pc) return;
+
+   ec->floating = floating;
+   if (floating)
+     {
+        if (ec->frame)
+          {
+             ec->saved.layer = ec->layer;
+             evas_object_layer_set(ec->frame, E_LAYER_CLIENT_ABOVE);
+          }
+
+        if (pc->max_policy_state)
+          _pol_client_maximize_policy_cancel(pc);
+
+        _pol_client_floating_policy_apply(pc);
+     }
+   else
+     {
+        if (ec->frame)
+          evas_object_layer_set(ec->frame,
+                                ec->saved.layer?:E_LAYER_CLIENT_NORMAL);
+
+        if (pc->flt_policy_state)
+          _pol_client_floating_policy_cancel(pc);
+
+        if (ec->maximized)
+          _pol_client_maximize_policy_apply(pc);
+     }
+
+   EC_CHANGED(ec);
 }
 
 static Eina_Bool
