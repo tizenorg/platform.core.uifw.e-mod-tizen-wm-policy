@@ -94,6 +94,7 @@ struct _Config
    Eina_List       *rotations;
    int              use_softkey;
    int              softkey_size;
+   unsigned int     max_new_client;
 };
 
 struct _Mod
