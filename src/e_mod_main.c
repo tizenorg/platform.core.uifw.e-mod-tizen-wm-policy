@@ -1134,6 +1134,49 @@ e_mod_pol_client_launcher_get(E_Zone *zone)
 }
 
 Eina_Bool
+e_mod_pol_client_maximize(E_Client *ec)
+{
+   Pol_Desk *pd;
+   Pol_Client *pc;
+
+   E_OBJECT_CHECK_RETURN(ec, EINA_FALSE);
+   E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, EINA_FALSE);
+
+   if (EINA_UNLIKELY(!ec))  return EINA_FALSE;
+   if (e_object_is_del(E_OBJECT(ec))) return EINA_FALSE;
+
+   if ((e_mod_pol_client_is_keyboard(ec)) ||
+       (e_mod_pol_client_is_keyboard_sub(ec)) ||
+       (e_mod_pol_client_is_floating(ec)) ||
+       (e_mod_pol_client_is_quickpanel(ec)) ||
+       (e_mod_pol_client_is_volume(ec)) ||
+       (!e_util_strcmp("wl_pointer-cursor", ec->icccm.window_role)) ||
+       (!e_util_strcmp("e_demo", ec->icccm.window_role)))
+     return EINA_FALSE;
+
+#ifdef HAVE_WAYLAND_ONLY
+   if (e_mod_pol_client_is_subsurface(ec)) return EINA_FALSE;
+#endif
+
+   if ((ec->netwm.type != E_WINDOW_TYPE_NORMAL) &&
+       (ec->netwm.type != E_WINDOW_TYPE_UNKNOWN) &&
+       (ec->netwm.type != E_WINDOW_TYPE_NOTIFICATION))
+     return EINA_FALSE;
+
+   pd = eina_hash_find(hash_pol_desks, &ec->desk);
+   if (!pd) return EINA_FALSE;
+
+   pc = eina_hash_find(hash_pol_clients, &ec);
+
+   if (pc->flt_policy_state)
+     _pol_client_floating_policy_cancel(pc);
+
+   _pol_client_maximize_policy_apply(pc);
+
+   return EINA_TRUE;
+}
+
+Eina_Bool
 e_mod_pol_client_is_lockscreen(E_Client *ec)
 {
    E_OBJECT_CHECK_RETURN(ec, EINA_FALSE);

@@ -168,6 +168,7 @@ static Pol_Wl *polwl = NULL;
 E_Launch_Screen   *launch_scrn=NULL;
 
 static Eina_List *handlers = NULL;
+static Eina_List *hooks_cw = NULL;
 static struct wl_resource *_scrsaver_mng_res = NULL; // TODO
 
 static Pol_Wl_Conformant conformant =
@@ -3979,6 +3980,28 @@ _pol_wl_cb_zone_rot_change_cancel(void *data EINA_UNUSED, int type EINA_UNUSED, 
    return ECORE_CALLBACK_PASS_ON;
 }
 
+static void
+_pol_wl_cb_hook_shell_surface_ready(void *d, E_Client *ec)
+{
+   Eina_Bool res;
+
+   if (EINA_UNLIKELY(!ec))
+     return;
+
+   _pol_wl_aux_hint_apply(ec);
+
+   res = e_mod_pol_client_maximize(ec);
+   if (res)
+     {
+        if ((ec->comp_data->shell.configure_send) &&
+            (ec->comp_data->shell.surface))
+          {
+             ec->comp_data->shell.configure_send(ec->comp_data->shell.surface,
+                                                 0, ec->w, ec->h);
+          }
+     }
+}
+
 // --------------------------------------------------------
 // public functions
 // --------------------------------------------------------
@@ -4061,6 +4084,17 @@ err:
    return EINA_FALSE;
 }
 
+#undef E_COMP_WL_HOOK_APPEND
+#define E_COMP_WL_HOOK_APPEND(l, t, cb, d) \
+  do                                      \
+    {                                     \
+       E_Comp_Wl_Hook *_h;                 \
+       _h = e_comp_wl_hook_add(t, cb, d);  \
+       assert(_h);                        \
+       l = eina_list_append(l, _h);       \
+    }                                     \
+  while (0)
+
 Eina_Bool
 e_mod_pol_wl_init(void)
 {
@@ -4110,6 +4144,8 @@ e_mod_pol_wl_init(void)
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_ROTATION_CHANGE_BEGIN,  _pol_wl_cb_zone_rot_change_begin, NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_ROTATION_CHANGE_CANCEL, _pol_wl_cb_zone_rot_change_cancel, NULL);
 
+   E_COMP_WL_HOOK_APPEND(hooks_cw, E_COMP_WL_HOOK_SHELL_SURFACE_READY, _pol_wl_cb_hook_shell_surface_ready, NULL);
+
    return EINA_TRUE;
 
 err:
@@ -4135,6 +4171,7 @@ e_mod_pol_wl_shutdown(void)
 
    EINA_SAFETY_ON_NULL_RETURN(polwl);
 
+   E_FREE_LIST(hooks_cw, e_comp_wl_hook_del);
    E_FREE_LIST(handlers, ecore_event_handler_del);
 
    for (i = 0; i < TZSH_SRV_ROLE_MAX; i++)

@@ -168,6 +168,8 @@ EINTERN void             e_mod_pol_client_visibility_send(E_Client *ec);
 EINTERN void             e_mod_pol_client_iconify_by_visibility(E_Client *ec);
 EINTERN void             e_mod_pol_client_uniconify_by_visibility(E_Client *ec);
 
+EINTERN Eina_Bool        e_mod_pol_client_maximize(E_Client *ec);
+
 EINTERN void             e_mod_pol_client_window_opaque_set(E_Client *ec);
 
 EINTERN void             e_mod_pol_stack_init(void);
