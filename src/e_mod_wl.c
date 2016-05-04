@@ -3632,9 +3632,19 @@ static void
 _launch_img_off(Pol_Wl_Tzlaunch_Img *tzlaunchimg)
 {
    Evas_Object *old_o;
+   E_Client *ec = NULL;
 
    if (!launch_scrn) return;
    if(!tzlaunchimg->valid) return;
+
+   ec = launch_scrn->ec;
+   if (ec->visible)
+     {
+        ec->visible = EINA_FALSE;
+        evas_object_hide(ec->frame);
+        evas_object_lower(ec->frame);
+        ec->ignored = EINA_TRUE;
+     }
 
    old_o = edje_object_part_swallow_get(launch_scrn->shobj, "e.swallow.content");
    if ((!old_o)&& ( old_o == tzlaunchimg->obj))
@@ -3646,6 +3656,7 @@ _launch_img_off(Pol_Wl_Tzlaunch_Img *tzlaunchimg)
 
    if (launch_scrn->timeout) ecore_timer_del(launch_scrn->timeout);
    launch_scrn->timeout = NULL;
+   tzlaunchimg->valid = EINA_FALSE;
 }
 
 static Eina_Bool
@@ -3674,7 +3685,21 @@ _tzlaunchimg_iface_cb_launch(struct wl_client *client EINA_UNUSED, struct wl_res
    Evas_Load_Error err;
    Eina_Bool res = EINA_TRUE;
    Evas_Object *old_o = NULL;
+   E_Client *ec = NULL;
+
    if (!launch_scrn) return;
+
+   ec = launch_scrn->ec;
+   if (!ec->visible)
+     {
+        ec->ignored = EINA_FALSE;
+        ec->visible = EINA_TRUE;
+        evas_object_show(ec->frame);
+        evas_object_raise(ec->frame);
+        ec->argb = EINA_FALSE;
+        EC_CHANGED(ec);
+        e_client_visibility_calculate();
+     }
 
    tzlaunchimg = wl_resource_get_user_data(res_tzlaunchimg);
    EINA_SAFETY_ON_NULL_RETURN(tzlaunchimg);
@@ -3912,7 +3937,8 @@ _tzlaunch_cb_bind(struct wl_client *client, void *data EINA_UNUSED, uint32_t ver
    Pol_Wl_Tzlaunch *tzlaunch = NULL;
    struct wl_resource *res_tzlaunch;
 
-   if(!launch_scrn)launch_scrn = e_comp->launchscrn;
+   if (!launch_scrn)
+     launch_scrn = e_comp->launchscrn;
 
    EINA_SAFETY_ON_NULL_GOTO(launch_scrn, err);
    EINA_SAFETY_ON_NULL_GOTO(polwl, err);
