@@ -3679,7 +3679,10 @@ _tzlaunchimg_iface_cb_destroy(struct wl_client *client EINA_UNUSED, struct wl_re
 }
 
 static void
-_tzlaunchimg_iface_cb_launch(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzlaunchimg, const char *pfname, uint32_t ftype, uint32_t angle, uint32_t indicator)
+_tzlaunchimg_iface_cb_launch(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzlaunchimg,
+                             const char *pfname, uint32_t ftype,
+                             uint32_t depth, uint32_t angle,
+                             uint32_t indicator, struct wl_array *options)
 {
    Pol_Wl_Tzlaunch_Img *tzlaunchimg;
    Evas_Load_Error err;
@@ -3688,18 +3691,6 @@ _tzlaunchimg_iface_cb_launch(struct wl_client *client EINA_UNUSED, struct wl_res
    E_Client *ec = NULL;
 
    if (!launch_scrn) return;
-
-   ec = launch_scrn->ec;
-   if (!ec->visible)
-     {
-        ec->ignored = EINA_FALSE;
-        ec->visible = EINA_TRUE;
-        evas_object_show(ec->frame);
-        evas_object_raise(ec->frame);
-        ec->argb = EINA_FALSE;
-        EC_CHANGED(ec);
-        e_client_visibility_calculate();
-     }
 
    tzlaunchimg = wl_resource_get_user_data(res_tzlaunchimg);
    EINA_SAFETY_ON_NULL_RETURN(tzlaunchimg);
@@ -3720,7 +3711,8 @@ _tzlaunchimg_iface_cb_launch(struct wl_client *client EINA_UNUSED, struct wl_res
         DBG("%s | unswallow %p", __FUNCTION__, old_o);
      }
 
-   if (tzlaunchimg->obj) evas_object_del(tzlaunchimg->obj);
+   if (tzlaunchimg->obj)
+     evas_object_del(tzlaunchimg->obj);
 
    if (tzlaunchimg->type == E_LAUNCH_FILE_TYPE_IMAGE)
      {
@@ -3751,10 +3743,23 @@ _tzlaunchimg_iface_cb_launch(struct wl_client *client EINA_UNUSED, struct wl_res
    evas_object_show(launch_scrn->shobj);
    edje_object_signal_emit(launch_scrn->shobj, "e,action,go,visible", "e");
 
-   if (launch_scrn->timeout) ecore_timer_del(launch_scrn->timeout);
+   if (launch_scrn->timeout)
+     ecore_timer_del(launch_scrn->timeout);
    launch_scrn->timeout = ecore_timer_add(4.0f, _launch_timeout, tzlaunchimg);
 
    tzlaunchimg->valid = EINA_TRUE;
+
+   ec = launch_scrn->ec;
+   ec->ignored = EINA_FALSE;
+   ec->visible = EINA_TRUE;
+   evas_object_show(ec->frame);
+   evas_object_raise(ec->frame);
+   if (depth == 32)
+     ec->argb = EINA_TRUE;
+   else
+     ec->argb = EINA_FALSE;
+   EC_CHANGED(ec);
+   e_client_visibility_calculate();
 
    return;
 
