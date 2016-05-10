@@ -1359,8 +1359,8 @@ _rot_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec)
 
         if (diff) ec->e.fetch.rot.need_rotation = EINA_TRUE;
         ec->e.fetch.rot.available_rots = 0;
-end_fetch_rot:
      }
+end_fetch_rot:
 
    if (ec->e.fetch.rot.need_rotation)
      {
