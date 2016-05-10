@@ -1272,6 +1272,10 @@ _rot_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec)
         int _prev_rots[4] = { -1, };
         uint32_t available_angles = 0;
 
+        rots = (int*)E_NEW(int, count);
+        if (!rots)
+          goto end_fetch_rot;
+
         if (ec->e.state.rot.available_rots)
           {
              memcpy(_prev_rots,
@@ -1290,7 +1294,6 @@ _rot_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec)
         if (rot->available_angles & TIZEN_ROTATION_ANGLE_270) count++;
 
         available_angles = rot->available_angles;
-        rots = (int*)E_NEW(int, count);
 
         if ((count > 0) && (rots))
           {
@@ -1356,6 +1359,7 @@ _rot_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec)
 
         if (diff) ec->e.fetch.rot.need_rotation = EINA_TRUE;
         ec->e.fetch.rot.available_rots = 0;
+end_fetch_rot:
      }
 
    if (ec->e.fetch.rot.need_rotation)
