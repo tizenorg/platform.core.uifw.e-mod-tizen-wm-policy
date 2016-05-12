@@ -50,6 +50,7 @@ struct _Pol_Client
    struct
    {
       unsigned int vkbd_state;
+      unsigned int already_hide;
    } changes;
 
    Eina_Bool max_policy_state;

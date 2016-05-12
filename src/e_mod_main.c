@@ -50,6 +50,7 @@ static Eina_Bool   _pol_cb_zone_desk_count_set(void *data EINA_UNUSED, int type 
 static Eina_Bool   _pol_cb_zone_display_state_change(void *data EINA_UNUSED, int type EINA_UNUSED, void *event);
 static Eina_Bool   _pol_cb_desk_show(void *data EINA_UNUSED, int type EINA_UNUSED, void *event);
 static Eina_Bool   _pol_cb_client_add(void *data EINA_UNUSED, int type, void *event);
+static Eina_Bool   _pol_cb_client_iconify(void *data EINA_UNUSED, int type, void *event);
 static Eina_Bool   _pol_cb_client_move(void *data EINA_UNUSED, int type, void *event);
 static Eina_Bool   _pol_cb_client_resize(void *data EINA_UNUSED, int type, void *event);
 static Eina_Bool   _pol_cb_client_stack(void *data EINA_UNUSED, int type, void *event);
@@ -827,6 +828,34 @@ _pol_cb_client_add(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 }
 
 static Eina_Bool
+_pol_cb_client_iconify(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
+{
+   E_Event_Client *ev;
+   Pol_Client *pc;
+
+   ev = event;
+   EINA_SAFETY_ON_NULL_RETURN_VAL(ev, ECORE_CALLBACK_PASS_ON);
+
+#ifdef HAVE_WAYLAND_ONLY
+   if (e_mod_pol_client_is_keyboard(ev->ec))
+     {
+        pc = eina_hash_find(hash_pol_clients, &ev->ec);
+        if (pc)
+          {
+             if (!pc->changes.already_hide)
+               {
+                  pc->changes.vkbd_state = 1;
+                  pc->changes.already_hide = 1;
+                  EC_CHANGED(ev->ec);
+               }
+          }
+     }
+#endif
+
+   return ECORE_CALLBACK_PASS_ON;
+}
+
+static Eina_Bool
 _pol_cb_client_show(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 {
    E_Event_Client *ev;
@@ -842,6 +871,7 @@ _pol_cb_client_show(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
         if (pc)
           {
              pc->changes.vkbd_state = 1;
+             pc->changes.already_hide = 0;
              EC_CHANGED(ev->ec);
           }
      }
@@ -866,8 +896,12 @@ _pol_cb_client_hide(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
         pc = eina_hash_find(hash_pol_clients, &ev->ec);
         if (pc)
           {
-             pc->changes.vkbd_state = 1;
-             EC_CHANGED(ev->ec);
+             if (!pc->changes.already_hide)
+               {
+                  pc->changes.vkbd_state = 1;
+                  pc->changes.already_hide = 1;
+                  EC_CHANGED(ev->ec);
+               }
           }
      }
 #endif
@@ -1404,6 +1438,7 @@ e_modapi_init(E_Module *m)
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_STACK,              _pol_cb_client_stack,                    NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_PROPERTY,           _pol_cb_client_property,                 NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_VISIBILITY_CHANGE,  _pol_cb_client_vis_change,               NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_ICONIFY,            _pol_cb_client_iconify,                  NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_MODULE_DEFER_JOB,          _pol_cb_module_defer_job,                NULL);
 
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_NEW_CLIENT,          _pol_cb_hook_client_new,                 NULL);
