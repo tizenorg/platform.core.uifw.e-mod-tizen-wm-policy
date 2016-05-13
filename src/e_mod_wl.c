@@ -88,6 +88,7 @@ typedef struct _Pol_Wl_Tzsh_Region
 typedef struct _Pol_Wl_Surface
 {
    struct wl_resource *surf;
+   struct wl_resource *tzbf;
    Pol_Wl_Tzpol       *tzpol;
    E_Pixmap           *cp;
    E_Client           *ec;
@@ -885,6 +886,105 @@ _pol_wl_e_clients_find_by_pid(pid_t pid)
 
    return clients;
 }
+
+static Eina_Bool
+_pol_wl_tzbf_flush_timer(void *data)
+{
+   Pol_Wl_Surface *psurf = data;
+
+   if (psurf->tzbf)
+     {
+        if (psurf->ec)
+          {
+             if (e_pixmap_resource_get(psurf->ec->pixmap))
+               {
+                  e_pixmap_resource_set(psurf->ec->pixmap, NULL);
+                  e_comp_object_native_surface_set(psurf->ec->frame, 0);
+               }
+             SDBG("POLICY::BUFFER::RESOURCE::CLEAR %s(%p)", (psurf->ec ? psurf->ec->icccm.name?:"" : ""), psurf->ec);
+          }
+        SDBG("POLICY::BUFFER::FLUSH %s(%p)", (psurf->ec ? psurf->ec->icccm.name?:"" : ""), psurf->ec);
+        tizen_buffer_flusher_send_flush(psurf->tzbf);
+     }
+
+   return ECORE_CALLBACK_CANCEL;
+}
+
+static Eina_Bool
+_client_cb_iconify(void *data, int type, void *event)
+{
+   Pol_Wl_Tzpol *tzpol;
+   Pol_Wl_Surface *psurf;
+   Eina_Iterator *it;
+   E_Event_Client *ev = event;
+
+   it = eina_hash_iterator_data_new(polwl->tzpols);
+   EINA_ITERATOR_FOREACH(it, tzpol)
+     {
+        psurf = _pol_wl_tzpol_surf_find(tzpol, ev->ec);
+        if (psurf && psurf->tzbf)
+          ecore_timer_add(0.5, _pol_wl_tzbf_flush_timer, psurf);
+     }
+   eina_iterator_free(it);
+
+   return ECORE_CALLBACK_PASS_ON;
+}
+
+static void
+_tzbf_iface_cb_destroy(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzbf)
+{
+   wl_resource_destroy(res_tzbf);
+}
+
+static const struct tizen_buffer_flusher_interface _tzbf_iface =
+{
+   _tzbf_iface_cb_destroy
+};
+
+static void
+_tzbf_iface_cb_res_destroy(struct wl_resource *res_tzbf)
+{
+   Pol_Wl_Surface *psurf;
+   Eina_Bool r;
+
+   psurf = wl_resource_get_user_data(res_tzbf);
+   EINA_SAFETY_ON_NULL_RETURN(psurf);
+
+   r = _pol_wl_surf_is_valid(psurf);
+   if (!r) return;
+
+   psurf->tzbf = NULL;
+}
+
+static void
+_tzpol_iface_cb_buffer_flusher_get(struct wl_client *client, struct wl_resource *res_tzpol, uint32_t id, struct wl_resource *surf)
+{
+   E_Client *ec;
+   Pol_Wl_Surface *psurf;
+   struct wl_resource *res_tzbf;
+
+   ec = wl_resource_get_user_data(surf);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
+
+   psurf = _pol_wl_surf_add(ec, res_tzpol);
+   EINA_SAFETY_ON_NULL_RETURN(psurf);
+
+   res_tzbf = wl_resource_create(client,
+                                 &tizen_buffer_flusher_interface,
+                                 wl_resource_get_version(res_tzpol),
+                                 id);
+   if (!res_tzbf)
+     {
+        wl_client_post_no_memory(client);
+        return;
+     }
+
+   wl_resource_set_implementation(res_tzbf, &_tzbf_iface, psurf,
+                                  _tzbf_iface_cb_res_destroy);
+
+   psurf->tzbf = res_tzbf;
+}
+
 
 // --------------------------------------------------------
 // visibility
@@ -2710,6 +2810,7 @@ _tz_dpy_pol_iface_cb_brightness_set(struct wl_client *client, struct wl_resource
 // --------------------------------------------------------
 static const struct tizen_policy_interface _tzpol_iface =
 {
+   _tzpol_iface_cb_buffer_flusher_get,
    _tzpol_iface_cb_vis_get,
    _tzpol_iface_cb_pos_get,
    _tzpol_iface_cb_activate,
@@ -4171,6 +4272,8 @@ e_mod_pol_wl_init(void)
 
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_SCREENSAVER_ON,  _pol_wl_cb_scrsaver_on,  NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_SCREENSAVER_OFF, _pol_wl_cb_scrsaver_off, NULL);
+
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_ICONIFY,  _client_cb_iconify,     NULL);
 
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_ROTATION_CHANGE_BEGIN,  _pol_wl_cb_zone_rot_change_begin, NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_ROTATION_CHANGE_CANCEL, _pol_wl_cb_zone_rot_change_cancel, NULL);
