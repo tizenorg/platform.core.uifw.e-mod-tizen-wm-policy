@@ -89,6 +89,7 @@ typedef struct _Pol_Wl_Tzsh_Region
 typedef struct _Pol_Wl_Surface
 {
    struct wl_resource *surf;
+   struct wl_resource *tzbf;
    Pol_Wl_Tzpol       *tzpol;
    E_Pixmap           *cp;
    E_Client           *ec;
@@ -889,6 +890,22 @@ _pol_wl_e_clients_find_by_pid(pid_t pid)
      }
 
    return clients;
+}
+
+static Eina_Bool
+_client_cb_iconify(void *data, int type, void *event)
+{
+   E_Event_Client *ev = event;
+   E_Client *ec;
+
+   ec = ev->ec;
+   if (!ec)
+     goto end;
+
+   e_pixmap_buffer_clear(ec->pixmap);
+
+end:
+   return ECORE_CALLBACK_PASS_ON;
 }
 
 // --------------------------------------------------------
@@ -4245,6 +4262,8 @@ e_mod_pol_wl_init(void)
 
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_SCREENSAVER_ON,  _pol_wl_cb_scrsaver_on,  NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_SCREENSAVER_OFF, _pol_wl_cb_scrsaver_off, NULL);
+
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_ICONIFY,  _client_cb_iconify,     NULL);
 
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_ROTATION_CHANGE_BEGIN,  _pol_wl_cb_zone_rot_change_begin, NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_ROTATION_CHANGE_CANCEL, _pol_wl_cb_zone_rot_change_cancel, NULL);
