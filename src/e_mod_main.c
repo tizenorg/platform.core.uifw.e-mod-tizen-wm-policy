@@ -877,6 +877,10 @@ _pol_cb_client_iconify(void *data EINA_UNUSED, int type EINA_UNUSED, void *event
      }
 #endif
 
+   /* The feature for iconify buffer flush */
+   if (e_config->use_buffer_flush)
+     e_pixmap_buffer_clear(ev->ec->pixmap);
+
    return ECORE_CALLBACK_PASS_ON;
 }
 
