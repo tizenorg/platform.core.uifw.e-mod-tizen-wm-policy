@@ -1288,7 +1288,9 @@ _rot_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec)
         if (rot->available_angles & TIZEN_ROTATION_ANGLE_180) count++;
         if (rot->available_angles & TIZEN_ROTATION_ANGLE_270) count++;
 
-        rots = (int*)E_NEW(int, count);
+        if (count != 0)
+          rots = (int*)E_NEW(int, count);
+
         if (!rots)
           {
              /* restore previous rotation hints */
