@@ -1272,16 +1272,11 @@ _rot_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec)
         int _prev_rots[4] = { -1, };
         uint32_t available_angles = 0;
 
-        rots = (int*)E_NEW(int, count);
-        if (!rots)
-          goto end_fetch_rot;
-
         if (ec->e.state.rot.available_rots)
           {
              memcpy(_prev_rots,
                     ec->e.state.rot.available_rots,
                     (sizeof(int) * ec->e.state.rot.count));
-             E_FREE(ec->e.state.rot.available_rots);
           }
 
         _prev_count = ec->e.state.rot.count;
@@ -1292,6 +1287,17 @@ _rot_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec)
         if (rot->available_angles & TIZEN_ROTATION_ANGLE_90) count++;
         if (rot->available_angles & TIZEN_ROTATION_ANGLE_180) count++;
         if (rot->available_angles & TIZEN_ROTATION_ANGLE_270) count++;
+
+        rots = (int*)E_NEW(int, count);
+        if (!rots)
+          {
+             /* restore previous rotation hints */
+             memcpy(ec->e.state.rot.available_rots, _prev_rots, (sizeof(int) * _prev_count));
+             goto end_fetch_rot;
+          }
+
+        if (ec->e.state.rot.available_rots)
+          E_FREE(ec->e.state.rot.available_rots);
 
         available_angles = rot->available_angles;
 
