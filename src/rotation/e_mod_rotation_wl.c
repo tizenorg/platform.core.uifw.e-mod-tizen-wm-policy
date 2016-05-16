@@ -1293,8 +1293,11 @@ _rot_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec)
 
         if (!rots)
           {
-             /* restore previous rotation hints */
-             memcpy(ec->e.state.rot.available_rots, _prev_rots, (sizeof(int) * _prev_count));
+             if (ec->e.state.rot.available_rots)
+               {
+                  /* restore previous rotation hints */
+                  memcpy(ec->e.state.rot.available_rots, _prev_rots, (sizeof(int) * _prev_count));
+               }
              goto end_fetch_rot;
           }
 
