@@ -1341,6 +1341,18 @@ e_mod_pol_client_is_floating(E_Client *ec)
    return ec->floating;
 }
 
+Eina_Bool
+e_mod_pol_client_is_cursor(E_Client *ec)
+{
+   E_OBJECT_CHECK_RETURN(ec, EINA_FALSE);
+   E_OBJECT_TYPE_CHECK_RETURN(ec, E_CLIENT_TYPE, EINA_FALSE);
+
+   if (!e_util_strcmp("wl_pointer-cursor", ec->icccm.window_role))
+     return EINA_TRUE;
+
+   return EINA_FALSE;
+}
+
 static Eina_Bool
 _pol_cb_module_defer_job(void *data EINA_UNUSED)
 {

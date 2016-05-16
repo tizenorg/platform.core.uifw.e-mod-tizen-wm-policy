@@ -1032,6 +1032,9 @@ _quickpanel_cb_client_show(void *data, int type, void *event)
    if (EINA_UNLIKELY(!ec))
      goto end;
 
+   if (e_mod_pol_client_is_cursor(ec))
+     goto end;
+
    if (qp->ec == ec)
      qp->visible = EINA_TRUE;
    else if (qp->visible)
@@ -1059,6 +1062,9 @@ _quickpanel_cb_client_hide(void *data, int type, void *event)
    if (EINA_UNLIKELY(!ec))
      goto end;
 
+   if (e_mod_pol_client_is_cursor(ec))
+     goto end;
+
    if (qp->ec == ec)
      qp->visible = EINA_FALSE;
    else if (qp->visible)
@@ -1084,6 +1090,9 @@ _quickpanel_cb_client_stack(void *data, int type, void *event)
 
    ec = ev->ec;
    if (EINA_UNLIKELY(!ec))
+     goto end;
+
+   if (e_mod_pol_client_is_cursor(ec))
      goto end;
 
    if (qp->ec == ec)
