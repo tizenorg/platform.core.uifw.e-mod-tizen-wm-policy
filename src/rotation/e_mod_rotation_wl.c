@@ -192,6 +192,37 @@ _e_tizen_rotation_set_available_angles_cb(struct wl_client *client,
 
    ec->e.fetch.rot.available_rots = 1;
    EC_CHANGED(ec);
+
+   /* for clients supporting landscape mode only */
+   if ((rot->available_angles) &&
+       !(rot->available_angles & TIZEN_ROTATION_ANGLE_0) &&
+       !(rot->available_angles & TIZEN_ROTATION_ANGLE_180))
+     {
+        enum tizen_rotation_angle tz_angle = 0;
+        uint32_t serial;
+        Eina_List *l;
+        struct wl_resource *res;
+
+        if (rot->available_angles & TIZEN_ROTATION_ANGLE_90)
+          tz_angle = TIZEN_ROTATION_ANGLE_90;
+        else if (rot->available_angles & TIZEN_ROTATION_ANGLE_270)
+          tz_angle = TIZEN_ROTATION_ANGLE_270;
+        else
+          {
+             ERR("What's this impossible angle?? : %d", rot->available_angles);
+          }
+
+        if (tz_angle)
+          {
+             EINF(ec, "Send Change Rotation: angle %d for landscape only app", tz_angle);
+             serial = wl_display_next_serial(e_comp_wl->wl.disp);
+
+             EINA_LIST_FOREACH(rot->rotation_list, l, res)
+               {
+                  tizen_rotation_send_angle_change(res, tz_angle, serial);
+               }
+          }
+     }
 }
 
 static void
