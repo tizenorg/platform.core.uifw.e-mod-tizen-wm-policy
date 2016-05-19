@@ -161,7 +161,7 @@ e_mod_region_cb_set(Evas_Object *ro, Pol_Gesture_Start_Cb cb_start, Pol_Gesture_
    INF("Set Callback function");
    if (!region->gesture)
      {
-        gesture = e_mod_gesture_add(ro, POL_GESTURE_TYPE_NONE);
+        gesture = e_mod_gesture_add(ro, POL_GESTURE_TYPE_LINE);
         if (!gesture)
           return EINA_FALSE;
 
