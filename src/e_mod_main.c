@@ -20,6 +20,7 @@ Pol_System_Info g_system_info =
 static Eina_List *handlers = NULL;
 static Eina_List *hooks_ec = NULL;
 static Eina_List *hooks_cp = NULL;
+static Eina_List *hooks_comp = NULL;
 
 static Pol_Client *_pol_client_add(E_Client *ec);
 static void        _pol_client_del(Pol_Client *pc);
@@ -40,6 +41,8 @@ static void        _pol_cb_hook_client_eval_end(void *d EINA_UNUSED, E_Client *e
 static void        _pol_cb_hook_client_fullscreen_pre(void *data EINA_UNUSED, E_Client *ec);
 
 static void        _pol_cb_hook_pixmap_del(void *data EINA_UNUSED, E_Pixmap *cp);
+
+static void        _pol_cb_hook_comp_plane_assign(void * data EINA_UNUSED, void  *cp EINA_UNUSED);
 
 static void        _pol_cb_desk_data_free(void *data);
 static void        _pol_cb_client_data_free(void *data);
@@ -649,6 +652,81 @@ _pol_cb_hook_pixmap_del(void *data EINA_UNUSED, E_Pixmap *cp)
    e_mod_pol_wl_pixmap_del(cp);
 #endif
 }
+
+static void
+_pol_cb_hook_comp_plane_assign(void * data EINA_UNUSED, void  *cp EINA_UNUSED)
+{
+   Eina_List *l, *ll;
+   E_Zone *zone;
+
+   if (!e_comp->hwc) return;
+
+   // TODO: e_comp->canvases
+   EINA_LIST_FOREACH_SAFE(e_comp->zones, l, ll, zone)
+     {
+        E_Client *ec;
+        E_Output_Screen *eout;
+        int mode = E_HWC_MODE_INVALID;
+        int num_of_ly = 0, ly_visible = 0;
+        Eina_List *clist = NULL;
+
+        if (!zone && !zone->screen) continue;
+
+        eout = zone->screen;
+        printf("reassign all clients from zone %p\n", zone);
+        num_of_ly = eout->plane_count;
+
+        E_CLIENT_REVERSE_FOREACH(ec)
+          {
+             E_Comp_Wl_Client_Data *cdata = (E_Comp_Wl_Client_Data*)ec->comp_data;
+             if (ec->zone != zone) continue;
+
+             // check clients to skip composite
+             if (ec->ignored || ec->input_only || (!evas_object_visible_get(ec->frame)))
+               continue;
+
+             if (!E_INTERSECTS(0, 0, e_comp->w, e_comp->h,
+                               ec->client.x, ec->client.y, ec->client.w, ec->client.h))
+               {// check quick panel
+                  continue;
+               }
+
+             if (evas_object_data_get(ec->frame, "comp_skip"))
+               continue;
+
+             // check clients not able to use hwc
+             if ((!cdata->buffer_ref.buffer) ||
+                 (cdata->buffer_ref.buffer->type != E_COMP_WL_BUFFER_TYPE_NATIVE) ||
+                 (cdata->width_from_buffer != cdata->width_from_viewport) ||
+                 (cdata->height_from_buffer != cdata->height_from_viewport))
+               {
+                  if (ly_visible) mode = E_HWC_MODE_HWC_COMPOSITE;
+                  else mode = E_HWC_MODE_COMPOSITE;
+                  break;
+               }
+             /////////////////////////////////////////////////
+
+             ly_visible++;
+             if(!clist) clist = eina_list_append(clist, ec);
+             INF("HWC :%s clients \t -- %s\n",__FUNCTION__, ec->icccm.title);
+          }
+        if (mode != E_HWC_MODE_COMPOSITE)
+          {
+             if (ly_visible <= 1) mode = E_HWC_MODE_COMPOSITE;
+             else mode = E_HWC_MODE_HWC_COMPOSITE;
+          }
+        INF("HWC : %s - mode(%d) ly visible: %d\n",__FUNCTION__, mode, ly_visible);
+
+        // comepare clist with current and assign it to planes refer to core policy : FIXME
+        // ......
+        //e_output_planes_clear(eout);
+        e_output_planes_prepare(eout, mode, clist);
+
+        eina_list_free(clist);
+     }
+
+}
+
 
 static void
 _pol_cb_desk_data_free(void *data)
@@ -1384,6 +1462,17 @@ _pol_cb_module_defer_job(void *data EINA_UNUSED)
     }                                     \
   while (0)
 
+#undef E_COMP_HOOK_APPEND
+#define E_COMP_HOOK_APPEND(l, t, cb, d) \
+    do                                      \
+      {                                     \
+         E_Comp_Hook *_h;                 \
+         _h = e_comp_hook_add(t, cb, d);  \
+         assert(_h);                        \
+         l = eina_list_append(l, _h);       \
+      }                                     \
+    while (0)
+
 E_API void *
 e_modapi_init(E_Module *m)
 {
@@ -1467,6 +1556,8 @@ e_modapi_init(E_Module *m)
 
    E_PIXMAP_HOOK_APPEND(hooks_cp,  E_PIXMAP_HOOK_DEL,                 _pol_cb_hook_pixmap_del,                 NULL);
 
+   E_COMP_HOOK_APPEND(hooks_comp,  E_COMP_HOOK_ASSIGN_PLANE,          _pol_cb_hook_comp_plane_assign,          NULL);
+
    e_mod_pol_rotation_init();
    e_mod_transform_mode_init();
 
@@ -1483,6 +1574,7 @@ e_modapi_shutdown(E_Module *m)
    eina_list_free(mod->launchers);
    EINA_INLIST_FOREACH_SAFE(mod->softkeys, l, softkey)
      e_mod_pol_softkey_del(softkey);
+   E_FREE_LIST(hooks_comp, e_comp_hook_del);
    E_FREE_LIST(hooks_cp, e_pixmap_hook_del);
    E_FREE_LIST(hooks_ec, e_client_hook_del);
    E_FREE_LIST(handlers, ecore_event_handler_del);
