@@ -1848,8 +1848,24 @@ _tzpol_iface_cb_subsurf_place_below_parent(struct wl_client *client EINA_UNUSED,
 
    epc->comp_data->sub.list = eina_list_remove(epc->comp_data->sub.list, ec);
    epc->comp_data->sub.list_pending = eina_list_remove(epc->comp_data->sub.list_pending, ec);
-   epc->comp_data->sub.below_list_pending = eina_list_append(epc->comp_data->sub.below_list_pending, ec);
+   epc->comp_data->sub.below_list = eina_list_append(epc->comp_data->sub.below_list, ec);
    epc->comp_data->sub.list_changed = EINA_TRUE;
+}
+
+static void
+_tzpol_iface_cb_subsurf_stand_alone_set(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol EINA_UNUSED, struct wl_resource *subsurf)
+{
+   E_Client *ec;
+   E_Comp_Wl_Subsurf_Data *sdata;
+
+   ec = wl_resource_get_user_data(subsurf);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
+   EINA_SAFETY_ON_NULL_RETURN(ec->comp_data);
+
+   sdata = ec->comp_data->sub.data;
+   EINA_SAFETY_ON_NULL_RETURN(sdata);
+
+   sdata->stand_alone = EINA_TRUE;
 }
 
 static void
@@ -1896,6 +1912,9 @@ _tzpol_iface_cb_subsurface_get(struct wl_client *client, struct wl_resource *res
    if (!e_comp_wl_subsurface_create(ec, epc, id, surface))
      ERR("Failed to create subsurface for surface@%d",
          wl_resource_get_id(surface));
+
+   epc->comp_data->sub.list_pending = eina_list_remove(epc->comp_data->sub.list_pending, ec);
+   epc->comp_data->sub.list = eina_list_append(epc->comp_data->sub.list, ec);
 
    /* ec's parent comes from another process */
    if (ec->comp_data)
@@ -2729,6 +2748,7 @@ static const struct tizen_policy_interface _tzpol_iface =
    _tzpol_iface_cb_transient_for_unset,
    _tzpol_iface_cb_win_scrmode_set,
    _tzpol_iface_cb_subsurf_place_below_parent,
+   _tzpol_iface_cb_subsurf_stand_alone_set,
    _tzpol_iface_cb_subsurface_get,
    _tzpol_iface_cb_opaque_state_set,
    _tzpol_iface_cb_iconify,
