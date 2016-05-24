@@ -40,6 +40,7 @@ static void        _pol_cb_hook_client_eval_end(void *d EINA_UNUSED, E_Client *e
 static void        _pol_cb_hook_client_fullscreen_pre(void *data EINA_UNUSED, E_Client *ec);
 
 static void        _pol_cb_hook_pixmap_del(void *data EINA_UNUSED, E_Pixmap *cp);
+static void        _pol_cb_hook_pixmap_unusable(void *data EINA_UNUSED, E_Pixmap *cp);
 
 static void        _pol_cb_desk_data_free(void *data);
 static void        _pol_cb_client_data_free(void *data);
@@ -648,6 +649,21 @@ _pol_cb_hook_pixmap_del(void *data EINA_UNUSED, E_Pixmap *cp)
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_pixmap_del(cp);
 #endif
+}
+
+static void
+_pol_cb_hook_pixmap_unusable(void *data EINA_UNUSED, E_Pixmap *cp)
+{
+   E_Client *ec = (E_Client*)e_pixmap_client_get(cp);
+
+   if (!ec) return;
+   if (!ec->iconic) return;
+   if (ec->exp_iconify.by_client) return;
+   if (ec->exp_iconify.skip_iconify) return;
+
+   ec->exp_iconify.not_raise = 1;
+   e_client_uniconify(ec);
+   e_mod_pol_wl_iconify_state_change_send(ec, 0);
 }
 
 static void
@@ -1466,6 +1482,7 @@ e_modapi_init(E_Module *m)
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_VISIBILITY,     _pol_cb_hook_client_visibility,          NULL);
 
    E_PIXMAP_HOOK_APPEND(hooks_cp,  E_PIXMAP_HOOK_DEL,                 _pol_cb_hook_pixmap_del,                 NULL);
+   E_PIXMAP_HOOK_APPEND(hooks_cp,  E_PIXMAP_HOOK_UNUSABLE,            _pol_cb_hook_pixmap_unusable,            NULL);
 
    e_mod_pol_rotation_init();
    e_mod_transform_mode_init();
