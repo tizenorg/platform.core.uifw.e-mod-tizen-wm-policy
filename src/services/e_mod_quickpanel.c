@@ -665,8 +665,6 @@ _region_obj_cb_gesture_start(void *data, Evas_Object *handler, int x, int y, uns
         evas_object_del(qp->mover);
      }
 
-   e_comp_wl_touch_cancel();
-
    _mover_obj_new_with_move(qp, x, y, timestamp);
 }
 
