@@ -126,6 +126,11 @@ _gesture_obj_cb_mouse_move(void *data, Evas *evas EINA_UNUSED, Evas_Object *obj,
         gesture->active = _gesture_check(gesture, obj, x, y, timestamp);
         if (gesture->active)
           {
+             /* if gesture is activated, terminate main touch event processing
+              * in enlightenment */
+             if (gesture->type != POL_GESTURE_TYPE_NONE)
+               e_comp_wl_touch_cancel();
+
              if (gesture->cb.start)
                gesture->cb.start(gesture->cb.data, obj, x, y, timestamp);
           }
@@ -169,6 +174,11 @@ e_mod_gesture_add(Evas_Object *obj, Pol_Gesture_Type type)
 
    gesture->obj = obj;
    gesture->type = type;
+
+   /* we should to repeat mouse event to below object
+    * until we can make sure gesture */
+   if (type != POL_GESTURE_TYPE_NONE)
+     evas_object_repeat_events_set(obj, EINA_TRUE);
 
    evas_object_event_callback_add(obj, EVAS_CALLBACK_MOUSE_DOWN,
                                   _gesture_obj_cb_mouse_down, gesture);
