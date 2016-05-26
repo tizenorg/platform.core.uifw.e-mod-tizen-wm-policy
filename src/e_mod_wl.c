@@ -3834,6 +3834,7 @@ _tzlaunch_img_add(struct wl_resource *res_tzlaunch, struct wl_resource *res_tzla
    tzlaunchimg->ec->netwm.name = eina_stringshare_add("Launchscreen");
    tzlaunchimg->ec->icccm.name = eina_stringshare_add("Launchscreen");
    tzlaunchimg->ec->ignored = EINA_TRUE;
+   e_client_visibility_skip_set(tzlaunchimg->ec, EINA_TRUE);
 
    return tzlaunchimg;
 error:
