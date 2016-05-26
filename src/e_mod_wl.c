@@ -126,6 +126,10 @@ typedef struct _Pol_Wl_Tzlaunch_Img
    uint32_t            pid;
 
    Evas_Object         *obj;              /* launch screen image */
+   E_Pixmap            *ep;               /* pixmap for launch screen client */
+   E_Client            *ec;               /* client for launch screen image */
+   Ecore_Timer         *timeout;          /* launch screen image hide timer */
+
    Eina_Bool           valid;
 } Pol_Wl_Tzlaunch_Img;
 
@@ -165,7 +169,6 @@ typedef struct _Pol_Wl_Conformant
 } Pol_Wl_Conformant;
 
 static Pol_Wl *polwl = NULL;
-E_Launch_Screen   *launch_scrn=NULL;
 
 static Eina_List *handlers = NULL;
 static Eina_List *hooks_cw = NULL;
@@ -3649,15 +3652,23 @@ _launchscreen_hide(uint32_t pid)
 }
 
 static void
+_launch_img_cb_del(void *data, Evas *e EINA_UNUSED, Evas_Object *obj, void *event_info EINA_UNUSED)
+{
+   Pol_Wl_Tzlaunch_Img *tzlaunchimg = data;
+
+   if ((tzlaunchimg) && (tzlaunchimg->obj == obj))
+     tzlaunchimg->obj = NULL;
+}
+
+static void
 _launch_img_off(Pol_Wl_Tzlaunch_Img *tzlaunchimg)
 {
-   Evas_Object *old_o;
    E_Client *ec = NULL;
 
-   if (!launch_scrn) return;
-   if(!tzlaunchimg->valid) return;
+   if (!tzlaunchimg->valid) return;
+   if (!tzlaunchimg->ec) return;
 
-   ec = launch_scrn->ec;
+   ec = tzlaunchimg->ec;
    if (ec->visible)
      {
         ec->visible = EINA_FALSE;
@@ -3665,17 +3676,14 @@ _launch_img_off(Pol_Wl_Tzlaunch_Img *tzlaunchimg)
         evas_object_lower(ec->frame);
         ec->ignored = EINA_TRUE;
      }
+   e_pixmap_del(tzlaunchimg->ep);
+   e_object_del(E_OBJECT(ec));
 
-   old_o = edje_object_part_swallow_get(launch_scrn->shobj, "e.swallow.content");
-   if ((!old_o)&& ( old_o == tzlaunchimg->obj))
-     {
-        //edje_object_signal_emit(launch_scrn->shobj, "e,action,go,hide", "e");
-        edje_object_part_unswallow(launch_scrn->shobj, tzlaunchimg->obj);
-     }
-   evas_object_hide(tzlaunchimg->obj);
+   tzlaunchimg->ep = NULL;
+   tzlaunchimg->ec = NULL;
 
-   if (launch_scrn->timeout) ecore_timer_del(launch_scrn->timeout);
-   launch_scrn->timeout = NULL;
+   if (tzlaunchimg->timeout) ecore_timer_del(tzlaunchimg->timeout);
+   tzlaunchimg->timeout = NULL;
    tzlaunchimg->valid = EINA_FALSE;
 }
 
@@ -3706,14 +3714,15 @@ _tzlaunchimg_iface_cb_launch(struct wl_client *client EINA_UNUSED, struct wl_res
 {
    Pol_Wl_Tzlaunch_Img *tzlaunchimg;
    Evas_Load_Error err;
-   Eina_Bool res = EINA_TRUE;
-   Evas_Object *old_o = NULL;
    E_Client *ec = NULL;
-
-   if (!launch_scrn) return;
+   E_Comp_Object_Content_Type content_type = 0;
 
    tzlaunchimg = wl_resource_get_user_data(res_tzlaunchimg);
    EINA_SAFETY_ON_NULL_RETURN(tzlaunchimg);
+   EINA_SAFETY_ON_NULL_RETURN(tzlaunchimg->ec);
+   EINA_SAFETY_ON_NULL_RETURN(tzlaunchimg->ec->frame);
+
+   ec = tzlaunchimg->ec;
 
    // TO DO
    // invaid parameter handle
@@ -3723,19 +3732,9 @@ _tzlaunchimg_iface_cb_launch(struct wl_client *client EINA_UNUSED, struct wl_res
    tzlaunchimg->indicator = indicator;
    tzlaunchimg->angle = angle;
 
-   old_o = edje_object_part_swallow_get(launch_scrn->shobj, "e.swallow.content");
-   if (old_o)
-     {
-        edje_object_part_unswallow(launch_scrn->shobj, old_o);
-        evas_object_hide(old_o);
-        DBG("%s | unswallow %p", __FUNCTION__, old_o);
-     }
-
-   if (tzlaunchimg->obj)
-     evas_object_del(tzlaunchimg->obj);
-
    if (tzlaunchimg->type == E_LAUNCH_FILE_TYPE_IMAGE)
      {
+        content_type = E_COMP_OBJECT_CONTENT_TYPE_EXT_IMAGE;
         tzlaunchimg->obj = evas_object_image_add(e_comp->evas);
         EINA_SAFETY_ON_NULL_GOTO(tzlaunchimg->obj, error);
         evas_object_image_file_set(tzlaunchimg->obj, tzlaunchimg->path, NULL);
@@ -3748,6 +3747,7 @@ _tzlaunchimg_iface_cb_launch(struct wl_client *client EINA_UNUSED, struct wl_res
      }
    else
      {
+        content_type = E_COMP_OBJECT_CONTENT_TYPE_EXT_EDJE;
         tzlaunchimg->obj = edje_object_add(e_comp->evas);
         EINA_SAFETY_ON_NULL_GOTO(tzlaunchimg->obj, error);
         edje_object_file_set (tzlaunchimg->obj, tzlaunchimg->path, APP_DEFINE_GROUP_NAME);
@@ -3756,36 +3756,40 @@ _tzlaunchimg_iface_cb_launch(struct wl_client *client EINA_UNUSED, struct wl_res
         evas_object_resize(tzlaunchimg->obj, e_comp->w, e_comp->h);
      }
 
-   res = edje_object_part_swallow(launch_scrn->shobj, "e.swallow.content", tzlaunchimg->obj);
-   EINA_SAFETY_ON_FALSE_GOTO(res, error);
+   if (depth == 32) ec->argb = EINA_TRUE;
+   else ec->argb = EINA_FALSE;
 
-   evas_object_show(tzlaunchimg->obj);
-   evas_object_show(launch_scrn->shobj);
-   edje_object_signal_emit(launch_scrn->shobj, "e,action,go,visible", "e");
+   if (!e_comp_object_content_set(ec->frame, tzlaunchimg->obj, content_type))
+     {
+        ERR("Setting comp object content for %p failed!", ec);
+        goto error;
+     }
 
-   if (launch_scrn->timeout)
-     ecore_timer_del(launch_scrn->timeout);
-   launch_scrn->timeout = ecore_timer_add(4.0f, _launch_timeout, tzlaunchimg);
+   evas_object_event_callback_add(tzlaunchimg->obj,
+                                  EVAS_CALLBACK_DEL,
+                                  _launch_img_cb_del, tzlaunchimg);
 
    tzlaunchimg->valid = EINA_TRUE;
 
-   ec = launch_scrn->ec;
    ec->ignored = EINA_FALSE;
    ec->visible = EINA_TRUE;
+   ec->new_client = EINA_FALSE;
+
    evas_object_show(ec->frame);
    evas_object_raise(ec->frame);
-   if (depth == 32)
-     ec->argb = EINA_TRUE;
-   else
-     ec->argb = EINA_FALSE;
    EC_CHANGED(ec);
+
    e_client_visibility_calculate();
 
-   return;
+   if (tzlaunchimg->timeout)
+     ecore_timer_del(tzlaunchimg->timeout);
+   tzlaunchimg->timeout = ecore_timer_add(4.0f, _launch_timeout, tzlaunchimg);
 
+   return;
 error:
    ERR("Could not complete %s", __FUNCTION__);
-   return;
+   if (tzlaunchimg->obj)
+     evas_object_del(tzlaunchimg->obj);
 }
 
 static void
@@ -3812,6 +3816,7 @@ _tzlaunchimg_iface_cb_owner(struct wl_client *client EINA_UNUSED, struct wl_reso
    EINA_SAFETY_ON_NULL_RETURN(tzlaunchimg);
 
    tzlaunchimg->pid = pid;
+   tzlaunchimg->ec->netwm.pid = pid;
 }
 
 
@@ -3831,17 +3836,37 @@ _tzlaunch_img_add(struct wl_resource *res_tzlaunch, struct wl_resource *res_tzla
    Pol_Wl_Tzlaunch_Img *tzlaunchimg;
 
    tzlaunchimg = E_NEW(Pol_Wl_Tzlaunch_Img, 1);
-   EINA_SAFETY_ON_NULL_RETURN_VAL(tzlaunchimg, NULL);
+   EINA_SAFETY_ON_NULL_GOTO(tzlaunchimg, error);
 
    tzlaunch = wl_resource_get_user_data(res_tzlaunch);
-   EINA_SAFETY_ON_NULL_RETURN_VAL(tzlaunch, NULL);
+   EINA_SAFETY_ON_NULL_GOTO(tzlaunch, error);
 
    tzlaunch->imglist = eina_list_append(tzlaunch->imglist, tzlaunchimg);
 
    tzlaunchimg->tzlaunch  = tzlaunch;
    tzlaunchimg->res_tzlaunch_img = res_tzlaunch_img;
 
+   tzlaunchimg->ep = e_pixmap_new(E_PIXMAP_TYPE_EXT_OBJECT, 0);
+   EINA_SAFETY_ON_NULL_GOTO(tzlaunchimg->ep, error);
+   tzlaunchimg->ec = e_client_new(tzlaunchimg->ep, 0, 1);
+   EINA_SAFETY_ON_NULL_GOTO(tzlaunchimg->ec, error);
+
+   tzlaunchimg->ec->netwm.name = eina_stringshare_add("Launchscreen");
+   tzlaunchimg->ec->icccm.name = eina_stringshare_add("Launchscreen");
+   tzlaunchimg->ec->ignored = EINA_TRUE;
+
    return tzlaunchimg;
+error:
+   if (tzlaunchimg)
+     {
+        ERR("Could not initialize launchscreen client");
+        if (tzlaunchimg->ep)
+          e_pixmap_del(tzlaunchimg->ep);
+        if (tzlaunchimg->ec)
+          e_object_del(E_OBJECT(tzlaunchimg->ec));
+        E_FREE(tzlaunchimg);
+     }
+   return NULL;
 }
 
 static void
@@ -3853,8 +3878,10 @@ _tzlaunch_img_destroy(struct wl_resource *res_tzlaunchimg)
    EINA_SAFETY_ON_NULL_RETURN(res_tzlaunchimg);
    tzlaunchimg = wl_resource_get_user_data(res_tzlaunchimg);
 
+   if (tzlaunchimg->obj)
+     evas_object_event_callback_del_full(tzlaunchimg->obj, EVAS_CALLBACK_DEL, _launch_img_cb_del, tzlaunchimg);
+
    _launch_img_off(tzlaunchimg);
-   if(tzlaunchimg->obj) evas_object_del(tzlaunchimg->obj);
 
    tzlaunch = tzlaunchimg->tzlaunch;
    tzlaunch->imglist = eina_list_remove(tzlaunch->imglist, tzlaunchimg);
@@ -3962,10 +3989,6 @@ _tzlaunch_cb_bind(struct wl_client *client, void *data EINA_UNUSED, uint32_t ver
    Pol_Wl_Tzlaunch *tzlaunch = NULL;
    struct wl_resource *res_tzlaunch;
 
-   if (!launch_scrn)
-     launch_scrn = e_comp->launchscrn;
-
-   EINA_SAFETY_ON_NULL_GOTO(launch_scrn, err);
    EINA_SAFETY_ON_NULL_GOTO(polwl, err);
 
    res_tzlaunch = wl_resource_create(client,
