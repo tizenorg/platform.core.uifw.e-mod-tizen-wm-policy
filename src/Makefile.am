@@ -34,9 +34,10 @@ ROT_SRC  += rotation/e_mod_sensord.c \
             rotation/e_mod_sensord.h
 endif
 
-if HAVE_WAYLAND_ONLY
 WL_SRC   += e_mod_wl.c \
             e_mod_wl.h \
+            e_mod_wl_display.c \
+            e_mod_wl_display.h \
             tizen_policy_ext-protocol.c \
             tizen_policy_ext-server-protocol.h
 
@@ -45,7 +46,6 @@ ROT_SRC  += rotation/e_mod_rotation_wl.c \
 
 SRVS_SRC += services/e_mod_volume.c \
             services/e_mod_volume.h
-endif
 
 module_la_SOURCES      = e_mod_config.c \
                          e_mod_main.c \
