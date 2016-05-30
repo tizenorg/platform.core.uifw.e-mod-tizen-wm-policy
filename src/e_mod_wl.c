@@ -1215,6 +1215,9 @@ _tzpol_iface_cb_activate_below_by_res_id(struct wl_client *client EINA_UNUSED, s
      }
 
    e_mod_pol_stack_below(ec, below_ec);
+
+   if (!e_client_first_mapped_get(ec))
+     e_client_post_raise_lower_set(ec, EINA_FALSE, EINA_FALSE);
 }
 
 static void
@@ -1226,10 +1229,10 @@ _tzpol_iface_cb_raise(struct wl_client *client EINA_UNUSED, struct wl_resource *
    EINA_SAFETY_ON_NULL_RETURN(ec);
    EINA_SAFETY_ON_NULL_RETURN(ec->frame);
 
-   if ((!starting) && (!ec->focused))
-     e_client_activate(ec, EINA_TRUE);
-   else
-     evas_object_raise(ec->frame);
+   evas_object_raise(ec->frame);
+
+   if (!e_client_first_mapped_get(ec))
+     e_client_post_raise_lower_set(ec, EINA_TRUE, EINA_FALSE);
 }
 
 static void
@@ -1252,6 +1255,9 @@ _tzpol_iface_cb_lower(struct wl_client *client EINA_UNUSED, struct wl_resource *
      }
 
    evas_object_lower(ec->frame);
+
+   if (!e_client_first_mapped_get(ec))
+     e_client_post_raise_lower_set(ec, EINA_FALSE, EINA_TRUE);
 
    if ((!below) || (!ec->focused)) return;
 
@@ -1282,6 +1288,9 @@ _tzpol_iface_cb_lower_by_res_id(struct wl_client *client EINA_UNUSED, struct wl_
      }
 
    evas_object_lower(ec->frame);
+
+   if (!e_client_first_mapped_get(ec))
+     e_client_post_raise_lower_set(ec, EINA_FALSE, EINA_TRUE);
 
    if ((!below) || (!ec->focused)) return;
 
