@@ -3,6 +3,7 @@
 #include "e_mod_quickpanel.h"
 #include "e_mod_volume.h"
 #include "e_mod_lockscreen.h"
+#include "e_mod_wl_display.h"
 
 #include <device/display.h>
 #include <wayland-server.h>
@@ -1819,6 +1820,7 @@ _tzpol_iface_cb_win_scrmode_set(struct wl_client *client EINA_UNUSED, struct wl_
         return;
      }
 
+   e_mod_pol_display_screen_mode_set(ec, mode);
    e_mod_pol_wl_win_scrmode_apply();
 
    tizen_policy_send_window_screen_mode_done
@@ -1828,8 +1830,7 @@ _tzpol_iface_cb_win_scrmode_set(struct wl_client *client EINA_UNUSED, struct wl_
 void
 e_mod_pol_wl_win_scrmode_apply(void)
 {
-   // TODO: update screen mode for ec which was changed to be visible
-   ;
+   e_mod_pol_display_screen_mode_apply();
 }
 
 // --------------------------------------------------------
@@ -4206,6 +4207,8 @@ e_mod_pol_wl_init(void)
 
    E_COMP_WL_HOOK_APPEND(hooks_cw, E_COMP_WL_HOOK_SHELL_SURFACE_READY, _pol_wl_cb_hook_shell_surface_ready, NULL);
 
+   e_mod_pol_display_init();
+
    return EINA_TRUE;
 
 err:
@@ -4228,6 +4231,8 @@ e_mod_pol_wl_shutdown(void)
    Pol_Wl_Tz_Dpy_Pol *tz_dpy_pol;
    struct wl_global *global;
    int i;
+
+   e_mod_pol_display_shutdown();
 
    EINA_SAFETY_ON_NULL_RETURN(polwl);
 
