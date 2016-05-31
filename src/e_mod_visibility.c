@@ -1,6 +1,5 @@
 #include "e_mod_main.h"
 #ifdef HAVE_WAYLAND_ONLY
-#define E_COMP_WL
 #include "e_comp_wl.h"
 #include "e_mod_wl.h"
 #endif

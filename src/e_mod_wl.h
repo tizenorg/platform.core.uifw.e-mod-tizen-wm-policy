@@ -3,8 +3,6 @@
 
 #include "config.h"
 #ifdef HAVE_WAYLAND_ONLY
-
-#define E_COMP_WL
 #include <e.h>
 
 Eina_Bool e_mod_pol_wl_init(void);
