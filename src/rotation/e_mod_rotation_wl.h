@@ -3,8 +3,6 @@
 
 #include "config.h"
 #ifdef HAVE_WAYLAND_ONLY
-
-#define E_COMP_WL
 #include <e.h>
 
 #ifdef ENABLE_TTRACE
