@@ -142,6 +142,7 @@ typedef struct _Pol_Wl
    Eina_Hash       *tzpols;                  /* list of Pol_Wl_Tzpol */
 
    Eina_List       *tz_dpy_pols;             /* list of Pol_Wl_Tz_Dpy_Pol */
+   Eina_List       *pending_vis;             /* list of clients that have pending visibility change*/
 
    /* tizen_ws_shell_interface */
    Eina_List       *tzshs;                   /* list of Pol_Wl_Tzsh */
@@ -944,6 +945,11 @@ _tzpol_iface_cb_vis_get(struct wl_client *client, struct wl_resource *res_tzpol,
                                   _tzvis_iface_cb_vis_destroy);
 
    psurf->vislist = eina_list_append(psurf->vislist, res_tzvis);
+
+   if (eina_list_data_find(polwl->pending_vis, ec))
+     {
+        e_mod_pol_wl_visibility_send(ec, ec->visibility.obscured);
+     }
 }
 
 void
@@ -956,6 +962,7 @@ e_mod_pol_wl_visibility_send(E_Client *ec, int vis)
    Eina_Iterator *it;
    E_Client *ec2;
    Ecore_Window win;
+   Eina_Bool sent = EINA_FALSE;
 
    win = e_client_util_win_get(ec);
 
@@ -975,10 +982,15 @@ e_mod_pol_wl_visibility_send(E_Client *ec, int vis)
                      (unsigned int)win,
                      (unsigned int)res_tzvis,
                      vis);
+               sent = EINA_TRUE;
                _launchscreen_hide(ec->netwm.pid);
             }
        }
    eina_iterator_free(it);
+
+   polwl->pending_vis = eina_list_remove(polwl->pending_vis, ec);
+   if (!sent)
+     polwl->pending_vis = eina_list_append(polwl->pending_vis, ec);
 }
 
 void
@@ -4085,6 +4097,8 @@ e_mod_pol_wl_client_del(E_Client *ec)
    e_mod_pol_wl_pixmap_del(ec->pixmap);
    _pol_wl_tzsh_client_unset(ec);
    _pol_wl_dpy_surf_del(ec);
+
+   polwl->pending_vis = eina_list_remove(polwl->pending_vis, ec);
 }
 
 void
@@ -4233,6 +4247,8 @@ e_mod_pol_wl_shutdown(void)
 
    E_FREE_LIST(hooks_cw, e_comp_wl_hook_del);
    E_FREE_LIST(handlers, ecore_event_handler_del);
+
+   polwl->pending_vis = eina_list_free(polwl->pending_vis);
 
    for (i = 0; i < TZSH_SRV_ROLE_MAX; i++)
      {
