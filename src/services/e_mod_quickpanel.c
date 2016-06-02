@@ -46,6 +46,7 @@ struct _Pol_Quickpanel
    Eina_List *hooks;
    Eina_List *events;
    Ecore_Idle_Enterer *idle_enterer;
+   Ecore_Event_Handler *buf_change_hdlr;
 
    struct
    {
@@ -752,8 +753,30 @@ _quickpanel_client_evas_cb_show(void *data, Evas *evas, Evas_Object *obj, void *
 
    evas_object_show(qp->handler_obj);
    evas_object_raise(qp->handler_obj);
-
    evas_object_hide(qp->indi_obj);
+
+   E_FREE_FUNC(qp->buf_change_hdlr, ecore_event_handler_del);
+}
+
+static Eina_Bool
+_quickpanel_cb_buffer_change(void *data, int type, void *event)
+{
+   E_Event_Client *ev = event;
+   E_Client *ec;
+
+   ec = ev->ec;
+   if (ec != e_mod_quickpanel_client_get())
+     goto end;
+
+   if (ec->visible)
+     goto end;
+
+   /* just dropping a frame to allow quickpanel to draw a next frame. */
+   e_pixmap_image_clear(ec->pixmap, EINA_TRUE);
+   e_pixmap_resource_set(ec->pixmap, NULL);
+
+end:
+   return ECORE_CALLBACK_PASS_ON;
 }
 
 static void
@@ -767,6 +790,14 @@ _quickpanel_client_evas_cb_hide(void *data, Evas *evas, Evas_Object *obj, void *
 
    evas_object_hide(qp->handler_obj);
    evas_object_show(qp->indi_obj);
+
+   if (!qp->buf_change_hdlr)
+     {
+        qp->buf_change_hdlr =
+           ecore_event_handler_add(E_EVENT_CLIENT_BUFFER_CHANGE,
+                                   _quickpanel_cb_buffer_change,
+                                   qp);
+     }
 }
 
 static void
@@ -902,27 +933,6 @@ _quickpanel_visibility_change(Pol_Quickpanel *qp, Eina_Bool vis, Eina_Bool with_
 
         QP_VISIBLE_SET(ec, vis);
      }
-}
-
-static Eina_Bool
-_quickpanel_cb_buffer_change(void *data, int type, void *event)
-{
-   E_Event_Client *ev = event;
-   E_Client *ec;
-
-   ec = ev->ec;
-   if (ec != e_mod_quickpanel_client_get())
-     goto end;
-
-   if (ec->visible)
-     goto end;
-
-   /* dropping a frame to allow quickpanel to draw a next frame. */
-   e_pixmap_image_clear(ec->pixmap, EINA_TRUE);
-   e_pixmap_resource_set(ec->pixmap, NULL);
-
-end:
-   return ECORE_CALLBACK_PASS_ON;
 }
 
 static Eina_Bool
@@ -1227,7 +1237,6 @@ e_mod_quickpanel_client_set(E_Client *ec)
    evas_object_event_callback_add(ec->frame, EVAS_CALLBACK_MOVE, _quickpanel_client_evas_cb_move, qp);
 
    E_CLIENT_HOOK_APPEND(qp->hooks,   E_CLIENT_HOOK_DEL,                       _quickpanel_hook_client_del,     qp);
-   E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_BUFFER_CHANGE,            _quickpanel_cb_buffer_change,    qp);
    E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_ROTATION_CHANGE_BEGIN,    _quickpanel_cb_rotation_begin,   qp);
    E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_ROTATION_CHANGE_CANCEL,   _quickpanel_cb_rotation_cancel,  qp);
    E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_ROTATION_CHANGE_END,      _quickpanel_cb_rotation_done,    qp);
