@@ -917,7 +917,9 @@ _quickpanel_cb_buffer_change(void *data, int type, void *event)
    if (ec->visible)
      goto end;
 
-   e_comp_client_post_update_add(ec);
+   /* dropping a frame to allow quickpanel to draw a next frame. */
+   e_pixmap_image_clear(ec->pixmap, EINA_TRUE);
+   e_pixmap_resource_set(ec->pixmap, NULL);
 
 end:
    return ECORE_CALLBACK_PASS_ON;
