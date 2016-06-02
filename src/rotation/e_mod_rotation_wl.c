@@ -1546,28 +1546,6 @@ _rot_cb_idle_enterer(void *data EINA_UNUSED)
    return ECORE_CALLBACK_RENEW;
 }
 
-#undef E_CLIENT_HOOK_APPEND
-#define E_CLIENT_HOOK_APPEND(l, t, cb, d) \
-  do                                      \
-    {                                     \
-       E_Client_Hook *_h;                 \
-       _h = e_client_hook_add(t, cb, d);  \
-       assert(_h);                        \
-       l = eina_list_append(l, _h);       \
-    }                                     \
-  while (0)
-
-#undef E_COMP_OBJECT_INTERCEPT_HOOK_APPEND
-#define E_COMP_OBJECT_INTERCEPT_HOOK_APPEND(l, t, cb, d) \
-  do                                                     \
-    {                                                    \
-       E_Comp_Object_Intercept_Hook *_h;                 \
-       _h = e_comp_object_intercept_hook_add(t, cb, d);  \
-       assert(_h);                                       \
-       l = eina_list_append(l, _h);                      \
-    }                                                    \
-  while (0)
-
 #endif //#ifdef HAVE_WAYLAND_ONLY
 
 Eina_Bool
