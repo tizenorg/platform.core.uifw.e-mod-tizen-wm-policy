@@ -43,6 +43,7 @@ struct _Pol_Quickpanel
    Evas_Object *indi_obj;
    Evas_Object *handler_obj;
 
+   Eina_List *intercept_hooks;
    Eina_List *hooks;
    Eina_List *events;
    Ecore_Idle_Enterer *idle_enterer;
@@ -713,6 +714,7 @@ _quickpanel_free(Pol_Quickpanel *qp)
    E_FREE_FUNC(qp->idle_enterer, ecore_idle_enterer_del);
    E_FREE_LIST(qp->events, ecore_event_handler_del);
    E_FREE_LIST(qp->hooks, e_client_hook_del);
+   E_FREE_LIST(qp->intercept_hooks, e_comp_object_intercept_hook_del);
    E_FREE(_pol_quickpanel);
 }
 
@@ -743,13 +745,6 @@ _quickpanel_client_evas_cb_show(void *data, Evas *evas, Evas_Object *obj, void *
    qp = data;
    if (EINA_UNLIKELY(!qp))
      return;
-
-   if (qp->show_block)
-     {
-        QP_HIDE(qp->ec);
-        evas_object_show(qp->indi_obj);
-        return;
-     }
 
    evas_object_show(qp->handler_obj);
    evas_object_raise(qp->handler_obj);
@@ -1137,6 +1132,8 @@ _quickpanel_indicator_object_new(Pol_Quickpanel *qp)
                        _region_obj_cb_gesture_move,
                        _region_obj_cb_gesture_end, qp);
 
+   evas_object_show(indi_obj);
+
    return indi_obj;
 }
 
@@ -1161,6 +1158,25 @@ _quickpanel_idle_enter(void *data)
 
 end:
    return ECORE_CALLBACK_RENEW;
+}
+
+static Eina_Bool
+_quickpanel_intercept_hook_show(void *data, E_Client *ec)
+{
+   Pol_Quickpanel *qp;
+
+   qp = data;
+   if (EINA_UNLIKELY(!qp))
+     goto end;
+
+   if (qp->ec != ec)
+     goto end;
+
+   if (qp->show_block)
+     return EINA_FALSE;
+
+end:
+   return EINA_TRUE;
 }
 
 #undef E_CLIENT_HOOK_APPEND
@@ -1243,6 +1259,9 @@ e_mod_quickpanel_client_set(E_Client *ec)
    E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_SHOW,                     _quickpanel_cb_client_show,      qp);
    E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_HIDE,                     _quickpanel_cb_client_hide,      qp);
    E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_STACK,                    _quickpanel_cb_client_stack,     qp);
+
+   E_COMP_OBJECT_INTERCEPT_HOOK_APPEND(qp->intercept_hooks, E_COMP_OBJECT_INTERCEPT_HOOK_SHOW_HELPER, _quickpanel_intercept_hook_show, qp);
+
 
    qp->idle_enterer = ecore_idle_enterer_add(_quickpanel_idle_enter, qp);
 }
