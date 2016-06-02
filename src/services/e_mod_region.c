@@ -135,6 +135,7 @@ e_mod_region_object_new(void)
 
    o = evas_object_rectangle_add(e_comp->evas);
    evas_object_color_set(o, 0, 0, 0, 0);
+   evas_object_repeat_events_set(o, EINA_TRUE);
    region->obj = o;
 
    if (!_region_rotation_init(region))
