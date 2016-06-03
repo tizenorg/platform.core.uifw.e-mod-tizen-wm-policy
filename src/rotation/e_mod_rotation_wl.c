@@ -490,7 +490,7 @@ _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec)
 
    TRACE_DS_BEGIN(CLIENT ROTATION ZONE SET);
 
-   if (include_ec)
+   if (include_ec && !include_ec->comp_data->sub.data)
      target_list = eina_list_append(target_list, include_ec);
 
    INF("<<< Try to set zone rotation");
@@ -499,6 +499,7 @@ _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec)
         if (ec->zone != zone) continue;
         if (!ec->visible) continue;
         if (e_object_is_del(E_OBJECT(ec))) continue;
+        if (ec->comp_data->sub.data) continue;
         if (!e_util_strcmp("wl_pointer-cursor", ec->icccm.window_role))
           {
              e_client_cursor_map_apply(ec, zone->rot.curr, ec->x, ec->y);
