@@ -108,16 +108,48 @@ _e_mod_pol_client_iconify_by_visibility(E_Client *ec)
 }
 
 static void
-_e_mod_pol_client_uniconify_by_visibility(E_Client *ec)
+_e_mod_pol_client_uniconify_ancestor(E_Client *ec)
 {
+   E_Client *parent = NULL;
+   E_Client *ancestor = NULL;
+
    if (!ec) return;
    if (!ec->iconic) return;
    if (ec->exp_iconify.by_client) return;
    if (ec->exp_iconify.skip_iconify) return;
-#ifdef HAVE_WAYLAND_ONLY
+
+   parent = ec->parent;
+   if (parent)
+     {
+        _e_mod_pol_client_uniconify_ancestor(parent);
+
+        ELOGF("UNICONIFY_BY_WM", "parent_win:0x%08x", parent->pixmap, parent, e_client_util_win_get(parent));
+        parent->exp_iconify.not_raise = 1;
+        e_client_uniconify(parent);
+        e_mod_pol_wl_iconify_state_change_send(parent, 0);
+     }
+
+   return;
+}
+
+static void
+_e_mod_pol_client_uniconify_by_visibility(E_Client *ec)
+{
+   E_Client *ancestor = NULL;
+   int transient_iconify = 0;
+
+   if (!ec) return;
+   if (!ec->iconic) return;
+   if (ec->exp_iconify.by_client) return;
+   if (ec->exp_iconify.skip_iconify) return;
+   if (e_object_is_del(E_OBJECT(ec))) return;
+
    E_Comp_Wl_Client_Data *cdata = (E_Comp_Wl_Client_Data *)ec->comp_data;
    if (cdata && !cdata->mapped) return;
-#endif
+
+   transient_iconify = e_config->transient.iconify;
+   _e_mod_pol_client_uniconify_ancestor(ec);
+   e_config->transient.iconify = transient_iconify;
 
    ELOGF("UNICONIFY_BY_WM", "win:0x%08x", ec->pixmap, ec, e_client_util_win_get(ec));
    ec->exp_iconify.not_raise = 1;
