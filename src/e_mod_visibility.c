@@ -108,16 +108,72 @@ _e_mod_pol_client_iconify_by_visibility(E_Client *ec)
 }
 
 static void
+_e_mod_pol_client_ancestor_uniconify(E_Client *ec)
+{
+   Eina_List *list = NULL;
+   Eina_List *l = NULL;
+   E_Client *parent = NULL;
+   int transient_iconify = 0;
+   int count = 0;
+
+   parent = ec->parent;
+   while (parent)
+     {
+        if (count > 10)
+          {
+             // something strange state.
+             ELOGF("CHECK transient_for tree", "win:0x%08x, parent:0x%08x", NULL, NULL, e_client_util_win_get(ec), e_client_util_win_get(parent));
+             break;
+          }
+
+        if (e_object_is_del(E_OBJECT(parent))) break;
+        if (!parent->iconic) break;
+        if (parent->exp_iconify.by_client) break;
+        if (parent->exp_iconify.skip_iconify) break;
+
+        if (eina_list_data_find(list, parent))
+          {
+             // very bad. there are loop for parenting
+             ELOGF("Very BAD. Circling transient_for window", "win:0x%08x, parent:0x%08x", NULL, NULL, e_client_util_win_get(ec), e_client_util_win_get(parent));
+             break;
+          }
+
+        list = eina_list_prepend(list, parent);
+        parent = parent->parent;
+
+        // for preventing infiniting loop
+        count++;
+     }
+
+   transient_iconify = e_config->transient.iconify;
+   e_config->transient.iconify = 0;
+
+   parent = NULL;
+   EINA_LIST_FOREACH(list, l, parent)
+     {
+        ELOGF("UNICONIFY_BY_WM", "parent_win:0x%08x", parent->pixmap, parent, e_client_util_win_get(parent));
+        parent->exp_iconify.not_raise = 1;
+        e_client_uniconify(parent);
+        e_mod_pol_wl_iconify_state_change_send(parent, 0);
+     }
+   eina_list_free(list);
+
+   e_config->transient.iconify = transient_iconify;
+}
+
+static void
 _e_mod_pol_client_uniconify_by_visibility(E_Client *ec)
 {
    if (!ec) return;
    if (!ec->iconic) return;
    if (ec->exp_iconify.by_client) return;
    if (ec->exp_iconify.skip_iconify) return;
-#ifdef HAVE_WAYLAND_ONLY
+   if (e_object_is_del(E_OBJECT(ec))) return;
+
    E_Comp_Wl_Client_Data *cdata = (E_Comp_Wl_Client_Data *)ec->comp_data;
    if (cdata && !cdata->mapped) return;
-#endif
+
+   _e_mod_pol_client_ancestor_uniconify(ec);
 
    ELOGF("UNICONIFY_BY_WM", "win:0x%08x", ec->pixmap, ec, e_client_util_win_get(ec));
    ec->exp_iconify.not_raise = 1;
