@@ -1972,6 +1972,8 @@ _tzpol_iface_cb_iconify(struct wl_client *client EINA_UNUSED, struct wl_resource
    ELOG("Set ICONIFY BY CLIENT", ec->pixmap, ec);
    ec->exp_iconify.by_client = 1;
    e_client_iconify(ec);
+
+   EC_CHANGED(ec);
 }
 
 static void
@@ -1989,6 +1991,8 @@ _tzpol_iface_cb_uniconify(struct wl_client *client EINA_UNUSED, struct wl_resour
    ELOG("Un-Set ICONIFY BY CLIENT", ec->pixmap, ec);
    ec->exp_iconify.by_client = 0;
    e_client_uniconify(ec);
+
+   EC_CHANGED(ec);
 }
 
 static void
