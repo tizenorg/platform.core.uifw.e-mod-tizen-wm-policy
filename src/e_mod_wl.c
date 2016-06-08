@@ -733,6 +733,7 @@ _pol_wl_surf_add(E_Client *ec, struct wl_resource *res_tzpol)
    psurf->tzpol = tzpol;
    psurf->cp = ec->pixmap;
    psurf->ec = ec;
+   psurf->pid = ec->netwm.pid;
 
    tzpol->psurfs = eina_list_append(tzpol->psurfs, psurf);
 
@@ -2342,7 +2343,6 @@ _tzpol_iface_cb_background_state_set(struct wl_client *client EINA_UNUSED, struc
         EINA_SAFETY_ON_NULL_RETURN(psurf);
 
         psurf->tzpol = tzpol;
-        psurf->is_background = EINA_TRUE;
         psurf->pid = pid;
         psurf->ec = NULL;
 
@@ -2353,6 +2353,7 @@ _tzpol_iface_cb_background_state_set(struct wl_client *client EINA_UNUSED, struc
               NULL, NULL, pid, psurf, psurf->tzpol);
      }
 
+   psurf->is_background = EINA_TRUE;
    _pol_wl_background_state_set(psurf, EINA_TRUE);
 }
 
