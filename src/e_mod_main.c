@@ -641,6 +641,14 @@ _pol_cb_hook_client_visibility(void *d EINA_UNUSED, E_Client *ec)
 
         e_mod_pol_wl_win_brightness_apply(ec);
      }
+   else
+     {
+        if ((!ec->iconic) &&
+            (ec->visibility.obscured == E_VISIBILITY_FULLY_OBSCURED))
+          {
+             e_mod_pol_client_iconify_by_visibility(ec);
+          }
+     }
 }
 
 static void

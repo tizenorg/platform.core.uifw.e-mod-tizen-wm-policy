@@ -16,6 +16,13 @@
 # define TRACE_DS_END()
 #endif
 
+static Eina_Bool _e_mod_pol_check_transient_child_visible(E_Client *ancestor_ec, E_Client *ec);
+static Eina_Bool _e_mod_pol_check_above_alpha_opaque(E_Client *ec);
+static void      _e_mod_pol_client_iconify_by_visibility(E_Client *ec);
+static void      _e_mod_pol_client_ancestor_uniconify(E_Client *ec);
+static void      _e_mod_pol_client_below_uniconify(E_Client *ec);
+static void      _e_mod_pol_client_uniconify_by_visibility(E_Client *ec);
+
 static Eina_Bool
 _e_mod_pol_check_transient_child_visible(E_Client *ancestor_ec, E_Client *ec)
 {
@@ -67,6 +74,41 @@ _e_mod_pol_check_transient_child_visible(E_Client *ancestor_ec, E_Client *ec)
    return visible;
 }
 
+static Eina_Bool
+_e_mod_pol_check_above_alpha_opaque(E_Client *ec)
+{
+   E_Client *above_ec;
+   Evas_Object *o;
+   Eina_Bool alpha_opaque = EINA_FALSE;
+
+   if (ec) o = ec->frame;
+   for (; o; o = evas_object_above_get(o))
+     {
+        above_ec = evas_object_data_get(o, "E_Client");
+        if (above_ec == ec) continue;
+        if (!above_ec) continue;
+        if (e_client_util_ignored_get(above_ec)) continue;
+
+        if ((above_ec->visibility.opaque > 0) && (above_ec->argb))
+          {
+             if (above_ec->visibility.obscured == E_VISIBILITY_UNOBSCURED)
+               {
+                  alpha_opaque = EINA_TRUE;
+               }
+             else
+               {
+                  if (!above_ec->iconic)
+                    {
+                       alpha_opaque = EINA_TRUE;
+                    }
+               }
+          }
+        break;
+     }
+
+   return alpha_opaque;
+}
+
 static void
 _e_mod_pol_client_iconify_by_visibility(E_Client *ec)
 {
@@ -76,14 +118,22 @@ _e_mod_pol_client_iconify_by_visibility(E_Client *ec)
    if (ec->iconic) return;
    if (ec->exp_iconify.by_client) return;
    if (ec->exp_iconify.skip_iconify) return;
-#ifdef HAVE_WAYLAND_ONLY
+
    E_Comp_Wl_Client_Data *cdata = (E_Comp_Wl_Client_Data *)ec->comp_data;
    if (cdata && !cdata->mapped) return;
-#endif
 
    if (e_config->transient.iconify)
      {
         if (_e_mod_pol_check_transient_child_visible(ec, ec))
+          {
+             do_iconify = EINA_FALSE;
+          }
+     }
+
+   if (ec->zone->display_state != E_ZONE_DISPLAY_STATE_OFF)
+     {
+        // check above window is alpha opaque or not
+        if (_e_mod_pol_check_above_alpha_opaque(ec))
           {
              do_iconify = EINA_FALSE;
           }
@@ -168,6 +218,33 @@ _e_mod_pol_client_ancestor_uniconify(E_Client *ec)
 }
 
 static void
+_e_mod_pol_client_below_uniconify(E_Client *ec)
+{
+   E_Client *below_ec;
+   Evas_Object *o;
+
+   if (ec) o = ec->frame;
+   for (; o; o = evas_object_below_get(o))
+     {
+        below_ec = evas_object_data_get(o, "E_Client");
+        if (below_ec == ec) continue;
+
+        if (!below_ec) continue;
+        if (e_client_util_ignored_get(below_ec)) continue;
+
+        if (ec->parent == below_ec) break;
+        if (!below_ec->iconic) break;
+
+        if (below_ec->visibility.obscured == E_VISIBILITY_FULLY_OBSCURED)
+          {
+             _e_mod_pol_client_uniconify_by_visibility(below_ec);
+          }
+
+        break;
+     }
+}
+
+static void
 _e_mod_pol_client_uniconify_by_visibility(E_Client *ec)
 {
    if (!ec) return;
@@ -185,6 +262,11 @@ _e_mod_pol_client_uniconify_by_visibility(E_Client *ec)
    ec->exp_iconify.not_raise = 1;
    e_client_uniconify(ec);
    e_mod_pol_wl_iconify_state_change_send(ec, 0);
+
+   if ((ec->visibility.opaque > 0) && (ec->argb))
+     {
+        _e_mod_pol_client_below_uniconify(ec);
+     }
 }
 
 void
