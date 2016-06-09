@@ -39,6 +39,7 @@ typedef struct _Mover_Effect_Data Mover_Effect_Data;
 struct _Pol_Quickpanel
 {
    E_Client *ec;
+   E_Client *below;
    Evas_Object *mover;
    Evas_Object *indi_obj;
    Evas_Object *handler_obj;
@@ -51,12 +52,11 @@ struct _Pol_Quickpanel
 
    struct
    {
-      Eina_Bool visible;
+      Eina_Bool below;
    } changes;
 
    Rot_Idx rotation;
 
-   Eina_Bool visible;
    Eina_Bool show_block;
 };
 
@@ -1018,101 +1018,68 @@ end:
  * the most major senario is that quickpanel should be closed when WiFi popup to
  * show the available connection list is shown by click the button on
  * the quickpanel to turn on the WiFi.
- * @see  _quickpanel_cb_client_show(), _quickpanel_cb_client_hide(),
+ * @see  _quickpanel_cb_client_show(),
+ *       _quickpanel_cb_client_hide()
  *       _quickpanel_cb_client_stack()
  *       _quickpanel_idle_enter()
  */
-static Eina_Bool
-_quickpanel_cb_client_show(void *data, int type, void *event)
+static E_Client *
+_quickpanel_below_visible_client_get(Pol_Quickpanel *qp)
+{
+   E_Client *ec;
+
+   for (ec = e_client_below_get(qp->ec); ec; ec = e_client_below_get(ec))
+     {
+        if (!ec->visible) continue;
+        if (!ec->icccm.accepts_focus) continue;
+
+        return ec;
+     }
+
+   return NULL;
+}
+
+static void
+_quickpanel_below_change_eval(void *data, void *event)
 {
    Pol_Quickpanel *qp;
-   E_Event_Client *ev = event;
-   E_Client *ec;
+   E_Event_Client *ev;
 
    qp = data;
    if (EINA_UNLIKELY(!qp))
-     goto end;
+     return;
 
-   ec = ev->ec;
-   if (EINA_UNLIKELY(!ec))
-     goto end;
+   ev = event;
+   if (EINA_UNLIKELY((!ev) || (!ev->ec)))
+     return;
 
-   if (e_mod_pol_client_is_cursor(ec))
-     goto end;
+   if (e_mod_pol_client_is_cursor(ev->ec))
+     return;
 
-   if (qp->ec == ec)
-     qp->visible = EINA_TRUE;
-   else if (qp->visible)
-     {
-        qp->changes.visible = EINA_TRUE;
-        _changed = EINA_TRUE;
-     }
+   qp->changes.below = EINA_TRUE;
+   _changed = EINA_TRUE;
+}
 
-end:
+static Eina_Bool
+_quickpanel_cb_client_show(void *data, int type, void *event)
+{
+   _quickpanel_below_change_eval(data, event);
    return ECORE_CALLBACK_PASS_ON;
 }
 
 static Eina_Bool
 _quickpanel_cb_client_hide(void *data, int type, void *event)
 {
-   Pol_Quickpanel *qp;
-   E_Event_Client *ev = event;
-   E_Client *ec;
-
-   qp = data;
-   if (EINA_UNLIKELY(!qp))
-     goto end;
-
-   ec = ev->ec;
-   if (EINA_UNLIKELY(!ec))
-     goto end;
-
-   if (e_mod_pol_client_is_cursor(ec))
-     goto end;
-
-   if (qp->ec == ec)
-     qp->visible = EINA_FALSE;
-   else if (qp->visible)
-     {
-        qp->changes.visible = EINA_TRUE;
-        _changed = EINA_TRUE;
-     }
-
-end:
+   _quickpanel_below_change_eval(data, event);
    return ECORE_CALLBACK_PASS_ON;
 }
 
 static Eina_Bool
 _quickpanel_cb_client_stack(void *data, int type, void *event)
 {
-   Pol_Quickpanel *qp;
-   E_Event_Client *ev = event;
-   E_Client *ec;
-
-   qp = data;
-   if (EINA_UNLIKELY(!qp))
-     goto end;
-
-   ec = ev->ec;
-   if (EINA_UNLIKELY(!ec))
-     goto end;
-
-   if (e_mod_pol_client_is_cursor(ec))
-     goto end;
-
-   if (qp->ec == ec)
-     goto end;
-
-   if (qp->visible)
-     {
-        qp->changes.visible = EINA_TRUE;
-        _changed = EINA_TRUE;
-     }
-
-end:
+   _quickpanel_below_change_eval(data, event);
    return ECORE_CALLBACK_PASS_ON;
 }
-
 
 static Evas_Object *
 _quickpanel_indicator_object_new(Pol_Quickpanel *qp)
@@ -1150,10 +1117,25 @@ _quickpanel_idle_enter(void *data)
    if (EINA_UNLIKELY(!qp))
      goto end;
 
-   if (qp->changes.visible)
+   if (qp->changes.below)
      {
-        e_mod_quickpanel_hide();
-        qp->changes.visible = EINA_FALSE;
+        E_Client *below;
+
+        below = _quickpanel_below_visible_client_get(qp);
+        if (qp->below != below)
+          {
+             DBG("qp->below '%s'(%p) new_below '%s'(%p)\n",
+                 qp->below ? (qp->below->icccm.name ? qp->below->icccm.name : "") : "",
+                 qp->below,
+                 below ? (below->icccm.name ? below->icccm.name : "") : "",
+                 below);
+
+             qp->below = below;
+             if (qp->ec->visible)
+               e_mod_quickpanel_hide();
+          }
+
+        qp->changes.below = EINA_FALSE;
      }
 
 end:
@@ -1223,6 +1205,7 @@ e_mod_quickpanel_client_set(E_Client *ec)
 
    qp->ec = ec;
    qp->show_block = EINA_TRUE;
+   qp->below = _quickpanel_below_visible_client_get(qp);
    qp->indi_obj = _quickpanel_indicator_object_new(qp);
    if (!qp->indi_obj)
      {
