@@ -1405,12 +1405,19 @@ _tzpol_iface_cb_type_set(struct wl_client *client EINA_UNUSED, struct wl_resourc
    switch (type)
      {
       /* TODO: support other types */
-      case TIZEN_POLICY_WIN_TYPE_NOTIFICATION: win_type = E_WINDOW_TYPE_NOTIFICATION; break;
+      case TIZEN_POLICY_WIN_TYPE_NOTIFICATION:
+         win_type = E_WINDOW_TYPE_NOTIFICATION;
+         break;
+
+      case TIZEN_POLICY_WIN_TYPE_UTILITY:
+         win_type = E_WINDOW_TYPE_UTILITY;
+         break;
+
       default: return;
      }
 
    ELOGF("TZPOL",
-         "TYPE_SET |win:0x%08x|s:0x%08x|res_tzpol:0x%08x|tizen_win_type:%d, e_win_type:%d NOTI",
+         "TYPE_SET |win:0x%08x|s:0x%08x|res_tzpol:0x%08x|tizen_win_type:%d, e_win_type:%d",
          ec->pixmap, ec,
          (unsigned int)e_client_util_win_get(ec),
          (unsigned int)surf,

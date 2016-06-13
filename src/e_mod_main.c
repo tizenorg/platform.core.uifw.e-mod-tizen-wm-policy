@@ -203,6 +203,9 @@ _pol_client_maximize_policy_apply(Pol_Client *pc)
    if (pc->max_policy_state) return;
    if (pc->allow_user_geom) return;
 
+   ec = pc->ec;
+   if (ec->netwm.type == E_WINDOW_TYPE_UTILITY) return;
+
    pc->max_policy_state = EINA_TRUE;
 
 #undef _SET
@@ -224,8 +227,6 @@ _pol_client_maximize_policy_apply(Pol_Client *pc)
 #undef _SET
 
    _pol_client_launcher_set(pc);
-
-   ec = pc->ec;
 
    if (ec->remember)
      {
