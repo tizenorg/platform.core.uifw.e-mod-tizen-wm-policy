@@ -3715,9 +3715,11 @@ _launch_img_off(Pol_Wl_Tzlaunch_Img *tzlaunchimg)
           {
              ec->visible = EINA_FALSE;
              evas_object_hide(ec->frame);
-             evas_object_lower(ec->frame);
              ec->ignored = EINA_TRUE;
           }
+
+        e_comp->launchscrns = eina_list_remove(e_comp->launchscrns, ec);
+
         e_pixmap_del(tzlaunchimg->ep);
         e_object_del(E_OBJECT(ec));
      }
