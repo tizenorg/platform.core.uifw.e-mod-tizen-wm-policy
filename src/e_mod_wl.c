@@ -1432,6 +1432,10 @@ _tzpol_iface_cb_type_set(struct wl_client *client EINA_UNUSED, struct wl_resourc
 // conformant
 // --------------------------------------------------------
 
+/* TODO
+ * It's better to place calling tizen_policy_send_conformant_area() in idle enterer.
+ * that's how we reduce the IPC which can make unnecessary job to client side.
+ */
 static void
 _tzpol_conformant_state_send(Pol_Wl_Surface *psurf)
 {
@@ -4070,28 +4074,51 @@ _pol_wl_cb_scrsaver_off(void *data EINA_UNUSED, int type EINA_UNUSED, void *even
 }
 
 static Eina_Bool
-_pol_wl_cb_zone_rot_change_begin(void *data EINA_UNUSED, int type EINA_UNUSED, void *event EINA_UNUSED)
+_pol_wl_cb_client_rot_change_begin(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 {
+   E_Event_Client *ev;
+
+   ev = event;
+   if (EINA_UNLIKELY((!ev) || (!ev->ec)))
+     goto end;
+
+   if (!ev->ec->vkbd.vkbd)
+     goto end;
+
    /* set conformant area to non-visible state before starting rotation.
     * this is to prevent to apply wrong area of conformant area after rotation.
-    * Suppose conformant area will be set later according to changes of vkbd such as resize or move.
+    * Suppose conformant area will be set later according to changes of vkbd
+    * such as resize or move.
     * if there is no being called rot_change_cancel and nothing changes vkbd,
     * that is unexpected case.
+    * TODO we need to add handler of rotation_change_end for handling
+    * in case nothing changes in vkbd.
     */
    if (conformant.visible)
      {
         _tzpol_conformant_state_set(EINA_FALSE, &conformant.rect);
         conformant.saved_visible = EINA_TRUE;
      }
+end:
    return ECORE_CALLBACK_PASS_ON;
 }
 
 static Eina_Bool
-_pol_wl_cb_zone_rot_change_cancel(void *data EINA_UNUSED, int type EINA_UNUSED, void *event EINA_UNUSED)
+_pol_wl_cb_client_rot_change_cancel(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 {
+   E_Event_Client *ev;
+
+   ev = event;
+   if (EINA_UNLIKELY((!ev) || (!ev->ec)))
+     goto end;
+
+   if (!ev->ec->vkbd.vkbd)
+     goto end;
+
    /* restore conformant visible state */
    if (conformant.saved_visible != conformant.visible)
      _tzpol_conformant_state_set(conformant.saved_visible, &conformant.rect);
+end:
    return ECORE_CALLBACK_PASS_ON;
 }
 
@@ -4258,8 +4285,8 @@ e_mod_pol_wl_init(void)
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_SCREENSAVER_ON,  _pol_wl_cb_scrsaver_on,  NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_SCREENSAVER_OFF, _pol_wl_cb_scrsaver_off, NULL);
 
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_ROTATION_CHANGE_BEGIN,  _pol_wl_cb_zone_rot_change_begin, NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_ROTATION_CHANGE_CANCEL, _pol_wl_cb_zone_rot_change_cancel, NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_ROTATION_CHANGE_BEGIN,  _pol_wl_cb_client_rot_change_begin, NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_ROTATION_CHANGE_CANCEL, _pol_wl_cb_client_rot_change_cancel, NULL);
 
    E_COMP_WL_HOOK_APPEND(hooks_cw, E_COMP_WL_HOOK_SHELL_SURFACE_READY, _pol_wl_cb_hook_shell_surface_ready, NULL);
 
