@@ -2149,13 +2149,13 @@ _pol_wl_aux_hint_apply(E_Client *ec)
         else if (!strcmp(hint->hint, hint_names[WM_POLICY_HINT_EFFECT_DISABLE]))
           {
              if ((hint->deleted) ||
-                 (!strcmp(hint->val, "1")))
-               {
-                  ec->animatable = 0;
-               }
-             else if (!strcmp(hint->val, "0"))
+                 (!strcmp(hint->val, "0")))
                {
                   ec->animatable = 1;
+               }
+             else if (!strcmp(hint->val, "1"))
+               {
+                  ec->animatable = 0;
                }
           }
 
