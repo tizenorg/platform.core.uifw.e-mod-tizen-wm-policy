@@ -28,6 +28,8 @@ extern int _wr_log_dom;
 #define ERR(...)  EINA_LOG_DOM_ERR(_wr_log_dom, __VA_ARGS__)
 #define CRI(...)  EINA_LOG_DOM_CRIT(_wr_log_dom, __VA_ARGS__)
 
+#define EDBG(ec, f, x...)  \
+   DBG(f"|'%s'(RcsID %d)", ##x, ec->icccm.name?:"", e_pixmap_res_id_get(ec->pixmap));
 #define EINF(ec, f, x...)  \
    INF(f"|'%s'(RcsID %d)", ##x, ec->icccm.name?:"", e_pixmap_res_id_get(ec->pixmap));
 

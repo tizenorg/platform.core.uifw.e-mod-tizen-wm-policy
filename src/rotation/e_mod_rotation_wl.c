@@ -214,7 +214,7 @@ _e_tizen_rotation_set_available_angles_cb(struct wl_client *client,
 
         if (tz_angle)
           {
-             EINF(ec, "Send Change Rotation: angle %d for redering preparation of landscape only app", tz_angle);
+             EDBG(ec, "Send Change Rotation: angle %d for redering preparation of landscape only app", tz_angle);
              serial = wl_display_next_serial(e_comp_wl->wl.disp);
 
              EINA_LIST_FOREACH(rot->rotation_list, l, res)
@@ -267,7 +267,7 @@ _e_tizen_rotation_set_preferred_angle_cb(struct wl_client *client,
 
         if (tz_angle)
           {
-             EINF(ec, "Send Change Rotation: angle %d for redering preparation of landscape only app", tz_angle);
+             EDBG(ec, "Send Change Rotation: angle %d for redering preparation of landscape only app", tz_angle);
              serial = wl_display_next_serial(e_comp_wl->wl.disp);
 
              EINA_LIST_FOREACH(rot->rotation_list, l, res)
@@ -298,7 +298,7 @@ _e_tizen_rotation_ack_angle_change_cb(struct wl_client *client,
         ec->e.state.rot.ang.prev = ec->e.state.rot.ang.curr;
         ec->e.state.rot.ang.curr = TIZEN_ROTATION_ANGLE_TO_INT(rot->cur_angle);
 
-        EINF(ec, "Rotation Done: prev %d cur %d",
+        EDBG(ec, "Rotation Done: prev %d cur %d",
              ec->e.state.rot.ang.prev, ec->e.state.rot.ang.curr);
 
         if (TIZEN_ROTATION_ANGLE_TO_INT(rot->cur_angle) == ec->e.state.rot.ang.next)
@@ -320,7 +320,8 @@ _e_tizen_rotation_ack_angle_change_cb(struct wl_client *client,
      }
    else // rotation fail
      {
-        DBG("Rotation Zone Set: Rotation Done(fail case)");
+        WRN("Rotation Zone Set: Rotation Done(fail case): %s(%p)",
+            ec->icccm.name?:"", ec);
         _e_client_rotation_zone_set(ec->zone, ec);
      }
 
@@ -428,7 +429,7 @@ _e_tizen_rotation_send_angle_change(E_Client *ec, int angle)
    rot->cur_angle = tz_angle;
    rot->serial = serial;
 
-   EINF(ec, "Send Change Rotation: angle %d", angle);
+   EDBG(ec, "Send Change Rotation: angle %d", angle);
    EINA_LIST_FOREACH(rot->rotation_list, l, resource)
      {
         tizen_rotation_send_angle_change(resource, tz_angle, serial);
@@ -493,7 +494,7 @@ _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec)
    if (include_ec && !include_ec->comp_data->sub.data)
      target_list = eina_list_append(target_list, include_ec);
 
-   INF("<<< Try to set zone rotation");
+   DBG("<<< Try to set zone rotation");
    E_CLIENT_REVERSE_FOREACH(ec)
      {
         if (ec->zone != zone) continue;
@@ -506,7 +507,7 @@ _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec)
              continue;
           }
 
-        EINF(ec, "Append to rotation target list");
+        EDBG(ec, "Append to rotation target list");
         target_list = eina_list_append(target_list, ec);
 
         if ((!ec->argb) &&
@@ -514,7 +515,7 @@ _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec)
             (ec->w == zone->w) && (ec->h == zone->h) &&
             (ec->e.state.rot.type == E_CLIENT_ROTATION_TYPE_NORMAL))
           {
-             EINF(ec, "Found Topmost Fullscreen Window");
+             EDBG(ec, "Found Topmost Fullscreen Window");
              break;
           }
      }
@@ -524,7 +525,7 @@ _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec)
      {
         if (!e_client_rotation_is_available(ec, angle))
           {
-             EINF(ec, "Failed to set rotation with zone: not able to rotate given angle %d", angle);
+             EDBG(ec, "Failed to set rotation with zone: not able to rotate given angle %d", angle);
              angle = _e_client_rotation_curr_next_get(ec);
              can_rotate = EINA_FALSE;
              break;
@@ -538,7 +539,7 @@ _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec)
           {
              if (!e_client_rotation_is_available(ec, angle))
                {
-                  EINF(ec, "Failed to set with exist client: not able to rotate given angle %d", angle);
+                  EDBG(ec, "Failed to set with exist client: not able to rotate given angle %d", angle);
                   can_rotate = EINA_FALSE;
                   break;
                }
@@ -546,7 +547,7 @@ _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec)
      }
    else
      {
-        INF("Set rotation of zone according to angle of zone: %d", angle);
+        DBG("Set rotation of zone according to angle of zone: %d", angle);
         goto do_rotate;
      }
 
@@ -563,7 +564,7 @@ _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec)
                {
                   if (!e_client_rotation_is_available(ec, i))
                     {
-                       EINF(ec, "Failed to set zone rotation: not able to rotate given angle %d", i);
+                       EDBG(ec, "Failed to set zone rotation: not able to rotate given angle %d", i);
                        can_rotate = EINA_FALSE;
                        break;
                     }
@@ -572,21 +573,21 @@ _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec)
              if (can_rotate == EINA_TRUE)
                {
                   angle = i;
-                  INF("Set rotation of zone according to common angle of clients: %d", angle);
+                  DBG("Set rotation of zone according to common angle of clients: %d", angle);
                   break;
                }
           }
      }
    else
      {
-        INF("Set rotation of zone according to angle of exist clients: %d", angle);
+        DBG("Set rotation of zone according to angle of exist clients: %d", angle);
         goto do_rotate;
      }
 
 
    if (!can_rotate)
      {
-        INF("Failed to find angle to be rotated");
+        DBG("Failed to find angle to be rotated");
         goto end;
      }
 
@@ -606,7 +607,7 @@ end:
 
    TRACE_DS_END();
 
-   INF("End to set zone rotation: %s >>>", ret ? "Change" : "Stay");
+   DBG("End to set zone rotation: %s >>>", ret ? "Change" : "Stay");
    return ret;
 }
 
@@ -648,7 +649,7 @@ _e_client_rotation_change_done(void)
 static Eina_Bool
 _e_client_rotation_change_done_timeout(void *data __UNUSED__)
 {
-   INF("Timeout ROTATION_DONE");
+   WRN("Timeout ROTATION_DONE");
    _e_client_rotation_change_done();
    return ECORE_CALLBACK_CANCEL;
 }
@@ -1324,7 +1325,7 @@ _rot_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec)
         if (_prev_preferred_rot != ec->e.state.rot.preferred_rot)
           ec->e.fetch.rot.need_rotation = EINA_TRUE;
 
-        EINF(ec, "Fetch Preferred: preferred (prev %d cur %d)",
+        EDBG(ec, "Fetch Preferred: preferred (prev %d cur %d)",
             _prev_preferred_rot, ec->e.state.rot.preferred_rot);
 
         ec->e.fetch.rot.preferred_rot = 0;
@@ -1454,11 +1455,10 @@ _rot_intercept_hook_show_helper(void *d EINA_UNUSED, E_Client *ec)
    if (ec->e.state.rot.pending_show)
      return EINA_FALSE;
 
-   DBG("Rotation Zone Set: Intercept Show");
    _e_client_rotation_zone_set(ec->zone, ec);
    if (ec->changes.rotation)
      {
-        EINF(ec, "Postpone show: ang %d", ec->e.state.rot.ang.next);
+        EDBG(ec, "Postpone show: ang %d", ec->e.state.rot.ang.next);
         /* consider e_pixmap_image_clear() instead of update_add() */
         e_comp_client_post_update_add(ec);
         ec->e.state.rot.pending_show = 1;
