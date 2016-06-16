@@ -191,6 +191,7 @@ enum _WM_Policy_Hint_Type
    WM_POLICY_HINT_ICONIFY = 3,
    WM_POLICY_HINT_ABOVE_LOCKSCREEN = 4,
    WM_POLICY_HINT_GESTURE_DISABLE = 5,
+   WM_POLICY_HINT_EFFECT_DISABLE = 6,
 };
 
 static const char *hint_names[] =
@@ -201,6 +202,7 @@ static const char *hint_names[] =
    "wm.policy.win.iconify",
    "wm.policy.win.above.lock",
    "wm.policy.win.gesture.disable",
+   "wm.policy.win.effect.disable",
 };
 
 static void                _pol_wl_surf_del(Pol_Wl_Surface *psurf);
@@ -2142,6 +2144,18 @@ _pol_wl_aux_hint_apply(E_Client *ec)
                        ec->changable_layer[E_CHANGABLE_LAYER_TYPE_ABOVE_NOTIFICATION].saved_layer = ec->layer;
                        EC_CHANGED(ec);
                     }
+               }
+          }
+        else if (!strcmp(hint->hint, hint_names[WM_POLICY_HINT_EFFECT_DISABLE]))
+          {
+             if ((hint->deleted) ||
+                 (!strcmp(hint->val, "1")))
+               {
+                  ec->animatable = 1;
+               }
+             else if (!strcmp(hint->val, "0"))
+               {
+                  ec->animatable = 0;
                }
           }
 
