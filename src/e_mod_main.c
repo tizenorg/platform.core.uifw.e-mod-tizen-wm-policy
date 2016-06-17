@@ -1226,6 +1226,7 @@ e_mod_pol_client_maximize(E_Client *ec)
    if (!pd) return EINA_FALSE;
 
    pc = eina_hash_find(hash_pol_clients, &ec);
+   EINA_SAFETY_ON_NULL_RETURN_VAL(pc, EINA_FALSE);
 
    if (pc->flt_policy_state)
      _pol_client_floating_policy_cancel(pc);

@@ -2364,7 +2364,7 @@ _tzpol_iface_cb_background_state_set(struct wl_client *client EINA_UNUSED, struc
 
              ELOGF("TZPOL",
                    "Register PID(%u) for BACKGROUND STATE psurf:%p tzpol:%p",
-                   ec, ec->pixmap, pid, psurf, psurf->tzpol);
+                   ec, ec->pixmap, pid, psurf, psurf ? psurf->tzpol : NULL);
           }
      }
    else
@@ -2704,7 +2704,7 @@ e_mod_pol_wl_win_brightness_apply(E_Client *ec)
    Eina_Bool ret;
    Eina_List *l;
    Pol_Wl_Tz_Dpy_Pol *tz_dpy_pol;
-   Pol_Wl_Dpy_Surface *dpy_surf;
+   Pol_Wl_Dpy_Surface *dpy_surf = NULL;
    int ec_visibility;
 
    EINA_SAFETY_ON_NULL_RETURN_VAL(ec, EINA_FALSE);
@@ -3942,7 +3942,9 @@ _tzlaunch_img_destroy(struct wl_resource *res_tzlaunchimg)
    Pol_Wl_Tzlaunch *tzlaunch;
 
    EINA_SAFETY_ON_NULL_RETURN(res_tzlaunchimg);
+
    tzlaunchimg = wl_resource_get_user_data(res_tzlaunchimg);
+   EINA_SAFETY_ON_NULL_RETURN(tzlaunchimg);
 
    if (tzlaunchimg->obj)
      evas_object_event_callback_del_full(tzlaunchimg->obj, EVAS_CALLBACK_DEL, _launch_img_cb_del, tzlaunchimg);
@@ -4242,10 +4244,6 @@ e_mod_pol_wl_defer_job(void)
    return EINA_TRUE;
 
 err:
-   if (global)
-     {
-        wl_global_destroy(global);
-     }
    return EINA_FALSE;
 }
 
