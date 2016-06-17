@@ -22,7 +22,7 @@ do { \
 #define REGION_OBJS_HIDE() REGION_OBJS_VISIBLE_CHANGE(EINA_FALSE)
 
 /* private data for volume */
-static struct wl_resource  *_volume_wl_ptr = NULL;
+static struct wl_resource  *_volume_wl_touch = NULL;
 static E_Client            *_volume_ec = NULL;
 static Eina_List           *_volume_region_objs[ROT_IDX_NUM];
 static Rot_Idx              _volume_cur_rot_idx = ROT_IDX_0;
@@ -39,34 +39,13 @@ e_mod_volume_client_get(void)
 }
 
 static void
-_volume_region_obj_cb_mouse_in(void *data EINA_UNUSED, Evas *evas EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event)
-{
-   Evas_Event_Mouse_In *e = event;
-   uint32_t serial;
-
-   serial = wl_display_next_serial(e_comp_wl->wl.disp);
-   wl_pointer_send_enter(_volume_wl_ptr, serial, _volume_ec->comp_data->surface,
-                         wl_fixed_from_int(e->canvas.x - _volume_ec->client.x),
-                         wl_fixed_from_int(e->canvas.y - _volume_ec->client.y));
-}
-
-static void
-_volume_region_obj_cb_mouse_out(void *data EINA_UNUSED, Evas *evas EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event)
-{
-   uint32_t serial;
-
-   serial = wl_display_next_serial(e_comp_wl->wl.disp);
-   wl_pointer_send_leave(_volume_wl_ptr, serial, _volume_ec->comp_data->surface);
-}
-
-static void
 _volume_region_obj_cb_mouse_move(void *data EINA_UNUSED, Evas *evas EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event)
 {
    Evas_Event_Mouse_Move *e = event;
 
-   wl_pointer_send_motion(_volume_wl_ptr, e->timestamp,
-                          wl_fixed_from_int(e->cur.canvas.x - _volume_ec->client.x),
-                          wl_fixed_from_int(e->cur.canvas.y - _volume_ec->client.y));
+   wl_touch_send_motion(_volume_wl_touch, e->timestamp, 0, // id 0 for the 1st figner
+                        wl_fixed_from_int(e->cur.canvas.x - _volume_ec->client.x),
+                        wl_fixed_from_int(e->cur.canvas.y - _volume_ec->client.y));
 }
 
 static void
@@ -76,8 +55,10 @@ _volume_region_obj_cb_mouse_down(void *data EINA_UNUSED, Evas *evas EINA_UNUSED,
    uint32_t serial;
 
    serial = wl_display_next_serial(e_comp_wl->wl.disp);
-   wl_pointer_send_button(_volume_wl_ptr, serial, e->timestamp, e->button,
-                          WL_POINTER_BUTTON_STATE_PRESSED);
+   wl_touch_send_down(_volume_wl_touch, serial, e->timestamp,
+                      _volume_ec->comp_data->surface, 0,
+                      wl_fixed_from_int(e->canvas.x - _volume_ec->client.x),
+                      wl_fixed_from_int(e->canvas.y - _volume_ec->client.y));
 }
 
 static void
@@ -87,8 +68,40 @@ _volume_region_obj_cb_mouse_up(void *data EINA_UNUSED, Evas *evas EINA_UNUSED, E
    uint32_t serial;
 
    serial = wl_display_next_serial(e_comp_wl->wl.disp);
-   wl_pointer_send_button(_volume_wl_ptr, serial, e->timestamp, e->button,
-                          WL_POINTER_BUTTON_STATE_RELEASED);
+   wl_touch_send_up(_volume_wl_touch, serial, e->timestamp, 0);
+}
+
+static void
+_volume_region_obj_cb_multi_down(void *data EINA_UNUSED, Evas *evas EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event)
+{
+   Evas_Event_Multi_Down *e = event;
+   uint32_t serial;
+
+   serial = wl_display_next_serial(e_comp_wl->wl.disp);
+   wl_touch_send_down(_volume_wl_touch, serial, e->timestamp,
+                      _volume_ec->comp_data->surface, e->device,
+                      wl_fixed_from_int(e->canvas.x - _volume_ec->client.x),
+                      wl_fixed_from_int(e->canvas.y - _volume_ec->client.y));
+}
+
+static void
+_volume_region_obj_cb_multi_up(void *data EINA_UNUSED, Evas *evas EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event)
+{
+   Evas_Event_Multi_Up *e = event;
+   uint32_t serial;
+
+   serial = wl_display_next_serial(e_comp_wl->wl.disp);
+   wl_touch_send_up(_volume_wl_touch, serial, e->timestamp, e->device);
+}
+
+static void
+_volume_region_obj_cb_multi_move(void *data EINA_UNUSED, Evas *evas EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event)
+{
+   Evas_Event_Multi_Move *e = event;
+
+   wl_touch_send_motion(_volume_wl_touch, e->timestamp, e->device,
+                        wl_fixed_from_int(e->cur.canvas.x - _volume_ec->client.x),
+                        wl_fixed_from_int(e->cur.canvas.y - _volume_ec->client.y));
 }
 
 static void
@@ -193,7 +206,7 @@ _volume_client_unset(void)
    E_FREE_FUNC(_rot_handler, ecore_event_handler_del);
    E_FREE_FUNC(_volume_del_hook, e_client_hook_del);
 
-   _volume_wl_ptr = NULL;
+   _volume_wl_touch = NULL;
    _volume_ec = NULL;
 }
 
@@ -303,16 +316,18 @@ _volume_content_region_obj_new(void)
    evas_object_layer_set(obj, evas_object_layer_get(_volume_ec->frame));
    evas_object_stack_above(obj, _volume_ec->frame);
 
-   evas_object_event_callback_add(obj, EVAS_CALLBACK_MOUSE_IN,
-                                  _volume_region_obj_cb_mouse_in, NULL);
-   evas_object_event_callback_add(obj, EVAS_CALLBACK_MOUSE_OUT,
-                                  _volume_region_obj_cb_mouse_out, NULL);
    evas_object_event_callback_add(obj, EVAS_CALLBACK_MOUSE_MOVE,
                                   _volume_region_obj_cb_mouse_move, NULL);
    evas_object_event_callback_add(obj, EVAS_CALLBACK_MOUSE_DOWN,
                                   _volume_region_obj_cb_mouse_down, NULL);
    evas_object_event_callback_add(obj, EVAS_CALLBACK_MOUSE_UP,
                                   _volume_region_obj_cb_mouse_up, NULL);
+   evas_object_event_callback_add(obj, EVAS_CALLBACK_MULTI_DOWN,
+                                  _volume_region_obj_cb_multi_down, NULL);
+   evas_object_event_callback_add(obj, EVAS_CALLBACK_MULTI_UP,
+                                  _volume_region_obj_cb_multi_up, NULL);
+   evas_object_event_callback_add(obj, EVAS_CALLBACK_MULTI_MOVE,
+                                  _volume_region_obj_cb_multi_move, NULL);
 
    return obj;
 }
@@ -343,7 +358,7 @@ _region_objs_tile_set(Rot_Idx rot_idx, Eina_Tiler *tiler)
              _volume_region_objs[rot_idx] = eina_list_append(_volume_region_objs[rot_idx], obj);
           }
 
-        DBG("\t@@@@@ Region Set: %d %d %d %d", r->x, r->y, r->w, r->h);
+        INF("\t@@@@@ Region Set: %d %d %d %d", r->x, r->y, r->w, r->h);
         /* set geometry of region object */
         evas_object_move(obj, _volume_ec->client.x + r->x, _volume_ec->client.y + r->y);
         evas_object_resize(obj, r->w, r->h);
@@ -382,25 +397,25 @@ _volume_content_region_set(Rot_Idx rot_idx, Eina_Tiler *tiler)
 }
 
 static struct wl_resource *
-_volume_wl_pointer_resource_get(void)
+_volume_wl_touch_resource_get(void)
 {
    Eina_List *l;
    struct wl_client *wc;
    struct wl_resource *res;
 
-   if (_volume_wl_ptr) goto end;
+   if (_volume_wl_touch) goto end;
 
    wc = wl_resource_get_client(_volume_ec->comp_data->surface);
-   EINA_LIST_FOREACH(e_comp_wl->ptr.resources, l, res)
+   EINA_LIST_FOREACH(e_comp_wl->touch.resources, l, res)
      {
         if (wl_resource_get_client(res) != wc) continue;
 
-        _volume_wl_ptr = res;
+        _volume_wl_touch = res;
         goto end;
      }
 
 end:
-   return _volume_wl_ptr;
+   return _volume_wl_touch;
 }
 
 EINTERN Eina_Bool
@@ -425,9 +440,9 @@ e_mod_volume_region_set(int type, int angle, Eina_Tiler *tiler)
         return EINA_FALSE;
      }
 
-   if (EINA_UNLIKELY(_volume_wl_pointer_resource_get() == NULL))
+   if (EINA_UNLIKELY(_volume_wl_touch_resource_get() == NULL))
      {
-        ERR("Could not found wl_pointer resource for volume");
+        ERR("Could not found wl_touch resource for volume");
         return EINA_FALSE;
      }
 
