@@ -2188,6 +2188,7 @@ _tzpol_iface_cb_aux_hint_add(struct wl_client *client EINA_UNUSED, struct wl_res
 
    if (res)
      {
+        _pol_wl_aux_hint_apply(ec);
         tizen_policy_send_allowed_aux_hint(res_tzpol, surf, id);
         EC_CHANGED(ec);
      }
@@ -2208,6 +2209,7 @@ _tzpol_iface_cb_aux_hint_change(struct wl_client *client EINA_UNUSED, struct wl_
 
    if (res)
      {
+        _pol_wl_aux_hint_apply(ec);
         tizen_policy_send_allowed_aux_hint(res_tzpol, surf, id);
         EC_CHANGED(ec);
      }
@@ -2226,7 +2228,10 @@ _tzpol_iface_cb_aux_hint_del(struct wl_client *client EINA_UNUSED, struct wl_res
    ELOGF("TZPOL", "HINT_DEL |res_tzpol:0x%08x|id:%d, result:%d", ec->pixmap, ec, (unsigned int)res_tzpol, id, res);
 
    if (res)
-     EC_CHANGED(ec);
+     {
+        _pol_wl_aux_hint_apply(ec);
+        EC_CHANGED(ec);
+     }
 }
 
 static void
