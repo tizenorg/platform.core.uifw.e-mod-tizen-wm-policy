@@ -41,6 +41,7 @@ struct _Policy_Ext_Rotation
    enum tizen_rotation_angle cur_angle, prev_angle;
    Eina_List *rotation_list;
    Eina_Bool angle_change_done;
+   Eina_Bool wait_update;
    uint32_t serial;
 };
 
@@ -160,6 +161,7 @@ _policy_ext_rotation_get(E_Client *ec)
         EINA_SAFETY_ON_NULL_RETURN_VAL(rot, NULL);
 
         rot->ec = ec;
+        rot->angle_change_done = EINA_TRUE;
         eina_hash_add(hash_policy_ext_rotation, &ec, rot);
      }
 
@@ -304,17 +306,17 @@ _e_tizen_rotation_ack_angle_change_cb(struct wl_client *client,
         if (TIZEN_ROTATION_ANGLE_TO_INT(rot->cur_angle) == ec->e.state.rot.ang.next)
           {
              ec->e.state.rot.ang.next = -1;
-             _e_client_rotation_list_remove(ec);
 
              if (ec->e.state.rot.ang.reserve != -1)
                {
+                  _e_client_rotation_list_remove(ec);
+
                   e_client_rotation_set(ec, ec->e.state.rot.ang.reserve);
                   ec->e.state.rot.ang.reserve = -1;
                }
-             else if (ec->e.state.rot.pending_show)
+             else
                {
-                  ec->e.state.rot.pending_show = 0;
-                  evas_object_show(ec->frame);
+                  rot->wait_update = EINA_TRUE;
                }
           }
      }
@@ -617,7 +619,11 @@ _e_client_rotation_change_done(void)
 {
    E_Client *ec;
 
-   if (rot.done_timer) ecore_timer_del(rot.done_timer);
+   if (rot.done_timer)
+     {
+        DBG("Remove rotation Timer by changing done");
+        ecore_timer_del(rot.done_timer);
+     }
    rot.done_timer = NULL;
 
    EINA_LIST_FREE(rot.list, ec)
@@ -642,6 +648,8 @@ _e_client_rotation_change_done(void)
    if (rot.screen_lock)
      {
         // do call comp_wl's screen unlock
+        DBG("RESUME Rendering");
+        e_comp_canvas_norender_pop();
         rot.screen_lock = EINA_FALSE;
      }
    e_zone_rotation_update_done(e_zone_current_get());
@@ -1189,11 +1197,43 @@ _rot_cb_zone_rotation_change_begin(void *data EINA_UNUSED, int ev_type EINA_UNUS
 static Eina_Bool
 _rot_cb_buffer_change(void *data EINA_UNUSED, int ev_type EINA_UNUSED, E_Event_Client *ev)
 {
+   Policy_Ext_Rotation *rot;
+
    if (EINA_UNLIKELY(!ev))
      goto end;
 
    if (EINA_UNLIKELY(!ev->ec))
      goto end;
+
+   rot = _policy_ext_rotation_get(ev->ec);
+   if (!rot)
+     goto end;
+
+   /* WORKAROUND
+    * wl_buffer can be destroyed after attach/damage/frame/commit to wl_surface.
+    * we have to handle this case.
+    */
+   if ((!rot->angle_change_done) || (!e_pixmap_resource_get(ev->ec->pixmap)))
+     {
+        DBG("Update Buffer in progress of rotation ec '%s'(%p)",
+            ev->ec->icccm.name ? ev->ec->icccm.name : "", ev->ec);
+
+        e_pixmap_image_clear(ev->ec->pixmap, EINA_TRUE);
+        e_pixmap_resource_set(ev->ec->pixmap, NULL);
+     }
+   else if (rot->wait_update)
+     {
+        DBG("Update Buffer After Rotation Done ec '%s'(%p) b %p",
+            ev->ec->icccm.name ? ev->ec->icccm.name : "", ev->ec, e_pixmap_resource_get(ev->ec->pixmap));
+        _e_client_rotation_list_remove(ev->ec);
+        if (ev->ec->e.state.rot.pending_show)
+          {
+             ev->ec->e.state.rot.pending_show = 0;
+             evas_object_show(ev->ec->frame);
+
+          }
+        rot->wait_update = EINA_FALSE;
+     }
 
    if (ev->ec->e.state.rot.pending_show)
      {
@@ -1517,6 +1557,8 @@ _rot_cb_idle_enterer(void *data EINA_UNUSED)
                {
                   //Do implement screen lock api on e_comp.
                   //do call comp_wl's screen lock
+                  DBG("STOP Rendering");
+                  e_comp_canvas_norender_push();
                   rot.screen_lock = EINA_TRUE;
                }
           }
