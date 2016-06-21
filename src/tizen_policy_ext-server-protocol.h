@@ -28,7 +28,24 @@ struct tizen_policy_ext_interface {
 			     struct wl_resource *resource,
 			     uint32_t id,
 			     struct wl_resource *surface);
+	/**
+	 * get_active_angle - get a current active angle
+	 * @surface: (none)
+	 *
+	 *
+	 */
+	void (*get_active_angle)(struct wl_client *client,
+				 struct wl_resource *resource,
+				 struct wl_resource *surface);
 };
+
+#define TIZEN_POLICY_EXT_ACTIVE_ANGLE	0
+
+static inline void
+tizen_policy_ext_send_active_angle(struct wl_resource *resource_, uint32_t angle)
+{
+	wl_resource_post_event(resource_, TIZEN_POLICY_EXT_ACTIVE_ANGLE, angle);
+}
 
 #ifndef TIZEN_ROTATION_ANGLE_ENUM
 #define TIZEN_ROTATION_ANGLE_ENUM

@@ -91,6 +91,7 @@ static void _e_tizen_rotation_ack_angle_change_cb(struct wl_client *client, stru
 static void _e_tizen_rotation_destroy(struct wl_resource *resource);
 static void _e_tizen_rotation_send_angle_change(E_Client *ec, int angle);
 static void _e_tizen_policy_ext_get_rotation_cb(struct wl_client *client, struct wl_resource *resource, uint32_t id, struct wl_resource *surface);
+static void _e_tizen_policy_ext_active_angle_cb(struct wl_client *client, struct wl_resource *resource, struct wl_resource *surface);
 static void _e_tizen_policy_ext_bind_cb(struct wl_client *client, void *data, uint32_t version, uint32_t id);
 
 /* local subsystem wayland rotation protocol related variables */
@@ -103,7 +104,8 @@ static const struct tizen_rotation_interface _e_tizen_rotation_interface =
 };
 static const struct tizen_policy_ext_interface _e_tizen_policy_ext_interface =
 {
-   _e_tizen_policy_ext_get_rotation_cb
+   _e_tizen_policy_ext_get_rotation_cb,
+   _e_tizen_policy_ext_active_angle_cb,
 };
 
 /* local subsystem e_client_rotation related functions */
@@ -372,6 +374,32 @@ _e_tizen_policy_ext_get_rotation_cb(struct wl_client *client,
 
    ec->e.fetch.rot.support = 1;
    EC_CHANGED(ec);
+}
+
+static void
+_e_tizen_policy_ext_active_angle_cb(struct wl_client *client, struct wl_resource *resource, struct wl_resource *surface)
+{
+   int angle;
+   E_Zone *zone;
+   E_Client *ec;
+
+   if (!surface)
+     zone = e_zone_current_get();
+   else
+     {
+        ec = wl_resource_get_user_data(surface);
+        if (ec)
+          zone = ec->zone;
+        else
+          zone = e_zone_current_get();
+     }
+
+   if (!zone)
+     angle = -1;
+   else
+     angle = zone->rot.curr;
+
+   tizen_policy_ext_send_active_angle(resource, angle);
 }
 
 static void

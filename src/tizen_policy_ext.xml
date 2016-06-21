@@ -4,6 +4,13 @@
             <arg name="id" type="new_id" interface="tizen_rotation" summary="new rotation object"/>
             <arg name="surface" type="object" interface="wl_surface" summary="surface object"/>
         </request>
+        <request name="get_active_angle">
+            <description summary="get a current active angle"/>
+            <arg name="surface" type="object" interface="wl_surface" allow-null="true"/>
+        </request>
+        <event name="active_angle">
+            <arg name="angle" type="uint"/>
+        </event>
      </interface>
      <interface name="tizen_rotation" version="1">
         <enum name="angle">
