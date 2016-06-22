@@ -35,5 +35,10 @@ void      e_mod_pol_wl_eval_pre_post_fetch(E_Client *ec);
 /* window brightness */
 Eina_Bool e_mod_pol_wl_win_brightness_apply(E_Client *ec);
 
+/* tzsh quickpanel */
+EINTERN void e_tzsh_qp_state_visible_update(E_Client *ec, Eina_Bool vis);
+EINTERN void e_tzsh_qp_state_orientation_update(E_Client *ec, Rot_Idx ridx);
+EINTERN void e_tzsh_qp_state_scrollable_update(E_Client *ec, Eina_Bool scrollable);
+
 #endif /* HAVE_WAYLAND_ONLY */
 #endif /* E_MOD_WL_H */
