@@ -5,6 +5,7 @@
 #include "e_mod_region.h"
 #include "e_mod_transit.h"
 #include "e_mod_rotation.h"
+#include "e_mod_wl.h"
 
 #define SMART_NAME            "quickpanel_object"
 #define INTERNAL_ENTRY                    \
@@ -36,6 +37,8 @@ typedef struct _Pol_Quickpanel Pol_Quickpanel;
 typedef struct _Mover_Data Mover_Data;
 typedef struct _Mover_Effect_Data Mover_Effect_Data;
 
+typedef struct _E_QP_Client E_QP_Client;
+
 struct _Pol_Quickpanel
 {
    E_Client *ec;
@@ -58,6 +61,8 @@ struct _Pol_Quickpanel
    Rot_Idx rotation;
 
    Eina_Bool show_block;
+
+   Eina_List *clients; /* list of E_QP_Client */
 };
 
 struct _Mover_Data
@@ -94,9 +99,22 @@ struct _Mover_Effect_Data
    Eina_Bool visible : 1;
 };
 
+struct _E_QP_Client
+{
+   E_Client *ec;
+   struct
+   {
+      Eina_Bool vis;
+      Eina_Bool scrollable;
+   } hint;
+};
+
 static Pol_Quickpanel *_pol_quickpanel = NULL;
 static Evas_Smart *_mover_smart = NULL;
 static Eina_Bool _changed = EINA_FALSE;
+
+static E_QP_Client * _e_qp_client_ec_get(E_Client *ec);
+static Eina_Bool     _e_qp_client_scrollable_update(void);
 
 static Pol_Quickpanel *
 _quickpanel_get()
@@ -502,8 +520,11 @@ _mover_obj_effect_cb_mover_obj_del(void *data, Evas *e EINA_UNUSED, Evas_Object 
 static void
 _mover_obj_effect_data_free(Pol_Transit_Effect *effect, Pol_Transit *transit)
 {
+   Pol_Quickpanel *qp;
    Mover_Data *md;
    Mover_Effect_Data *ed = effect;
+   E_QP_Client *qp_client;
+   Eina_List *l;
 
    if (ed->mover)
      {
@@ -512,6 +533,14 @@ _mover_obj_effect_data_free(Pol_Transit_Effect *effect, Pol_Transit *transit)
 
         evas_object_event_callback_del(ed->mover, EVAS_CALLBACK_DEL, _mover_obj_effect_cb_mover_obj_del);
         evas_object_del(ed->mover);
+     }
+
+   qp = _quickpanel_get();
+   if (qp)
+     {
+        EINA_LIST_FOREACH(qp->clients, l, qp_client)
+          e_tzsh_qp_state_visible_update(qp_client->ec,
+                                         ed->visible);
      }
 
    free(ed);
@@ -708,6 +737,7 @@ _region_obj_cb_gesture_end(void *data EINA_UNUSED, Evas_Object *handler, int x, 
 static void
 _quickpanel_free(Pol_Quickpanel *qp)
 {
+   E_FREE_LIST(qp->clients, free);
    E_FREE_FUNC(qp->mover, evas_object_del);
    E_FREE_FUNC(qp->indi_obj, evas_object_del);
    E_FREE_FUNC(qp->handler_obj, evas_object_del);
@@ -878,12 +908,15 @@ _quickpanel_handler_region_set(Pol_Quickpanel *qp, Rot_Idx ridx, Eina_Tiler *til
 }
 
 static void
-_quickpanel_visibility_change(Pol_Quickpanel *qp, Eina_Bool vis, Eina_Bool with_effect)
+_e_qp_vis_change(Pol_Quickpanel *qp, Eina_Bool vis, Eina_Bool with_effect)
 {
    E_Client *ec;
    Evas_Object *mover;
-   Eina_Bool cur_vis = EINA_FALSE;
+   Eina_Bool res, cur_vis = EINA_FALSE;
    int x, y, w, h;
+
+   res = _e_qp_client_scrollable_update();
+   if (!res) return;
 
    ec = qp->ec;
 
@@ -990,6 +1023,8 @@ _quickpanel_cb_rotation_done(void *data, int type, void *event)
    Pol_Quickpanel *qp;
    E_Event_Client *ev = event;
    E_Client *ec;
+   E_QP_Client *qp_client;
+   Eina_List *l;
 
    qp = data;
    if (EINA_UNLIKELY(!qp))
@@ -1008,6 +1043,10 @@ _quickpanel_cb_rotation_done(void *data, int type, void *event)
      evas_object_show(qp->handler_obj);
    else
      evas_object_show(qp->indi_obj);
+
+   EINA_LIST_FOREACH(qp->clients, l, qp_client)
+     e_tzsh_qp_state_orientation_update(qp_client->ec,
+                                        qp->rotation);
 
 end:
    return ECORE_CALLBACK_PASS_ON;
@@ -1133,6 +1172,8 @@ _quickpanel_idle_enter(void *data)
              qp->below = below;
              if (qp->ec->visible)
                e_mod_quickpanel_hide();
+
+             _e_qp_client_scrollable_update();
           }
 
         qp->changes.below = EINA_FALSE;
@@ -1160,6 +1201,67 @@ _quickpanel_intercept_hook_show(void *data, E_Client *ec)
 end:
    return EINA_TRUE;
 }
+
+static E_QP_Client *
+_e_qp_client_ec_get(E_Client *ec)
+{
+   Pol_Quickpanel *qp = _quickpanel_get();
+   E_QP_Client *qp_client = NULL;
+   Eina_List *l;
+
+   EINA_LIST_FOREACH(qp->clients, l, qp_client)
+     {
+        if (qp_client->ec == ec)
+          return qp_client;
+     }
+
+   return qp_client;
+}
+
+/* return value
+ *  EINA_TRUE : user can scrool the QP.
+ *  EINA_FALSE: user can't scroll QP since below window doesn't want.
+ */
+static Eina_Bool
+_e_qp_client_scrollable_update(void)
+{
+   Pol_Quickpanel *qp;
+   E_QP_Client *qp_client;
+   Eina_Bool res = EINA_TRUE;
+
+   qp = _quickpanel_get();
+   EINA_SAFETY_ON_NULL_RETURN_VAL(qp, EINA_FALSE);
+   EINA_SAFETY_ON_NULL_RETURN_VAL(qp->ec, EINA_FALSE);
+   EINA_SAFETY_ON_TRUE_RETURN_VAL(e_object_is_del(E_OBJECT(qp->ec)), EINA_FALSE);
+
+   if (!qp->below)
+     {
+        evas_object_pass_events_set(qp->handler_obj, EINA_FALSE);
+        evas_object_pass_events_set(qp->indi_obj, EINA_FALSE);
+        return EINA_TRUE;
+     }
+
+   /* Do not show and scroll the quickpanel window if the qp_client winodw
+    * which is placed at the below of the quickpanel window doesn't want
+    * to show and scroll the quickpanel window.
+    */
+   qp_client = _e_qp_client_ec_get(qp->below);
+   if ((qp_client) && (!qp_client->hint.scrollable))
+     {
+        evas_object_pass_events_set(qp->handler_obj, EINA_TRUE);
+        evas_object_pass_events_set(qp->indi_obj, EINA_TRUE);
+        res = EINA_FALSE;
+     }
+   else
+     {
+        evas_object_pass_events_set(qp->handler_obj, EINA_FALSE);
+        evas_object_pass_events_set(qp->indi_obj, EINA_FALSE);
+        res = EINA_TRUE;
+     }
+
+   return res;
+}
+
 
 #undef E_CLIENT_HOOK_APPEND
 #define E_CLIENT_HOOK_APPEND(l, t, cb, d) \
@@ -1289,16 +1391,11 @@ e_mod_quickpanel_show(void)
    Pol_Quickpanel *qp;
 
    qp = _quickpanel_get();
-   if (EINA_UNLIKELY(!qp))
-     return;
+   EINA_SAFETY_ON_NULL_RETURN(qp);
+   EINA_SAFETY_ON_NULL_RETURN(qp->ec);
+   EINA_SAFETY_ON_TRUE_RETURN(e_object_is_del(E_OBJECT(qp->ec)));
 
-   if (EINA_UNLIKELY(!qp->ec))
-     return;
-
-   if (e_object_is_del(E_OBJECT(qp->ec)))
-     return;
-
-   _quickpanel_visibility_change(qp, EINA_TRUE, EINA_TRUE);
+   _e_qp_vis_change(qp, EINA_TRUE, EINA_TRUE);
 }
 
 EINTERN void
@@ -1307,14 +1404,158 @@ e_mod_quickpanel_hide(void)
    Pol_Quickpanel *qp;
 
    qp = _quickpanel_get();
-   if (EINA_UNLIKELY(!qp))
-     return;
+   EINA_SAFETY_ON_NULL_RETURN(qp);
+   EINA_SAFETY_ON_NULL_RETURN(qp->ec);
+   EINA_SAFETY_ON_TRUE_RETURN(e_object_is_del(E_OBJECT(qp->ec)));
 
-   if (EINA_UNLIKELY(!qp->ec))
-     return;
+   _e_qp_vis_change(qp, EINA_FALSE, EINA_TRUE);
+}
 
-   if (e_object_is_del(E_OBJECT(qp->ec)))
-     return;
+EINTERN Eina_Bool
+e_qp_visible_get(void)
+{
+   Pol_Quickpanel *qp;
+   E_Client *ec;
+   Eina_Bool vis = EINA_FALSE;
+   int x, y, w, h;
 
-   _quickpanel_visibility_change(qp, EINA_FALSE, EINA_TRUE);
+   qp = _quickpanel_get();
+   EINA_SAFETY_ON_NULL_RETURN_VAL(qp, EINA_FALSE);
+   EINA_SAFETY_ON_NULL_RETURN_VAL(qp->ec, EINA_FALSE);
+   EINA_SAFETY_ON_TRUE_RETURN_VAL(e_object_is_del(E_OBJECT(qp->ec)), EINA_FALSE);
+
+   ec = qp->ec;
+   evas_object_geometry_get(ec->frame, &x, &y, &w, &h);
+
+   if (E_INTERSECTS(x, y, w, h, ec->zone->x, ec->zone->y, ec->zone->w, ec->zone->h))
+     vis = evas_object_visible_get(ec->frame);
+
+   return vis;
+}
+
+EINTERN int
+e_qp_orientation_get(void)
+{
+   Pol_Quickpanel *qp;
+
+   qp = _quickpanel_get();
+   EINA_SAFETY_ON_NULL_RETURN_VAL(qp, ROT_IDX_0);
+   EINA_SAFETY_ON_NULL_RETURN_VAL(qp->ec, ROT_IDX_0);
+   EINA_SAFETY_ON_TRUE_RETURN_VAL(e_object_is_del(E_OBJECT(qp->ec)), ROT_IDX_0);
+
+   return qp->rotation;
+}
+
+EINTERN void
+e_qp_client_add(E_Client *ec)
+{
+   Pol_Quickpanel *qp;
+   E_QP_Client *qp_client;
+
+   qp = _quickpanel_get();
+   EINA_SAFETY_ON_NULL_RETURN(qp);
+   EINA_SAFETY_ON_NULL_RETURN(qp->ec);
+   EINA_SAFETY_ON_TRUE_RETURN(e_object_is_del(E_OBJECT(qp->ec)));
+   EINA_SAFETY_ON_NULL_RETURN(ec);
+   EINA_SAFETY_ON_TRUE_RETURN(e_object_is_del(E_OBJECT(ec)));
+
+   qp_client = E_NEW(E_QP_Client, 1);
+   qp_client->ec = ec;
+   qp_client->hint.vis = EINA_TRUE;
+   qp_client->hint.scrollable = EINA_TRUE;
+
+   qp->clients = eina_list_append(qp->clients, qp_client);
+}
+
+EINTERN void
+e_qp_client_del(E_Client *ec)
+{
+   Pol_Quickpanel *qp;
+   E_QP_Client *qp_client;
+
+   qp = _quickpanel_get();
+   EINA_SAFETY_ON_NULL_RETURN(qp);
+   EINA_SAFETY_ON_NULL_RETURN(ec);
+
+   qp_client = _e_qp_client_ec_get(ec);
+   EINA_SAFETY_ON_NULL_RETURN(qp_client);
+
+   qp->clients = eina_list_remove(qp->clients, qp_client);
+
+   E_FREE(qp_client);
+}
+
+EINTERN void
+e_qp_client_show(E_Client *ec)
+{
+   Pol_Quickpanel *qp;
+   E_QP_Client *qp_client;
+
+   qp = _quickpanel_get();
+   EINA_SAFETY_ON_NULL_RETURN(qp);
+   EINA_SAFETY_ON_NULL_RETURN(qp->ec);
+   EINA_SAFETY_ON_TRUE_RETURN(e_object_is_del(E_OBJECT(qp->ec)));
+
+   qp_client = _e_qp_client_ec_get(ec);
+   EINA_SAFETY_ON_NULL_RETURN(qp_client);
+   EINA_SAFETY_ON_FALSE_RETURN(qp_client->hint.scrollable);
+
+   _e_qp_vis_change(qp, EINA_TRUE, EINA_TRUE);
+}
+
+EINTERN void
+e_qp_client_hide(E_Client *ec)
+{
+   Pol_Quickpanel *qp;
+   E_QP_Client *qp_client;
+
+   qp = _quickpanel_get();
+   EINA_SAFETY_ON_NULL_RETURN(qp);
+   EINA_SAFETY_ON_NULL_RETURN(qp->ec);
+   EINA_SAFETY_ON_TRUE_RETURN(e_object_is_del(E_OBJECT(qp->ec)));
+
+   qp_client = _e_qp_client_ec_get(ec);
+   EINA_SAFETY_ON_NULL_RETURN(qp_client);
+   EINA_SAFETY_ON_FALSE_RETURN(qp_client->hint.scrollable);
+
+   _e_qp_vis_change(qp, EINA_FALSE, EINA_TRUE);
+}
+
+EINTERN Eina_Bool
+e_qp_client_scrollable_set(E_Client *ec, Eina_Bool set)
+{
+   Pol_Quickpanel *qp;
+   E_QP_Client *qp_client;
+
+   qp = _quickpanel_get();
+   EINA_SAFETY_ON_NULL_RETURN_VAL(qp, EINA_FALSE);
+   EINA_SAFETY_ON_NULL_RETURN_VAL(qp->ec, EINA_FALSE);
+   EINA_SAFETY_ON_TRUE_RETURN_VAL(e_object_is_del(E_OBJECT(qp->ec)), EINA_FALSE);
+
+   qp_client = _e_qp_client_ec_get(ec);
+   EINA_SAFETY_ON_NULL_RETURN_VAL(qp_client, EINA_FALSE);
+
+   if (qp_client->hint.scrollable != set)
+     qp_client->hint.scrollable = set;
+
+   _e_qp_client_scrollable_update();
+
+   return EINA_FALSE;
+}
+
+EINTERN Eina_Bool
+e_qp_client_scrollable_get(E_Client *ec)
+{
+   Pol_Quickpanel *qp;
+   E_QP_Client *qp_client;
+
+   qp = _quickpanel_get();
+   EINA_SAFETY_ON_NULL_RETURN_VAL(qp, EINA_FALSE);
+   EINA_SAFETY_ON_NULL_RETURN_VAL(qp->ec, EINA_FALSE);
+   EINA_SAFETY_ON_TRUE_RETURN_VAL(e_object_is_del(E_OBJECT(qp->ec)), EINA_FALSE);
+
+   qp_client = _e_qp_client_ec_get(ec);
+   EINA_SAFETY_ON_NULL_RETURN_VAL(qp_client, EINA_FALSE);
+
+   return qp_client->hint.scrollable;
 }
