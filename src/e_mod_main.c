@@ -24,7 +24,7 @@ static Eina_List *hooks_cp = NULL;
 static Pol_Client *_pol_client_add(E_Client *ec);
 static void        _pol_client_del(Pol_Client *pc);
 static Eina_Bool   _pol_client_normal_check(E_Client *ec);
-static void        _pol_client_maximize_policy_apply(Pol_Client *pc);
+static Eina_Bool   _pol_client_maximize_policy_apply(Pol_Client *pc);
 static void        _pol_client_maximize_policy_cancel(Pol_Client *pc);
 static void        _pol_client_floating_policy_apply(Pol_Client *pc);
 static void        _pol_client_floating_policy_cancel(Pol_Client *pc);
@@ -195,16 +195,16 @@ _pol_client_maximize_pre(Pol_Client *pc)
    EC_CHANGED(ec);
 }
 
-static void
+static Eina_Bool
 _pol_client_maximize_policy_apply(Pol_Client *pc)
 {
    E_Client *ec;
 
-   if (pc->max_policy_state) return;
-   if (pc->allow_user_geom) return;
+   if (pc->max_policy_state) return EINA_FALSE;
+   if (pc->allow_user_geom) return EINA_FALSE;
 
    ec = pc->ec;
-   if (ec->netwm.type == E_WINDOW_TYPE_UTILITY) return;
+   if (ec->netwm.type == E_WINDOW_TYPE_UTILITY) return EINA_FALSE;
 
    pc->max_policy_state = EINA_TRUE;
 
@@ -1231,9 +1231,7 @@ e_mod_pol_client_maximize(E_Client *ec)
    if (pc->flt_policy_state)
      _pol_client_floating_policy_cancel(pc);
 
-   _pol_client_maximize_policy_apply(pc);
-
-   return EINA_TRUE;
+   return _pol_client_maximize_policy_apply(pc);
 }
 
 Eina_Bool
