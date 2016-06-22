@@ -76,6 +76,7 @@ typedef struct _Pol_Wl_Tzsh_Client
 {
    Pol_Wl_Tzsh        *tzsh;
    struct wl_resource *res_tzsh_client;
+   Eina_Bool           qp_client;
 } Pol_Wl_Tzsh_Client;
 
 typedef struct _Pol_Wl_Tzsh_Region
@@ -169,6 +170,12 @@ typedef struct _Pol_Wl_Conformant
    Eina_Bool visible;
    Eina_Rectangle rect;
 } Pol_Wl_Conformant;
+
+typedef struct _E_Tzsh_QP_Event
+{
+   int type;
+   int val;
+} E_Tzsh_QP_Event;
 
 static Pol_Wl *polwl = NULL;
 
@@ -413,6 +420,38 @@ _pol_wl_tzsh_get_from_client(E_Client *ec)
                }
 
              return tzsh;
+          }
+     }
+
+   return NULL;
+}
+
+static Pol_Wl_Tzsh_Client *
+_pol_wl_tzsh_client_get_from_client(E_Client *ec)
+{
+   Pol_Wl_Tzsh_Client *tzsh_client = NULL;
+   Eina_List *l;
+
+   if (ec) return NULL;
+   if (e_object_is_del(E_OBJECT(ec))) return NULL;
+
+   EINA_LIST_FOREACH(polwl->tzsh_clients, l, tzsh_client)
+     {
+        if (!tzsh_client->tzsh) continue;
+        if (!tzsh_client->tzsh->ec) continue;
+
+        if (tzsh_client->tzsh->cp == ec->pixmap)
+          {
+             if (tzsh_client->tzsh->ec != ec)
+               {
+                  ELOGF("TZSH",
+                        "CRI ERR!!|tzsh_cp:0x%08x|tzsh_ec:0x%08x|tzsh:0x%08x",
+                        ec->pixmap, ec,
+                        (unsigned int)tzsh_client->tzsh->cp,
+                        (unsigned int)tzsh_client->tzsh->ec,
+                        (unsigned int)tzsh_client->tzsh);
+               }
+             return tzsh_client;
           }
      }
 
@@ -707,6 +746,11 @@ _pol_wl_tzsh_client_del(Pol_Wl_Tzsh_Client *tzsh_client)
 
    polwl->tzsh_clients = eina_list_remove(polwl->tzsh_clients, tzsh_client);
    polwl->tvsrv_bind_list = eina_list_remove(polwl->tvsrv_bind_list, tzsh_client);
+
+   if ((tzsh_client->qp_client) &&
+       (tzsh_client->tzsh) &&
+       (tzsh_client->tzsh->ec))
+     e_qp_client_del(tzsh_client->tzsh->ec);
 
    memset(tzsh_client, 0x0, sizeof(Pol_Wl_Tzsh_Client));
    E_FREE(tzsh_client);
@@ -2364,7 +2408,7 @@ _tzpol_iface_cb_background_state_set(struct wl_client *client EINA_UNUSED, struc
 
              ELOGF("TZPOL",
                    "Register PID(%u) for BACKGROUND STATE psurf:%p tzpol:%p",
-                   ec, ec->pixmap, pid, psurf, psurf ? psurf->tzpol : NULL);
+                   ec->pixmap, ec, pid, psurf, psurf ? psurf->tzpol : NULL);
           }
      }
    else
@@ -2435,7 +2479,7 @@ _tzpol_iface_cb_floating_mode_set(struct wl_client *client EINA_UNUSED, struct w
    ec = wl_resource_get_user_data(surf);
    EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   ELOGF("TZPOL", "FLOATING Set", ec, ec->pixmap);
+   ELOGF("TZPOL", "FLOATING Set", ec->pixmap, ec);
 
    _pol_wl_floating_mode_apply(ec, EINA_TRUE);
 }
@@ -2448,7 +2492,7 @@ _tzpol_iface_cb_floating_mode_unset(struct wl_client *client EINA_UNUSED, struct
    ec = wl_resource_get_user_data(surf);
    EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   ELOGF("TZPOL", "FLOATING Unset", ec, ec->pixmap);
+   ELOGF("TZPOL", "FLOATING Unset", ec->pixmap, ec);
 
    _pol_wl_floating_mode_apply(ec, EINA_FALSE);
 }
@@ -2461,7 +2505,7 @@ _tzpol_iface_cb_stack_mode_set(struct wl_client *client EINA_UNUSED, struct wl_r
    ec = wl_resource_get_user_data(surf);
    EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   ELOGF("TZPOL", "STACK Mode Set. mode:%d", ec, ec->pixmap, mode);
+   ELOGF("TZPOL", "STACK Mode Set. mode:%d", ec->pixmap, ec, mode);
 
    if (ec->frame)
      {
@@ -3366,6 +3410,72 @@ err:
 // --------------------------------------------------------
 // tizen_ws_shell_interface::quickpanel
 // --------------------------------------------------------
+EINTERN void
+e_tzsh_qp_state_visible_update(E_Client *ec, Eina_Bool vis)
+{
+   Pol_Wl_Tzsh_Client *tzsh_client;
+   struct wl_array states;
+   E_Tzsh_QP_Event *ev;
+
+   tzsh_client = _pol_wl_tzsh_client_get_from_client(ec);
+   if (!tzsh_client) return;
+
+   wl_array_init(&states);
+
+   ev = wl_array_add(&states, sizeof(E_Tzsh_QP_Event));
+
+   ev->type = TWS_QUICKPANEL_STATE_TYPE_VISIBILITY;
+   ev->val = vis ? TWS_QUICKPANEL_STATE_VALUE_VISIBLE_SHOW : TWS_QUICKPANEL_STATE_VALUE_VISIBLE_HIDE;
+
+   tws_quickpanel_send_state_changed(tzsh_client->res_tzsh_client, &states);
+
+   wl_array_release(&states);
+}
+
+EINTERN void
+e_tzsh_qp_state_scrollable_update(E_Client *ec, Eina_Bool scrollable)
+{
+   Pol_Wl_Tzsh_Client *tzsh_client;
+   struct wl_array states;
+   E_Tzsh_QP_Event *ev;
+
+   tzsh_client = _pol_wl_tzsh_client_get_from_client(ec);
+   if (!tzsh_client) return;
+
+   wl_array_init(&states);
+
+   ev = wl_array_add(&states, sizeof(E_Tzsh_QP_Event));
+
+   ev->type = TWS_QUICKPANEL_STATE_TYPE_SCROLLABLE;
+   ev->val = scrollable ? TWS_QUICKPANEL_STATE_VALUE_SCROLLABLE_SET : TWS_QUICKPANEL_STATE_VALUE_SCROLLABLE_UNSET;
+
+   tws_quickpanel_send_state_changed(tzsh_client->res_tzsh_client, &states);
+
+   wl_array_release(&states);
+}
+
+EINTERN void
+e_tzsh_qp_state_orientation_update(E_Client *ec, int ridx)
+{
+   Pol_Wl_Tzsh_Client *tzsh_client;
+   struct wl_array states;
+   E_Tzsh_QP_Event *ev;
+
+   tzsh_client = _pol_wl_tzsh_client_get_from_client(ec);
+   if (!tzsh_client) return;
+
+   wl_array_init(&states);
+
+   ev = wl_array_add(&states, sizeof(E_Tzsh_QP_Event));
+
+   ev->type = TWS_QUICKPANEL_STATE_TYPE_ORIENTATION;
+   ev->val = TWS_QUICKPANEL_STATE_VALUE_ORIENTATION_0 + ridx;
+
+   tws_quickpanel_send_state_changed(tzsh_client->res_tzsh_client, &states);
+
+   wl_array_release(&states);
+}
+
 static void
 _tzsh_qp_iface_cb_release(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzsh_qp)
 {
@@ -3373,31 +3483,121 @@ _tzsh_qp_iface_cb_release(struct wl_client *client EINA_UNUSED, struct wl_resour
 }
 
 static void
-_tzsh_qp_iface_cb_show(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzsh_qp EINA_UNUSED)
+_tzsh_qp_iface_cb_show(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzsh_qp)
 {
-   /* TODO: request quickpanel show */
-   ;
+   Pol_Wl_Tzsh_Client *tzsh_client;
+   E_Client *ec;
+
+   tzsh_client = wl_resource_get_user_data(res_tzsh_qp);
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_client);
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_client->tzsh);
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_client->tzsh->ec);
+
+   ec = tzsh_client->tzsh->ec;
+
+   if (!eina_list_data_find(polwl->tzsh_clients, tzsh_client))
+     return;
+
+   e_qp_client_show(ec);
 }
 
 static void
-_tzsh_qp_iface_cb_hide(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzsh_qp EINA_UNUSED)
+_tzsh_qp_iface_cb_hide(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzsh_qp)
 {
-   /* TODO: request quickpanel hide */
-   ;
+   Pol_Wl_Tzsh_Client *tzsh_client;
+   E_Client *ec;
+
+   tzsh_client = wl_resource_get_user_data(res_tzsh_qp);
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_client);
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_client->tzsh);
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_client->tzsh->ec);
+
+   ec = tzsh_client->tzsh->ec;
+
+   if (!eina_list_data_find(polwl->tzsh_clients, tzsh_client))
+     return;
+
+   e_qp_client_hide(ec);
 }
 
 static void
-_tzsh_qp_iface_cb_enable(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzsh_qp EINA_UNUSED)
+_tzsh_qp_iface_cb_enable(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzsh_qp)
 {
-   /* TODO: request quickpanel enable */
-   ;
+   Pol_Wl_Tzsh_Client *tzsh_client;
+   E_Client *ec;
+
+   tzsh_client = wl_resource_get_user_data(res_tzsh_qp);
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_client);
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_client->tzsh);
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_client->tzsh->ec);
+
+   ec = tzsh_client->tzsh->ec;
+
+   if (!eina_list_data_find(polwl->tzsh_clients, tzsh_client))
+     return;
+
+   e_qp_client_scrollable_set(ec, EINA_TRUE);
 }
 
 static void
-_tzsh_qp_iface_cb_disable(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzsh_qp EINA_UNUSED)
+_tzsh_qp_iface_cb_disable(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzsh_qp)
 {
-   /* TODO: request quickpanel disable */
-   ;
+   Pol_Wl_Tzsh_Client *tzsh_client;
+   E_Client *ec;
+
+   tzsh_client = wl_resource_get_user_data(res_tzsh_qp);
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_client);
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_client->tzsh);
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_client->tzsh->ec);
+
+   ec = tzsh_client->tzsh->ec;
+
+   if (!eina_list_data_find(polwl->tzsh_clients, tzsh_client))
+     return;
+
+   e_qp_client_scrollable_set(ec, EINA_FALSE);
+}
+
+static void
+_tzsh_qp_iface_cb_state_get(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzsh_qp, int32_t type)
+{
+   Pol_Wl_Tzsh_Client *tzsh_client;
+   E_Client *ec;
+   Eina_Bool vis, scrollable;
+   int ridx;
+   int val = TWS_QUICKPANEL_STATE_VALUE_UNKNOWN;
+
+   tzsh_client = wl_resource_get_user_data(res_tzsh_qp);
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_client);
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_client->tzsh);
+   EINA_SAFETY_ON_NULL_RETURN(tzsh_client->tzsh->ec);
+
+   ec = tzsh_client->tzsh->ec;
+
+   if (!eina_list_data_find(polwl->tzsh_clients, tzsh_client))
+     return;
+
+   switch (type)
+     {
+      case TWS_QUICKPANEL_STATE_TYPE_VISIBILITY:
+        val = TWS_QUICKPANEL_STATE_VALUE_VISIBLE_HIDE;
+        vis = e_qp_visible_get();
+        if (vis) val = TWS_QUICKPANEL_STATE_VALUE_VISIBLE_SHOW;
+        break;
+      case TWS_QUICKPANEL_STATE_TYPE_SCROLLABLE:
+        val = TWS_QUICKPANEL_STATE_VALUE_SCROLLABLE_UNSET;
+        scrollable = e_qp_client_scrollable_get(ec);
+        if (scrollable) val = TWS_QUICKPANEL_STATE_VALUE_SCROLLABLE_SET;
+        break;
+      case TWS_QUICKPANEL_STATE_TYPE_ORIENTATION:
+        ridx = e_qp_orientation_get();
+        val = TWS_QUICKPANEL_STATE_VALUE_ORIENTATION_0 + ridx;
+        break;
+      default:
+        break;
+     }
+
+   tws_quickpanel_send_state_get_done(res_tzsh_qp, type, val, 0);
 }
 
 static const struct tws_quickpanel_interface _tzsh_qp_iface =
@@ -3406,7 +3606,8 @@ static const struct tws_quickpanel_interface _tzsh_qp_iface =
    _tzsh_qp_iface_cb_show,
    _tzsh_qp_iface_cb_hide,
    _tzsh_qp_iface_cb_enable,
-   _tzsh_qp_iface_cb_disable
+   _tzsh_qp_iface_cb_disable,
+   _tzsh_qp_iface_cb_state_get
 };
 
 static void
@@ -3482,6 +3683,9 @@ _tzsh_iface_cb_qp_get(struct wl_client *client, struct wl_resource *res_tzsh, ui
         wl_client_post_no_memory(client);
         return;
      }
+
+   tzsh_client->qp_client = EINA_TRUE;
+   e_qp_client_add(tzsh->ec);
 
    wl_resource_set_implementation(res_tzsh_qp,
                                   &_tzsh_qp_iface,
