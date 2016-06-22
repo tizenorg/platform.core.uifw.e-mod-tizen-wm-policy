@@ -3,7 +3,7 @@
 
 Name:       e-mod-tizen-wm-policy
 Summary:    The Enlightenment WM Policy Module for Tizen
-Version:    0.2.9
+Version:    0.2.10
 Release:    1
 Group:      Graphics & UI Framework/Other
 License:    BSD-2-Clause and Flora-1.1
