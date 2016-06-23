@@ -855,6 +855,7 @@ _quickpanel_handler_rect_add(Pol_Quickpanel *qp, Rot_Idx ridx, int x, int y, int
      goto end;
 
    obj = e_mod_region_object_new();
+   evas_object_name_set(obj, "qp::handler_obj");
    if (!obj)
      return;
 
@@ -1126,6 +1127,7 @@ _quickpanel_indicator_object_new(Pol_Quickpanel *qp)
    Evas_Object *indi_obj;
 
    indi_obj = e_mod_region_object_new();
+   evas_object_name_set(indi_obj, "qp::indicator_obj");
    if (!indi_obj)
      return NULL;
 
