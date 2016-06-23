@@ -1494,6 +1494,10 @@ _tzpol_conformant_state_send(Pol_Wl_Surface *psurf)
    if (EINA_UNLIKELY(!psurf->tzpol->res_tzpol))
      return;
 
+   DBG("Conformant: Send State Changed \"%s\" %d %d %d %d",
+       conformant.visible? "SHOW" : "HIDDEN",
+       conformant.rect.x, conformant.rect.y, conformant.rect.w, conformant.rect.h);
+
    tizen_policy_send_conformant_area
       (psurf->tzpol->res_tzpol,
        psurf->surf,
