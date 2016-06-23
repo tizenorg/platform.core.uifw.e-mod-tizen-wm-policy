@@ -2,6 +2,7 @@
 #include "e_mod_rotation.h"
 #include "e_mod_keyboard.h"
 #include "e_mod_transform_mode.h"
+#include "e_mod_conformant.h"
 #ifdef HAVE_WAYLAND_ONLY
 #include "e_mod_wl.h"
 #endif
@@ -36,7 +37,6 @@ static void        _pol_cb_hook_client_eval_pre_post_fetch(void *d EINA_UNUSED, 
 static void        _pol_cb_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec);
 static void        _pol_cb_hook_client_eval_post_new_client(void *d EINA_UNUSED, E_Client *ec);
 static void        _pol_cb_hook_client_desk_set(void *d EINA_UNUSED, E_Client *ec);
-static void        _pol_cb_hook_client_eval_end(void *d EINA_UNUSED, E_Client *ec);
 static void        _pol_cb_hook_client_fullscreen_pre(void *data EINA_UNUSED, E_Client *ec);
 
 static void        _pol_cb_hook_pixmap_del(void *data EINA_UNUSED, E_Pixmap *cp);
@@ -51,7 +51,6 @@ static Eina_Bool   _pol_cb_zone_desk_count_set(void *data EINA_UNUSED, int type 
 static Eina_Bool   _pol_cb_zone_display_state_change(void *data EINA_UNUSED, int type EINA_UNUSED, void *event);
 static Eina_Bool   _pol_cb_desk_show(void *data EINA_UNUSED, int type EINA_UNUSED, void *event);
 static Eina_Bool   _pol_cb_client_add(void *data EINA_UNUSED, int type, void *event);
-static Eina_Bool   _pol_cb_client_iconify(void *data EINA_UNUSED, int type, void *event);
 static Eina_Bool   _pol_cb_client_move(void *data EINA_UNUSED, int type, void *event);
 static Eina_Bool   _pol_cb_client_resize(void *data EINA_UNUSED, int type, void *event);
 static Eina_Bool   _pol_cb_client_stack(void *data EINA_UNUSED, int type, void *event);
@@ -596,28 +595,6 @@ _pol_cb_hook_client_desk_set(void *d EINA_UNUSED, E_Client *ec)
 }
 
 static void
-_pol_cb_hook_client_eval_end(void *d EINA_UNUSED, E_Client *ec)
-{
-   Pol_Client *pc;
-
-   /* calculate e_client visibility */
-   e_client_visibility_calculate();
-
-   if (e_mod_pol_client_is_keyboard(ec))
-     {
-        pc = eina_hash_find(hash_pol_clients, &ec);
-        if (pc)
-          {
-             if (pc->changes.vkbd_state)
-               {
-                  e_mod_pol_wl_keyboard_geom_broadcast(ec);
-                  pc->changes.vkbd_state = 0;
-               }
-          }
-     }
-}
-
-static void
 _pol_cb_hook_client_fullscreen_pre(void* data EINA_UNUSED, E_Client *ec)
 {
    if (e_object_is_del(E_OBJECT(ec))) return;
@@ -883,109 +860,15 @@ _pol_cb_client_add(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 }
 
 static Eina_Bool
-_pol_cb_client_iconify(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
-{
-   E_Event_Client *ev;
-   Pol_Client *pc;
-
-   ev = event;
-   EINA_SAFETY_ON_NULL_RETURN_VAL(ev, ECORE_CALLBACK_PASS_ON);
-
-#ifdef HAVE_WAYLAND_ONLY
-   if (e_mod_pol_client_is_keyboard(ev->ec))
-     {
-        pc = eina_hash_find(hash_pol_clients, &ev->ec);
-        if (pc)
-          {
-             if (!pc->changes.already_hide)
-               {
-                  pc->changes.vkbd_state = 1;
-                  pc->changes.already_hide = 1;
-                  EC_CHANGED(ev->ec);
-               }
-          }
-     }
-#endif
-
-   return ECORE_CALLBACK_PASS_ON;
-}
-
-static Eina_Bool
-_pol_cb_client_show(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
-{
-   E_Event_Client *ev;
-   Pol_Client *pc;
-
-   ev = event;
-   if (!ev) goto end;
-
-#ifdef HAVE_WAYLAND_ONLY
-   if (e_mod_pol_client_is_keyboard(ev->ec))
-     {
-        pc = eina_hash_find(hash_pol_clients, &ev->ec);
-        if (pc)
-          {
-             pc->changes.vkbd_state = 1;
-             pc->changes.already_hide = 0;
-             EC_CHANGED(ev->ec);
-          }
-     }
-#endif
-
-end:
-   return ECORE_CALLBACK_PASS_ON;
-}
-
-static Eina_Bool
-_pol_cb_client_hide(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
-{
-   E_Event_Client *ev;
-   Pol_Client *pc;
-
-   ev = event;
-   if (!ev) goto end;
-
-#ifdef HAVE_WAYLAND_ONLY
-   if (e_mod_pol_client_is_keyboard(ev->ec))
-     {
-        pc = eina_hash_find(hash_pol_clients, &ev->ec);
-        if (pc)
-          {
-             if (!pc->changes.already_hide)
-               {
-                  pc->changes.vkbd_state = 1;
-                  pc->changes.already_hide = 1;
-                  EC_CHANGED(ev->ec);
-               }
-          }
-     }
-#endif
-
-end:
-   return ECORE_CALLBACK_PASS_ON;
-}
-
-static Eina_Bool
 _pol_cb_client_move(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 {
    E_Event_Client *ev;
-   Pol_Client *pc;
 
    ev = event;
    if (!ev) goto end;
 
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_position_send(ev->ec);
-
-   if (e_mod_pol_client_is_keyboard(ev->ec))
-     {
-        pc = eina_hash_find(hash_pol_clients, &ev->ec);
-        if (pc)
-          {
-             pc->changes.vkbd_state = 1;
-             EC_CHANGED(ev->ec);
-          }
-     }
 #endif
    e_client_visibility_calculate();
 
@@ -998,7 +881,6 @@ _pol_cb_client_resize(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 {
    E_Event_Client *ev;
    E_Client *ec;
-   Pol_Client *pc;
    int zh = 0;
 
    ev = (E_Event_Client *)event;
@@ -1006,20 +888,6 @@ _pol_cb_client_resize(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 
    ec = ev->ec;
    EINA_SAFETY_ON_NULL_RETURN_VAL(ec, ECORE_CALLBACK_PASS_ON);
-
-   if (e_mod_pol_client_is_keyboard(ec))
-     {
-#ifdef HAVE_WAYLAND_ONLY
-        pc = eina_hash_find(hash_pol_clients, &ec);
-        if (pc)
-          {
-             pc->changes.vkbd_state = 1;
-             EC_CHANGED(ec);
-          }
-#else
-        ;
-#endif
-     }
 
    /* re-calculate window's position with changed size */
    if (e_mod_pol_client_is_volume_tv(ec))
@@ -1497,14 +1365,11 @@ e_modapi_init(E_Module *m)
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_ZONE_DISPLAY_STATE_CHANGE, _pol_cb_zone_display_state_change,       NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_DESK_SHOW,                 _pol_cb_desk_show,                       NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_ADD,                _pol_cb_client_add,                      NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_SHOW,               _pol_cb_client_show,                     NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_HIDE,               _pol_cb_client_hide,                     NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_MOVE,               _pol_cb_client_move,                     NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_RESIZE,             _pol_cb_client_resize,                   NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_STACK,              _pol_cb_client_stack,                    NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_PROPERTY,           _pol_cb_client_property,                 NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_VISIBILITY_CHANGE,  _pol_cb_client_vis_change,               NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_ICONIFY,            _pol_cb_client_iconify,                  NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_MODULE_DEFER_JOB,          _pol_cb_module_defer_job,                NULL);
 
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_NEW_CLIENT,          _pol_cb_hook_client_new,                 NULL);
@@ -1515,7 +1380,6 @@ e_modapi_init(E_Module *m)
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_POST_FETCH,     _pol_cb_hook_client_eval_post_fetch,     NULL);
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_POST_NEW_CLIENT,_pol_cb_hook_client_eval_post_new_client,NULL);
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_DESK_SET,            _pol_cb_hook_client_desk_set,            NULL);
-   E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_END,            _pol_cb_hook_client_eval_end,            NULL);
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_FULLSCREEN_PRE,      _pol_cb_hook_client_fullscreen_pre,      NULL);
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_EVAL_VISIBILITY,     _pol_cb_hook_client_visibility,          NULL);
 
@@ -1524,6 +1388,7 @@ e_modapi_init(E_Module *m)
 
    e_mod_pol_rotation_init();
    e_mod_transform_mode_init();
+   e_mod_conformant_init();
 
    return mod;
 }
@@ -1564,6 +1429,7 @@ e_modapi_shutdown(E_Module *m)
 
    e_mod_pol_conf_shutdown(mod);
    e_mod_transform_mode_shutdown();
+   e_mod_conformant_shutdown();
 
    E_FREE(mod);
 

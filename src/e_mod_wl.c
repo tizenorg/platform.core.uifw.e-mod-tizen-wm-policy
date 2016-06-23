@@ -4,6 +4,7 @@
 #include "e_mod_volume.h"
 #include "e_mod_lockscreen.h"
 #include "e_mod_wl_display.h"
+#include "e_mod_conformant.h"
 
 #include <device/display.h>
 #include <wayland-server.h>
@@ -164,13 +165,6 @@ typedef struct _Pol_Wl
 #endif
 } Pol_Wl;
 
-typedef struct _Pol_Wl_Conformant
-{
-   Eina_Bool saved_visible;
-   Eina_Bool visible;
-   Eina_Rectangle rect;
-} Pol_Wl_Conformant;
-
 typedef struct _E_Tzsh_QP_Event
 {
    int type;
@@ -182,13 +176,6 @@ static Pol_Wl *polwl = NULL;
 static Eina_List *handlers = NULL;
 static Eina_List *hooks_cw = NULL;
 static struct wl_resource *_scrsaver_mng_res = NULL; // TODO
-
-static Pol_Wl_Conformant conformant =
-{
-   EINA_FALSE,
-   EINA_FALSE,
-   {0, 0, 0, 0},
-};
 
 enum _WM_Policy_Hint_Type
 {
@@ -1480,132 +1467,37 @@ _tzpol_iface_cb_type_set(struct wl_client *client EINA_UNUSED, struct wl_resourc
 // --------------------------------------------------------
 // conformant
 // --------------------------------------------------------
-
-/* TODO
- * It's better to place calling tizen_policy_send_conformant_area() in idle enterer.
- * that's how we reduce the IPC which can make unnecessary job to client side.
- */
-static void
-_tzpol_conformant_state_send(Pol_Wl_Surface *psurf)
-{
-   if (EINA_UNLIKELY(!psurf->tzpol))
-     return;
-
-   if (EINA_UNLIKELY(!psurf->tzpol->res_tzpol))
-     return;
-
-   DBG("Conformant: Send State Changed \"%s\" %d %d %d %d",
-       conformant.visible? "SHOW" : "HIDDEN",
-       conformant.rect.x, conformant.rect.y, conformant.rect.w, conformant.rect.h);
-
-   tizen_policy_send_conformant_area
-      (psurf->tzpol->res_tzpol,
-       psurf->surf,
-       TIZEN_POLICY_CONFORMANT_PART_KEYBOARD,
-       (unsigned int)conformant.visible,
-       conformant.rect.x, conformant.rect.y,
-       conformant.rect.w, conformant.rect.h);
-}
-
-static void
-_tzpol_conformant_state_set(Eina_Bool visible, Eina_Rectangle *rect)
-{
-   Pol_Wl_Tzpol *tzpol;
-   Pol_Wl_Surface *psurf;
-   E_Client *ec;
-   Eina_Bool r;
-   Eina_List *l;
-   Eina_Iterator *it;
-
-   if ((conformant.visible == visible) &&
-       (conformant.rect.x == rect->x) &&
-       (conformant.rect.y == rect->h) &&
-       (conformant.rect.w == rect->w) &&
-       (conformant.rect.h == rect->h))
-     return;
-
-   conformant.visible = conformant.saved_visible = visible;
-   EINA_RECTANGLE_SET(&conformant.rect, rect->x, rect->y, rect->w, rect->h);
-
-   it = eina_hash_iterator_data_new(polwl->tzpols);
-   EINA_ITERATOR_FOREACH(it, tzpol)
-     EINA_LIST_FOREACH(tzpol->psurfs, l, psurf)
-       {
-          ec = e_pixmap_client_get(psurf->cp);
-          if (!ec) continue;
-
-          r = e_client_util_ignored_get(ec);
-          if (r) continue;
-
-          r = e_mod_pol_client_is_conformant(ec);
-          if (!r) continue;
-
-          _tzpol_conformant_state_send(psurf);
-       }
-   eina_iterator_free(it);
-}
-
 static void
 _tzpol_iface_cb_conformant_set(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf)
 {
    E_Client *ec;
-   Pol_Wl_Surface *psurf;
 
    ec = wl_resource_get_user_data(surf);
    EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   psurf = _pol_wl_surf_add(ec, res_tzpol);
-   EINA_SAFETY_ON_NULL_RETURN(psurf);
-
-   if (!ec->comp_data->conformant)
-     {
-        ec->comp_data->conformant = 1;
-        EC_CHANGED(ec);
-        /* do we need to send conformant state if vkbd is visible ? */
-     }
+   e_mod_conformant_client_add(ec, res_tzpol);
 }
 
 static void
 _tzpol_iface_cb_conformant_unset(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol EINA_UNUSED, struct wl_resource *surf)
 {
    E_Client *ec;
-   Pol_Wl_Surface *psurf;
 
    ec = wl_resource_get_user_data(surf);
    EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   psurf = _pol_wl_surf_add(ec, res_tzpol);
-   EINA_SAFETY_ON_NULL_RETURN(psurf);
-
-   if (ec->comp_data->conformant)
-     {
-        ec->comp_data->conformant = 0;
-        EC_CHANGED(ec);
-     }
+   e_mod_conformant_client_del(ec);
 }
 
 static void
 _tzpol_iface_cb_conformant_get(struct wl_client *client EINA_UNUSED, struct wl_resource *res_tzpol, struct wl_resource *surf)
 {
    E_Client *ec;
-   Pol_Wl_Surface *psurf;
 
    ec = wl_resource_get_user_data(surf);
    EINA_SAFETY_ON_NULL_RETURN(ec);
 
-   psurf = _pol_wl_surf_add(ec, res_tzpol);
-   EINA_SAFETY_ON_NULL_RETURN(psurf);
-
-   tizen_policy_send_conformant(res_tzpol, surf, ec->comp_data->conformant);
-}
-
-void
-e_mod_pol_wl_keyboard_geom_broadcast(E_Client *ec)
-{
-   Eina_Rectangle rect;
-
-   EINA_RECTANGLE_SET(&rect, ec->x, ec->y, ec->client.w, ec->client.h);
-   _tzpol_conformant_state_set(evas_object_visible_get(ec->frame), &rect);
+   tizen_policy_send_conformant(res_tzpol, surf, e_mod_conformant_client_check(ec));
 }
 
 // --------------------------------------------------------
@@ -4307,55 +4199,6 @@ _pol_wl_cb_scrsaver_off(void *data EINA_UNUSED, int type EINA_UNUSED, void *even
    return ECORE_CALLBACK_PASS_ON;
 }
 
-static Eina_Bool
-_pol_wl_cb_client_rot_change_begin(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
-{
-   E_Event_Client *ev;
-
-   ev = event;
-   if (EINA_UNLIKELY((!ev) || (!ev->ec)))
-     goto end;
-
-   if (!ev->ec->vkbd.vkbd)
-     goto end;
-
-   /* set conformant area to non-visible state before starting rotation.
-    * this is to prevent to apply wrong area of conformant area after rotation.
-    * Suppose conformant area will be set later according to changes of vkbd
-    * such as resize or move.
-    * if there is no being called rot_change_cancel and nothing changes vkbd,
-    * that is unexpected case.
-    * TODO we need to add handler of rotation_change_end for handling
-    * in case nothing changes in vkbd.
-    */
-   if (conformant.visible)
-     {
-        _tzpol_conformant_state_set(EINA_FALSE, &conformant.rect);
-        conformant.saved_visible = EINA_TRUE;
-     }
-end:
-   return ECORE_CALLBACK_PASS_ON;
-}
-
-static Eina_Bool
-_pol_wl_cb_client_rot_change_cancel(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
-{
-   E_Event_Client *ev;
-
-   ev = event;
-   if (EINA_UNLIKELY((!ev) || (!ev->ec)))
-     goto end;
-
-   if (!ev->ec->vkbd.vkbd)
-     goto end;
-
-   /* restore conformant visible state */
-   if (conformant.saved_visible != conformant.visible)
-     _tzpol_conformant_state_set(conformant.saved_visible, &conformant.rect);
-end:
-   return ECORE_CALLBACK_PASS_ON;
-}
-
 static void
 _pol_wl_cb_hook_shell_surface_ready(void *d, E_Client *ec)
 {
@@ -4514,9 +4357,6 @@ e_mod_pol_wl_init(void)
 
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_SCREENSAVER_ON,  _pol_wl_cb_scrsaver_on,  NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_SCREENSAVER_OFF, _pol_wl_cb_scrsaver_off, NULL);
-
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_ROTATION_CHANGE_BEGIN,  _pol_wl_cb_client_rot_change_begin, NULL);
-   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_ROTATION_CHANGE_CANCEL, _pol_wl_cb_client_rot_change_cancel, NULL);
 
    E_COMP_WL_HOOK_APPEND(hooks_cw, E_COMP_WL_HOOK_SHELL_SURFACE_READY, _pol_wl_cb_hook_shell_surface_ready, NULL);
 

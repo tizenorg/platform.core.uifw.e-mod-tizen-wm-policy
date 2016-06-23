@@ -59,6 +59,8 @@ module_la_SOURCES      = e_mod_config.c \
                          e_mod_private_data.h \
                          e_mod_transform_mode.c \
                          e_mod_transform_mode.h \
+                         e_mod_conformant.c \
+                         e_mod_conformant.h \
                          $(WL_SRC) \
                          $(ROT_SRC) \
                          $(SRVS_SRC)
