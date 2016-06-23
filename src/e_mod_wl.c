@@ -1605,7 +1605,7 @@ e_mod_pol_wl_keyboard_geom_broadcast(E_Client *ec)
    Eina_Rectangle rect;
 
    EINA_RECTANGLE_SET(&rect, ec->x, ec->y, ec->client.w, ec->client.h);
-   _tzpol_conformant_state_set(ec->visible, &rect);
+   _tzpol_conformant_state_set(evas_object_visible_get(ec->frame), &rect);
 }
 
 // --------------------------------------------------------
