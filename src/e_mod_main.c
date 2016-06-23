@@ -554,6 +554,7 @@ _pol_cb_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec)
    if (!pd) return;
 
    pc = eina_hash_find(hash_pol_clients, &ec);
+   if (!pc) return;
 
    if (pc->flt_policy_state)
      _pol_client_floating_policy_cancel(pc);
