@@ -37,7 +37,6 @@ struct _Pol_Transit
    Eina_Bool auto_reverse : 1;
    Eina_Bool event_enabled : 1;
    Eina_Bool deleted : 1;
-   Eina_Bool state_keep : 1;
    Eina_Bool finished : 1;
    Eina_Bool smooth : 1;
 };
@@ -67,8 +66,6 @@ struct _Pol_Transit_Obj_Data
 typedef struct _Pol_Transit_Effect_Module Pol_Transit_Effect_Module;
 typedef struct _Pol_Transit_Obj_Data Pol_Transit_Obj_Data;
 
-static char *_transit_key = "_pol_transit_key";
-
 static void _transit_obj_remove_cb(void *data, Evas *e EINA_UNUSED, Evas_Object *obj, void *event_info EINA_UNUSED);
 
 static void
@@ -91,58 +88,14 @@ static void
 _transit_obj_remove_cb(void *data, Evas *e EINA_UNUSED, Evas_Object *obj, void *event_info EINA_UNUSED)
 {
    Pol_Transit *transit = data;
-   Pol_Transit_Obj_Data *obj_data = evas_object_data_get(obj, _transit_key);
-   if (obj_data)
-     {
-        obj_data->ref--;
-        if (obj_data->ref == 0)
-          {
-             free(obj_data);
-             evas_object_data_del(obj, _transit_key);
-          }
-     }
    _remove_obj_from_list(transit, obj);
    if (!transit->objs && !transit->deleted) pol_transit_del(transit);
-}
-
-static void
-_transit_obj_data_recover(Pol_Transit *transit, Evas_Object *obj)
-{
-   Pol_Transit_Obj_Data *obj_data;
-
-   obj_data = evas_object_data_get(obj, _transit_key);
-   if (!obj_data) return;
-
-   obj_data->ref--;
-
-   //recover the states of the object.
-   if (!transit->state_keep)
-     {
-        evas_object_move(obj, obj_data->state.x, obj_data->state.y);
-        evas_object_resize(obj, obj_data->state.w, obj_data->state.h);
-        evas_object_color_set(obj, obj_data->state.r, obj_data->state.g,
-                              obj_data->state.b, obj_data->state.a);
-        if (obj_data->state.visible) evas_object_show(obj);
-        else evas_object_hide(obj);
-        evas_object_map_enable_set(obj, obj_data->state.map_enabled);
-        evas_object_map_set(obj, obj_data->state.map);
-     }
-
-   if (obj_data->ref == 0)
-     {
-        evas_map_free(obj_data->state.map);
-        obj_data->state.map = NULL;
-        evas_object_data_del(obj, _transit_key);
-        evas_object_freeze_events_set(obj, obj_data->state.freeze_events);
-        free(obj_data);
-     }
 }
 
 static void
 _transit_obj_remove(Pol_Transit *transit, Evas_Object *obj)
 {
    _remove_obj_from_list(transit, obj);
-   _transit_obj_data_recover(transit, obj);
 }
 
 static void
@@ -179,43 +132,6 @@ _transit_del(Pol_Transit *transit)
      transit->del_data.func(transit->del_data.arg, transit);
 
    free(transit);
-}
-
-static void
-_transit_obj_data_save(Evas_Object *obj)
-{
-   Pol_Transit_Obj_Data *obj_data = evas_object_data_get(obj, _transit_key);
-
-   if (obj_data)
-     {
-        obj_data->ref++;
-        return;
-     }
-
-   obj_data = calloc(1, sizeof(*obj_data));
-   if (!obj_data)
-     {
-        ERR("Failed to allocate memory");
-        return;
-     }
-
-   evas_object_geometry_get(obj, &obj_data->state.x, &obj_data->state.y,
-                            &obj_data->state.w, &obj_data->state.h);
-   evas_object_color_get(obj, &obj_data->state.r, &obj_data->state.g,
-                         &obj_data->state.b, &obj_data->state.a);
-   obj_data->state.visible = evas_object_visible_get(obj);
-   obj_data->state.freeze_events = evas_object_freeze_events_get(obj);
-   obj_data->state.map_enabled = evas_object_map_enable_get(obj);
-
-   evas_map_free(obj_data->state.map);
-   obj_data->state.map = NULL;
-
-   if (evas_object_map_get(obj))
-     obj_data->state.map = evas_map_dup(evas_object_map_get(obj));
-
-   obj_data->ref++;
-
-   evas_object_data_set(obj, _transit_key, obj_data);
 }
 
 static void
@@ -397,11 +313,7 @@ pol_transit_object_add(Pol_Transit *transit, Evas_Object *obj)
 
    if (transit->animator)
      {
-        if (!evas_object_data_get(obj, _transit_key))
-          {
-             _transit_obj_data_save(obj);
-             evas_object_freeze_events_set(obj, EINA_TRUE);
-          }
+        evas_object_freeze_events_set(obj, EINA_TRUE);
      }
    evas_object_event_callback_add(obj, EVAS_CALLBACK_DEL,
                                   _transit_obj_remove_cb,
@@ -519,9 +431,6 @@ pol_transit_go(Pol_Transit *transit)
 
    ecore_animator_del(transit->animator);
    transit->animator = NULL;
-
-   EINA_LIST_FOREACH(transit->objs, elist, obj)
-     _transit_obj_data_save(obj);
 
    if (!transit->event_enabled)
      {
