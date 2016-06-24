@@ -541,7 +541,7 @@ _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec)
         EDBG(ec, "Append to rotation target list");
         target_list = eina_list_append(target_list, ec);
 
-        if ((!ec->argb) &&
+        if (((!ec->argb) || (ec->visibility.opaque > 0)) &&
             (ec->x == zone->x) && (ec->y == zone->y) &&
             (ec->w == zone->w) && (ec->h == zone->h) &&
             (ec->e.state.rot.type == E_CLIENT_ROTATION_TYPE_NORMAL))
