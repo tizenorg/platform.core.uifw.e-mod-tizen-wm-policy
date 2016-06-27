@@ -647,10 +647,37 @@ _pol_cb_hook_client_visibility(void *d EINA_UNUSED, E_Client *ec)
      }
    else
      {
-        if ((!ec->iconic) &&
-            (ec->visibility.obscured == E_VISIBILITY_FULLY_OBSCURED))
+        if (ec->visibility.obscured == E_VISIBILITY_FULLY_OBSCURED)
           {
-             e_mod_pol_client_iconify_by_visibility(ec);
+             Eina_Bool obscured_by_alpha_opaque = EINA_FALSE;
+             E_Client *above_ec;
+             Evas_Object *o;
+
+             for (o = evas_object_above_get(ec->frame); o; o = evas_object_above_get(o))
+               {
+                  above_ec = evas_object_data_get(o, "E_Client");
+                  if (!above_ec) continue;
+                  if (e_client_util_ignored_get(above_ec)) continue;
+
+                  if (above_ec->exp_iconify.by_client) continue;
+                  if (above_ec->exp_iconify.skip_iconify) continue;
+
+                  if (!above_ec->iconic)
+                    {
+                       if (above_ec->argb && above_ec->visibility.opaque)
+                         obscured_by_alpha_opaque = EINA_TRUE;
+                    }
+                  break;
+               }
+
+             if (obscured_by_alpha_opaque)
+               {
+                  e_mod_pol_client_uniconify_by_visibility(ec);
+               }
+             else
+               {
+                  e_mod_pol_client_iconify_by_visibility(ec);
+               }
           }
      }
 }
