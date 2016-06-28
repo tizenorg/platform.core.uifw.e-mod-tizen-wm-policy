@@ -786,19 +786,26 @@ _quickpanel_client_evas_cb_show(void *data, Evas *evas, Evas_Object *obj, void *
 static Eina_Bool
 _quickpanel_cb_buffer_change(void *data, int type, void *event)
 {
-   E_Event_Client *ev = event;
+   Pol_Quickpanel *qp;
+   E_Event_Client *ev;
    E_Client *ec;
 
+   qp = data;
+   if (!qp->ec)
+     goto end;
+
+   ev = event;
    ec = ev->ec;
-   if (ec != e_mod_quickpanel_client_get())
+   if (qp->ec != ec)
      goto end;
 
-   if (ec->visible)
-     goto end;
+   /* render forcibly */
+   e_comp_object_damage(ec->frame, 0, 0, ec->w, ec->h);
+   e_comp_object_dirty(ec->frame);
+   e_comp_object_render(ec->frame);
 
-   /* just dropping a frame to allow quickpanel to draw a next frame. */
+   /* make frame event */
    e_pixmap_image_clear(ec->pixmap, EINA_TRUE);
-   e_pixmap_resource_set(ec->pixmap, NULL);
 
 end:
    return ECORE_CALLBACK_PASS_ON;
@@ -815,14 +822,6 @@ _quickpanel_client_evas_cb_hide(void *data, Evas *evas, Evas_Object *obj, void *
 
    evas_object_hide(qp->handler_obj);
    evas_object_show(qp->indi_obj);
-
-   if (!qp->buf_change_hdlr)
-     {
-        qp->buf_change_hdlr =
-           ecore_event_handler_add(E_EVENT_CLIENT_BUFFER_CHANGE,
-                                   _quickpanel_cb_buffer_change,
-                                   qp);
-     }
 }
 
 static void
@@ -1346,6 +1345,7 @@ e_mod_quickpanel_client_set(E_Client *ec)
    E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_SHOW,                     _quickpanel_cb_client_show,      qp);
    E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_HIDE,                     _quickpanel_cb_client_hide,      qp);
    E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_STACK,                    _quickpanel_cb_client_stack,     qp);
+   E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_BUFFER_CHANGE,            _quickpanel_cb_buffer_change,    qp);
 
    E_COMP_OBJECT_INTERCEPT_HOOK_APPEND(qp->intercept_hooks, E_COMP_OBJECT_INTERCEPT_HOOK_SHOW_HELPER, _quickpanel_intercept_hook_show, qp);
 
