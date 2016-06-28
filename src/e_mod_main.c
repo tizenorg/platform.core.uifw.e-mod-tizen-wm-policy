@@ -664,7 +664,7 @@ _pol_cb_hook_client_visibility(void *d EINA_UNUSED, E_Client *ec)
 
                   if (!above_ec->iconic)
                     {
-                       if (above_ec->argb && above_ec->visibility.opaque)
+                       if (above_ec->argb && (above_ec->visibility.opaque > 0))
                          obscured_by_alpha_opaque = EINA_TRUE;
                     }
                   break;
