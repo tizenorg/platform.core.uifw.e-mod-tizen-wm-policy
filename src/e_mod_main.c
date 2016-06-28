@@ -1,4 +1,5 @@
 #include "e_mod_main.h"
+
 #include "e_mod_rotation.h"
 #include "e_mod_keyboard.h"
 #include "e_mod_transform_mode.h"
@@ -199,6 +200,7 @@ _pol_client_maximize_policy_apply(Pol_Client *pc)
 {
    E_Client *ec;
 
+   if (!pc) return EINA_FALSE;
    if (pc->max_policy_state) return EINA_FALSE;
    if (pc->allow_user_geom) return EINA_FALSE;
 
@@ -276,6 +278,7 @@ _pol_client_maximize_policy_cancel(Pol_Client *pc)
    E_Client *ec;
    Eina_Bool changed = EINA_FALSE;
 
+   if (!pc) return;
    if (!pc->max_policy_state) return;
 
    pc->max_policy_state = EINA_FALSE;
@@ -337,6 +340,7 @@ _pol_client_floating_policy_apply(Pol_Client *pc)
 {
    E_Client *ec;
 
+   if (!pc) return;
    if (pc->flt_policy_state) return;
 
    pc->flt_policy_state = EINA_TRUE;
@@ -370,6 +374,7 @@ _pol_client_floating_policy_cancel(Pol_Client *pc)
    E_Client *ec;
    Eina_Bool changed = EINA_FALSE;
 
+   if (!pc) return;
    if (!pc->flt_policy_state) return;
 
    pc->flt_policy_state = EINA_FALSE;
