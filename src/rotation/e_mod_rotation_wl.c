@@ -522,7 +522,8 @@ _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec)
    TRACE_DS_BEGIN(CLIENT ROTATION ZONE SET);
 
    if ((include_ec) &&
-       ((!include_ec->comp_data) || (include_ec->comp_data->sub.data)))
+       (include_ec->comp_data) &&
+       (!include_ec->comp_data->sub.data)) // video window shall not be included on target
      target_list = eina_list_append(target_list, include_ec);
 
    DBG("<<< Try to set zone rotation");
