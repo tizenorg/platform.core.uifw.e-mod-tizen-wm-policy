@@ -17,11 +17,20 @@ static void
 _pol_conf_desk_add(Config *conf, E_Desk *desk)
 {
    Config_Desk *d;
+   E_Zone *zone = NULL;
+   int x = 0,  y = 0;
+
+   if (desk)
+     {
+        zone = desk->zone;
+        x = desk->x;
+        y = desk->y;
+     }
 
    d = E_NEW(Config_Desk, 1);
-   d->zone_num = desk->zone->num;
-   d->x = desk->x;
-   d->y = desk->y;
+   d->zone_num = zone? zone->num : 0;
+   d->x = x;
+   d->y = y;
    d->enable = 1;
 
    conf->desks = eina_list_append(conf->desks, d);
