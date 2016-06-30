@@ -1583,9 +1583,11 @@ _rot_cb_idle_enterer(void *data EINA_UNUSED)
                }
              if ((!rot.screen_lock) && (!rot_block))
                {
-                  //Do implement screen lock api on e_comp.
-                  //do call comp_wl's screen lock
                   DBG("STOP Rendering");
+
+                  EINA_LIST_FOREACH(rot.list, l, ec)
+                     e_pixmap_image_clear(ec->pixmap, 1);
+
                   e_comp_canvas_norender_push();
                   rot.screen_lock = EINA_TRUE;
                }
