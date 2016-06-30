@@ -3,7 +3,6 @@
 #include "e_mod_quickpanel.h"
 #include "e_mod_gesture.h"
 #include "e_mod_region.h"
-#include "e_mod_transit.h"
 #include "e_mod_rotation.h"
 #include "e_mod_wl.h"
 
@@ -81,7 +80,7 @@ struct _Mover_Data
 
    struct
    {
-      Pol_Transit *transit;
+      Ecore_Animator *animator;
       Mover_Effect_Data *data;
       int x, y;
       unsigned int timestamp;
@@ -92,7 +91,7 @@ struct _Mover_Data
 
 struct _Mover_Effect_Data
 {
-   Pol_Transit *transit;
+   Ecore_Animator *animator;
    Evas_Object *mover;
    int from;
    int to;
@@ -460,45 +459,20 @@ _mover_obj_move(Evas_Object *mover, int x, int y, unsigned int timestamp)
    return EINA_TRUE;
 }
 
-static Pol_Transit_Effect *
-_mover_obj_effect_data_new(Pol_Transit *transit, Evas_Object *mover, int from, int to, Eina_Bool visible)
+static Mover_Effect_Data *
+_mover_obj_effect_data_new(Evas_Object *mover, int from, int to, Eina_Bool visible)
 {
    Mover_Effect_Data *ed;
 
    ed = E_NEW(Mover_Effect_Data, 1);
    if (!ed) return NULL;
 
-   ed->transit = transit;
    ed->mover = mover;
    ed->visible = visible;
    ed->from = from;
    ed->to = to;
 
    return ed;
-}
-
-static void
-_mover_obj_effect_op(Pol_Transit_Effect *effect, Pol_Transit *transit, double progress)
-{
-   Mover_Effect_Data *ed = effect;
-   Mover_Data *md;
-   int new_x = 0, new_y = 0;
-
-   md = evas_object_smart_data_get(ed->mover);
-
-   switch (md->rotation)
-     {
-      case ROT_IDX_90:
-      case ROT_IDX_270:
-         new_x = ed->from + (ed->to * progress);
-         break;
-      default:
-      case ROT_IDX_180:
-         new_y = ed->from + (ed->to * progress);
-         break;
-     }
-
-   _mover_obj_handler_move(md, new_x, new_y);
 }
 
 static void
@@ -511,18 +485,18 @@ _mover_obj_effect_cb_mover_obj_del(void *data, Evas *e EINA_UNUSED, Evas_Object 
    md = evas_object_smart_data_get(ed->mover);
    QP_VISIBLE_SET(md->qp->ec, ed->visible);
 
-   /* make sure NULL before calling pol_transit_del() */
+   /* make sure NULL before calling ecore_animator_del() */
    ed->mover = NULL;
 
-   pol_transit_del(ed->transit);
+   ecore_animator_del(ed->animator);
+   ed->animator = NULL;
 }
 
 static void
-_mover_obj_effect_data_free(Pol_Transit_Effect *effect, Pol_Transit *transit)
+_mover_obj_effect_data_free(Mover_Effect_Data *ed)
 {
    Pol_Quickpanel *qp;
    Mover_Data *md;
-   Mover_Effect_Data *ed = effect;
    E_QP_Client *qp_client;
    Eina_List *l;
 
@@ -546,13 +520,50 @@ _mover_obj_effect_data_free(Pol_Transit_Effect *effect, Pol_Transit *transit)
    free(ed);
 }
 
+static Eina_Bool
+_mover_obj_effect_update(void *data, double pos)
+{
+   Mover_Effect_Data *ed = data;
+   Mover_Data *md;
+   int new_x = 0, new_y = 0;
+   double progress = 0;
+
+   progress = ecore_animator_pos_map(pos, ECORE_POS_MAP_DECELERATE, 0, 0);
+
+   md = evas_object_smart_data_get(ed->mover);
+
+   switch (md->rotation)
+     {
+      case ROT_IDX_90:
+      case ROT_IDX_270:
+         new_x = ed->from + (ed->to * progress);
+         break;
+      default:
+      case ROT_IDX_180:
+         new_y = ed->from + (ed->to * progress);
+         break;
+     }
+   _mover_obj_handler_move(md, new_x, new_y);
+
+   if (pos == 1.0)
+     {
+        ecore_animator_del(ed->animator);
+        ed->animator = NULL;
+
+        _mover_obj_effect_data_free(ed);
+
+        return ECORE_CALLBACK_CANCEL;
+     }
+
+   return ECORE_CALLBACK_PASS_ON;
+}
+
 static void
 _mover_obj_effect_start(Evas_Object *mover, Eina_Bool visible)
 {
    Mover_Data *md;
    E_Client *ec;
-   Pol_Transit *transit;
-   Pol_Transit_Effect *effect;
+   Mover_Effect_Data *ed;
    int from;
    int to;
    double duration;
@@ -585,24 +596,19 @@ _mover_obj_effect_start(Evas_Object *mover, Eina_Bool visible)
          break;
      }
 
-   transit = pol_transit_add();
-   pol_transit_object_add(transit, mover);
-   pol_transit_tween_mode_set(transit, POL_TRANSIT_TWEEN_MODE_DECELERATE);
+   /* create effect data */
+   ed = _mover_obj_effect_data_new(mover, from, to, visible);
 
-   pol_transit_duration_set(transit, duration);
+   /* start move effect */
+   ed->animator = ecore_animator_timeline_add(duration,
+                                              _mover_obj_effect_update,
+                                              ed);
 
-   /* create and add effect to transit */
-   effect = _mover_obj_effect_data_new(transit, mover, from, to, visible);
-   pol_transit_effect_add(transit, _mover_obj_effect_op, effect, _mover_obj_effect_data_free);
+   evas_object_event_callback_add(mover, EVAS_CALLBACK_DEL, _mover_obj_effect_cb_mover_obj_del, ed);
 
-   /* start transit */
-   pol_transit_go(transit);
-
-   evas_object_event_callback_add(mover, EVAS_CALLBACK_DEL, _mover_obj_effect_cb_mover_obj_del, effect);
-
-   md->effect_info.transit = transit;
+   md->effect_info.animator = ed->animator;
    md->effect_info.visible = visible;
-   md->effect_info.data = (Mover_Effect_Data *)effect;
+   md->effect_info.data = ed;
 }
 
 static void
@@ -615,7 +621,7 @@ _mover_obj_effect_stop(Evas_Object *mover)
 
    evas_object_event_callback_del(mover, EVAS_CALLBACK_DEL, _mover_obj_effect_cb_mover_obj_del);
 
-   E_FREE_FUNC(md->effect_info.transit, pol_transit_del);
+   E_FREE_FUNC(md->effect_info.animator, ecore_animator_del);
 }
 
 static Eina_Bool
@@ -659,7 +665,7 @@ _mover_obj_is_animating(Evas_Object *mover)
 
    md = evas_object_smart_data_get(mover);
 
-   return !!md->effect_info.transit;
+   return !!md->effect_info.animator;
 }
 
 static Eina_Bool
