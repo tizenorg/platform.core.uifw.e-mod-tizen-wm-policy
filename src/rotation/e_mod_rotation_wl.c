@@ -225,6 +225,8 @@ _e_tizen_rotation_set_available_angles_cb(struct wl_client *client,
                {
                   tizen_rotation_send_angle_change(res, tz_angle, serial);
                }
+
+             ec->e.state.rot.ang.curr = TIZEN_ROTATION_ANGLE_TO_INT(tz_angle);
           }
      }
 }
@@ -278,6 +280,8 @@ _e_tizen_rotation_set_preferred_angle_cb(struct wl_client *client,
                {
                   tizen_rotation_send_angle_change(res, tz_angle, serial);
                }
+
+             ec->e.state.rot.ang.curr = TIZEN_ROTATION_ANGLE_TO_INT(tz_angle);
           }
      }
 }
