@@ -86,6 +86,7 @@ _e_mod_pol_check_above_alpha_opaque(E_Client *ec)
         above_ec = evas_object_data_get(o, "E_Client");
         if (!above_ec) continue;
         if (e_client_util_ignored_get(above_ec)) continue;
+        if (!E_CONTAINS(above_ec->x, above_ec->y, above_ec->w, above_ec->h, ec->x, ec->y, ec->w, ec->h)) continue;
 
         if ((above_ec->visibility.opaque > 0) && (above_ec->argb))
           {
