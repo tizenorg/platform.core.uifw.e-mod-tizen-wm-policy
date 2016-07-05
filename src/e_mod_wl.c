@@ -1214,6 +1214,8 @@ _tzpol_iface_cb_activate(struct wl_client *client EINA_UNUSED, struct wl_resourc
    EINA_SAFETY_ON_NULL_RETURN(ec);
    EINA_SAFETY_ON_NULL_RETURN(ec->frame);
 
+   ELOGF("TZPOL", "ACTIVATE", ec->pixmap, ec);
+
    if ((!starting) && (!ec->focused))
      {
         if ((ec->iconic) && (!ec->exp_iconify.by_client))
@@ -1282,6 +1284,8 @@ _tzpol_iface_cb_raise(struct wl_client *client EINA_UNUSED, struct wl_resource *
    EINA_SAFETY_ON_NULL_RETURN(ec);
    EINA_SAFETY_ON_NULL_RETURN(ec->frame);
 
+   ELOGF("TZPOL", "RAISE", ec->pixmap, ec);
+
    evas_object_raise(ec->frame);
 
    if (!e_client_first_mapped_get(ec))
@@ -1296,6 +1300,8 @@ _tzpol_iface_cb_lower(struct wl_client *client EINA_UNUSED, struct wl_resource *
    ec = wl_resource_get_user_data(surf);
    EINA_SAFETY_ON_NULL_RETURN(ec);
    EINA_SAFETY_ON_NULL_RETURN(ec->frame);
+
+   ELOGF("TZPOL", "LOWER", ec->pixmap, ec);
 
    below = ec;
    while ((below = e_client_below_get(below)))
@@ -1646,6 +1652,7 @@ _tzpol_iface_cb_notilv_set(struct wl_client *client, struct wl_resource *res_tzp
         return;
      }
 
+   ELOGF("TZPOL", "NOTI_LEVEL|level:%d", ec->pixmap, ec, lv);
    _tzpol_notilv_set(ec, lv);
 
    psurf->notilv = lv;
@@ -1797,6 +1804,8 @@ _tzpol_iface_cb_win_scrmode_set(struct wl_client *client EINA_UNUSED, struct wl_
         return;
      }
 
+   ELOGF("TZPOL", "SCR_MODE |mode:%d", ec->pixmap, ec, mode);
+
    e_mod_pol_display_screen_mode_set(ec, mode);
    e_mod_pol_wl_win_scrmode_apply();
 
@@ -1916,6 +1925,7 @@ _tzpol_iface_cb_opaque_state_set(struct wl_client *client, struct wl_resource *r
    ec = wl_resource_get_user_data(surface);
    EINA_SAFETY_ON_NULL_RETURN(ec);
 
+   ELOGF("TZPOL", "OPAQUE   |opaque_state:%d", ec->pixmap, ec, state);
    ec->visibility.opaque = state;
 }
 
