@@ -628,9 +628,11 @@ _pol_cb_hook_client_visibility(void *d EINA_UNUSED, E_Client *ec)
      }
    else
      {
-        if (ec->visibility.obscured == E_VISIBILITY_FULLY_OBSCURED)
+        if ((ec->visibility.obscured == E_VISIBILITY_FULLY_OBSCURED) &&
+            (ec->zone->display_state == E_ZONE_DISPLAY_STATE_ON))
           {
              Eina_Bool obscured_by_alpha_opaque = EINA_FALSE;
+             Eina_Bool find_above = EINA_FALSE;
              E_Client *above_ec;
              Evas_Object *o;
 
@@ -648,9 +650,11 @@ _pol_cb_hook_client_visibility(void *d EINA_UNUSED, E_Client *ec)
                        if (above_ec->argb && (above_ec->visibility.opaque > 0))
                          obscured_by_alpha_opaque = EINA_TRUE;
                     }
+                  find_above = EINA_TRUE;
                   break;
                }
 
+             if (!find_above) return;
              if (obscured_by_alpha_opaque)
                {
                   e_mod_pol_client_uniconify_by_visibility(ec);
