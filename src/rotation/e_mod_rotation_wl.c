@@ -525,16 +525,11 @@ _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec)
 
    TRACE_DS_BEGIN(CLIENT ROTATION ZONE SET);
 
-   if ((include_ec) &&
-       (include_ec->comp_data) &&
-       (!include_ec->comp_data->sub.data)) // video window shall not be included on target
-     target_list = eina_list_append(target_list, include_ec);
-
    DBG("<<< Try to set zone rotation");
    E_CLIENT_REVERSE_FOREACH(ec)
      {
         if (ec->zone != zone) continue;
-        if (!ec->visible) continue;
+        if ((ec != include_ec) && (!ec->visible)) continue;
         if (e_object_is_del(E_OBJECT(ec))) continue;
         if ((ec->comp_data) && (ec->comp_data->sub.data)) continue;
         if (!e_util_strcmp("wl_pointer-cursor", ec->icccm.window_role))
