@@ -1044,6 +1044,8 @@ e_mod_pol_wl_iconify_state_change_send(E_Client *ec, int iconic)
    Eina_Iterator *it;
    Ecore_Window win;
 
+   if (ec->exp_iconify.skip_iconify) return;
+
    if (e_config->transient.iconify)
      {
         E_Client *child;
