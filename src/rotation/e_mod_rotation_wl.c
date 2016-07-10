@@ -522,7 +522,7 @@ _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec)
    E_Client *ec;
    Eina_List *target_list = NULL, *l;
    int i, angle;
-   Eina_Bool can_rotate = EINA_TRUE, ret = EINA_FALSE;
+   Eina_Bool can_rotate = EINA_TRUE, ret = EINA_FALSE, found_bg_ec = EINA_FALSE;
 
    TRACE_DS_BEGIN(CLIENT ROTATION ZONE SET);
 
@@ -530,7 +530,7 @@ _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec)
    E_CLIENT_REVERSE_FOREACH(ec)
      {
         if (ec->zone != zone) continue;
-        if ((ec != include_ec) && (!ec->visible)) continue;
+        if ((ec != include_ec) && (!evas_object_visible_get(ec->frame))) continue;
         if (e_object_is_del(E_OBJECT(ec))) continue;
         if ((ec->comp_data) && (ec->comp_data->sub.data)) continue;
         if (!e_util_strcmp("wl_pointer-cursor", ec->icccm.window_role))
@@ -539,8 +539,16 @@ _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec)
              continue;
           }
 
-        EDBG(ec, "Append to rotation target list");
-        target_list = eina_list_append(target_list, ec);
+        if (!found_bg_ec)
+          {
+             EDBG(ec, "Append to rotation target list");
+             target_list = eina_list_append(target_list, ec);
+          }
+        else
+          {
+             e_client_rotation_set(ec, zone->rot.curr);
+             continue;
+          }
 
         if (((!ec->argb) || (ec->visibility.opaque > 0)) &&
             (ec->x == zone->x) && (ec->y == zone->y) &&
@@ -548,7 +556,7 @@ _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec)
             (ec->e.state.rot.type == E_CLIENT_ROTATION_TYPE_NORMAL))
           {
              EDBG(ec, "Found Topmost Fullscreen Window");
-             break;
+             found_bg_ec = EINA_TRUE;
           }
      }
 
