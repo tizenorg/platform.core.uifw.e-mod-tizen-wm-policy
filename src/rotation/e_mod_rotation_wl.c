@@ -42,6 +42,7 @@ struct _Policy_Ext_Rotation
    Eina_List *rotation_list;
    Eina_Bool angle_change_done;
    Eina_Bool wait_update;
+   Eina_Bool hint_fetch;
    uint32_t serial;
 };
 
@@ -660,6 +661,7 @@ _e_client_rotation_change_done(void)
           {
              ec->e.state.rot.pending_show = 0;
              evas_object_show(ec->frame); // e_client_show(ec);
+             e_comp_object_damage(ec->frame, 0, 0, ec->w, ec->h);
           }
         ec->e.state.rot.ang.next = -1;
         ec->e.state.rot.wait_for_done = 0;
@@ -907,7 +909,10 @@ e_client_rotation_set(E_Client *ec, int rotation)
                     {
                        ec->e.state.rot.pending_show = 0;
                        if (!e_object_is_del(E_OBJECT(ec)))
-                         evas_object_show(ec->frame); // e_client_show(ec);
+                         {
+                            evas_object_show(ec->frame); // e_client_show(ec);
+                            e_comp_object_damage(ec->frame, 0, 0, ec->w, ec->h);
+                         }
                     }
 
                   TRACE_DS_END();
@@ -1247,7 +1252,6 @@ _rot_cb_buffer_change(void *data EINA_UNUSED, int ev_type EINA_UNUSED, E_Event_C
             ev->ec->icccm.name ? ev->ec->icccm.name : "", ev->ec);
 
         e_pixmap_image_clear(ev->ec->pixmap, EINA_TRUE);
-        e_pixmap_resource_set(ev->ec->pixmap, NULL);
      }
    else if (rot->wait_update)
      {
@@ -1258,7 +1262,7 @@ _rot_cb_buffer_change(void *data EINA_UNUSED, int ev_type EINA_UNUSED, E_Event_C
           {
              ev->ec->e.state.rot.pending_show = 0;
              evas_object_show(ev->ec->frame);
-
+             e_comp_object_damage(ev->ec->frame, 0, 0, ev->ec->w, ev->ec->h);
           }
         rot->wait_update = EINA_FALSE;
      }
@@ -1267,7 +1271,7 @@ _rot_cb_buffer_change(void *data EINA_UNUSED, int ev_type EINA_UNUSED, E_Event_C
      {
         DBG("Buffer Changed: force add update list to send frame until pending show");
         /* consider e_pixmap_image_clear() instead of update_add() */
-        e_comp_client_post_update_add(ev->ec);
+        e_pixmap_image_clear(ev->ec->pixmap, EINA_TRUE);
      }
 
 end:
@@ -1508,10 +1512,18 @@ _rot_hook_eval_fetch(void *d EINA_UNUSED, E_Client *ec)
      }
 end_fetch_rot:
 
-   if (ec->e.fetch.rot.need_rotation)
+   rot->hint_fetch = 1;
+   if ((ec->new_client) && (ec->e.state.rot.pending_show))
+     {
+        ec->e.state.rot.pending_show = 0;
+        evas_object_show(ec->frame);
+        if (!ec->changes.rotation)
+          e_comp_object_damage(ec->frame, 0, 0, ec->w, ec->h);
+     }
+   else if ((evas_object_visible_get(ec->frame) && (ec->e.fetch.rot.need_rotation)))
      {
         DBG("Rotation Zone Set: Fetch Hint");
-        _e_client_rotation_zone_set(ec->zone, ec);
+        _e_client_rotation_zone_set(ec->zone, NULL);
      }
 
    if (ec->e.fetch.rot.need_rotation)
@@ -1521,6 +1533,17 @@ end_fetch_rot:
 static Eina_Bool
 _rot_intercept_hook_show_helper(void *d EINA_UNUSED, E_Client *ec)
 {
+   Policy_Ext_Rotation *rot;
+
+   rot = _policy_ext_rotation_get(ec);
+   if (!rot->hint_fetch)
+     {
+        /* need to fetch rotation hint. */
+        ec->e.state.rot.pending_show = 1;
+        EC_CHANGED(ec);
+        return EINA_FALSE;
+     }
+
    if (ec->e.state.rot.pending_show)
      return EINA_FALSE;
 
@@ -1528,8 +1551,7 @@ _rot_intercept_hook_show_helper(void *d EINA_UNUSED, E_Client *ec)
    if (ec->changes.rotation)
      {
         EDBG(ec, "Postpone show: ang %d", ec->e.state.rot.ang.next);
-        /* consider e_pixmap_image_clear() instead of update_add() */
-        e_comp_client_post_update_add(ec);
+        e_pixmap_image_clear(ec->pixmap, 1);
         ec->e.state.rot.pending_show = 1;
         /* to be invoked 'eval_end' */
         EC_CHANGED(ec);
