@@ -550,13 +550,24 @@ _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec)
              continue;
           }
 
-        if (((!ec->argb) || (ec->visibility.opaque > 0)) &&
-            (ec->x == zone->x) && (ec->y == zone->y) &&
+        if ((ec->x == zone->x) && (ec->y == zone->y) &&
             (ec->w == zone->w) && (ec->h == zone->h) &&
             (ec->e.state.rot.type == E_CLIENT_ROTATION_TYPE_NORMAL))
           {
-             EDBG(ec, "Found Topmost Fullscreen Window");
-             found_bg_ec = EINA_TRUE;
+             if (!ec->argb)
+               {
+                  EDBG(ec, "Found Topmost Fullscreen Window");
+                  found_bg_ec = EINA_TRUE;
+               }
+             else
+               {
+                  if ((ec->visibility.opaque > 0) &&
+                      (!ec->parent))
+                    {
+                       EDBG(ec, "Found Topmost Fullscreen Window");
+                       found_bg_ec = EINA_TRUE;
+                    }
+               }
           }
      }
 
