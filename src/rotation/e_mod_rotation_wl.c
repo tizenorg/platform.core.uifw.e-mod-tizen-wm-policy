@@ -1554,6 +1554,9 @@ _rot_intercept_hook_show_helper(void *d EINA_UNUSED, E_Client *ec)
 {
    Policy_Ext_Rotation *rot;
 
+   if ((ec->comp_data) && (ec->comp_data->sub.data))
+     return EINA_TRUE;
+
    rot = _policy_ext_rotation_get(ec);
    if (!rot->hint_fetch)
      {
