@@ -1257,7 +1257,7 @@ _rot_cb_buffer_change(void *data EINA_UNUSED, int ev_type EINA_UNUSED, E_Event_C
    if (EINA_UNLIKELY(!ev->ec))
      goto end;
 
-   rot = _policy_ext_rotation_get(ev->ec);
+   rot = eina_hash_find(hash_policy_ext_rotation, &ev->ec);
    if (!rot)
      goto end;
 
@@ -1336,7 +1336,7 @@ _rot_hook_client_del(void *d EINA_UNUSED, E_Client *ec)
    if (ec->e.state.rot.available_rots)
      E_FREE(ec->e.state.rot.available_rots);
 
-   ext_rot = _policy_ext_rotation_get(ec);
+   ext_rot = eina_hash_find(hash_policy_ext_rotation, &ec);
    if (ext_rot)
      {
         EINA_LIST_FREE(ext_rot->rotation_list, res)
@@ -1554,10 +1554,10 @@ _rot_intercept_hook_show_helper(void *d EINA_UNUSED, E_Client *ec)
 {
    Policy_Ext_Rotation *rot;
 
-   if ((ec->comp_data) && (ec->comp_data->sub.data))
+   rot = eina_hash_find(hash_policy_ext_rotation, &ec);
+   if (!rot)
      return EINA_TRUE;
 
-   rot = _policy_ext_rotation_get(ec);
    if (!rot->hint_fetch)
      {
         /* need to fetch rotation hint. */
