@@ -628,40 +628,52 @@ _pol_cb_hook_client_visibility(void *d EINA_UNUSED, E_Client *ec)
      }
    else
      {
-        if ((ec->visibility.obscured == E_VISIBILITY_FULLY_OBSCURED) &&
-            (ec->zone->display_state == E_ZONE_DISPLAY_STATE_ON))
+        if (ec->visibility.obscured == E_VISIBILITY_FULLY_OBSCURED)
           {
              Eina_Bool obscured_by_alpha_opaque = EINA_FALSE;
              Eina_Bool find_above = EINA_FALSE;
              E_Client *above_ec;
              Evas_Object *o;
 
-             for (o = evas_object_above_get(ec->frame); o; o = evas_object_above_get(o))
+             if (ec->zone->display_state == E_ZONE_DISPLAY_STATE_ON)
                {
-                  above_ec = evas_object_data_get(o, "E_Client");
-                  if (!above_ec) continue;
-                  if (e_client_util_ignored_get(above_ec)) continue;
-
-                  if (above_ec->exp_iconify.by_client) continue;
-                  if (above_ec->exp_iconify.skip_iconify) continue;
-
-                  if (!above_ec->iconic)
+                  for (o = evas_object_above_get(ec->frame); o; o = evas_object_above_get(o))
                     {
-                       if (above_ec->argb && (above_ec->visibility.opaque > 0))
-                         obscured_by_alpha_opaque = EINA_TRUE;
-                    }
-                  find_above = EINA_TRUE;
-                  break;
-               }
+                       above_ec = evas_object_data_get(o, "E_Client");
+                       if (!above_ec) continue;
+                       if (e_client_util_ignored_get(above_ec)) continue;
 
-             if (!find_above) return;
-             if (obscured_by_alpha_opaque)
-               {
-                  e_mod_pol_client_uniconify_by_visibility(ec);
+                       if (above_ec->exp_iconify.by_client) continue;
+                       if (above_ec->exp_iconify.skip_iconify) continue;
+
+                       if (!above_ec->iconic)
+                         {
+                            if (above_ec->argb && (above_ec->visibility.opaque > 0))
+                              obscured_by_alpha_opaque = EINA_TRUE;
+                         }
+                       find_above = EINA_TRUE;
+                       break;
+                    }
+
+                  if (!find_above) return;
+                  if (obscured_by_alpha_opaque)
+                    {
+                       e_mod_pol_client_uniconify_by_visibility(ec);
+                    }
+                  else
+                    {
+                       e_mod_pol_client_iconify_by_visibility(ec);
+                    }
                }
-             else
+             else if (ec->zone->display_state == E_ZONE_DISPLAY_STATE_OFF)
                {
-                  e_mod_pol_client_iconify_by_visibility(ec);
+                  if (e_client_util_ignored_get(ec)) return;
+                  if (ec->exp_iconify.by_client) return;
+                  if (ec->exp_iconify.skip_iconify) return;
+                  if (!ec->iconic)
+                    {
+                       e_mod_pol_client_iconify_by_visibility(ec);
+                    }
                }
           }
      }
