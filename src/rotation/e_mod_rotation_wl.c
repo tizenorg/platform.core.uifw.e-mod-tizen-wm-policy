@@ -1558,6 +1558,9 @@ _rot_intercept_hook_show_helper(void *d EINA_UNUSED, E_Client *ec)
    if (!rot)
      return EINA_TRUE;
 
+   if (e_pixmap_type_get(ec->pixmap) == E_PIXMAP_TYPE_EXT_OBJECT)
+     return EINA_TRUE;
+
    if (!rot->hint_fetch)
      {
         /* need to fetch rotation hint. */
