@@ -548,9 +548,6 @@ _pol_cb_hook_client_eval_post_fetch(void *d EINA_UNUSED, E_Client *ec)
         return;
      }
 
-   if (e_mod_pol_client_is_noti(ec))
-     e_client_util_move_without_frame(ec, 0, 0);
-
    if (!_pol_client_normal_check(ec)) return;
 
    pd = eina_hash_find(hash_pol_desks, &ec->desk);
