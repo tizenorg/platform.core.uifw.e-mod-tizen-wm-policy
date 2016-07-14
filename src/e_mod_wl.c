@@ -1911,9 +1911,6 @@ _tzpol_iface_cb_subsurface_get(struct wl_client *client, struct wl_resource *res
      ERR("Failed to create subsurface for surface@%d",
          wl_resource_get_id(surface));
 
-   epc->comp_data->sub.list_pending = eina_list_remove(epc->comp_data->sub.list_pending, ec);
-   epc->comp_data->sub.list = eina_list_append(epc->comp_data->sub.list, ec);
-
    /* ec's parent comes from another process */
    if (ec->comp_data)
      ec->comp_data->has_extern_parent = EINA_TRUE;
