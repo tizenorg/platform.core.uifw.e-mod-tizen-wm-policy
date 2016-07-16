@@ -1203,7 +1203,10 @@ _quickpanel_intercept_hook_show(void *data, E_Client *ec)
      goto end;
 
    if (qp->show_block)
-     return EINA_FALSE;
+     {
+        ec->visible = EINA_FALSE;
+        return EINA_FALSE;
+     }
 
 end:
    return EINA_TRUE;
