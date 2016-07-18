@@ -1066,6 +1066,7 @@ end:
  * @see  _quickpanel_cb_client_show(),
  *       _quickpanel_cb_client_hide()
  *       _quickpanel_cb_client_stack()
+ *       _quickpanel_cb_client_remove()
  *       _quickpanel_idle_enter()
  */
 static E_Client *
@@ -1121,6 +1122,13 @@ _quickpanel_cb_client_hide(void *data, int type, void *event)
 
 static Eina_Bool
 _quickpanel_cb_client_stack(void *data, int type, void *event)
+{
+   _quickpanel_below_change_eval(data, event);
+   return ECORE_CALLBACK_PASS_ON;
+}
+
+static Eina_Bool
+_quickpanel_cb_client_remove(void *data, int type, void *event)
 {
    _quickpanel_below_change_eval(data, event);
    return ECORE_CALLBACK_PASS_ON;
@@ -1354,6 +1362,7 @@ e_mod_quickpanel_client_set(E_Client *ec)
    E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_SHOW,                     _quickpanel_cb_client_show,      qp);
    E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_HIDE,                     _quickpanel_cb_client_hide,      qp);
    E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_STACK,                    _quickpanel_cb_client_stack,     qp);
+   E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_REMOVE,                   _quickpanel_cb_client_remove,    qp);
    E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_BUFFER_CHANGE,            _quickpanel_cb_buffer_change,    qp);
 
    E_COMP_OBJECT_INTERCEPT_HOOK_APPEND(qp->intercept_hooks, E_COMP_OBJECT_INTERCEPT_HOOK_SHOW_HELPER, _quickpanel_intercept_hook_show, qp);
