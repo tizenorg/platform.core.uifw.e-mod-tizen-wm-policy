@@ -1593,6 +1593,9 @@ _rot_intercept_hook_hide(void *d EINA_UNUSED, E_Client *ec)
    // clear pending_show, because this window is hidden now.
    ec->e.state.rot.pending_show = 0;
 
+   // for rotating ec in the force_update_list
+   _e_client_rotation_zone_set(ec->zone, NULL);
+
    return EINA_TRUE;
 }
 
