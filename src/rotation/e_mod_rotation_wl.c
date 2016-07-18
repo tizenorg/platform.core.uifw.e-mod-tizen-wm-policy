@@ -112,7 +112,7 @@ static const struct tizen_policy_ext_interface _e_tizen_policy_ext_interface =
 
 /* local subsystem e_client_rotation related functions */
 static void      _e_client_rotation_list_remove(E_Client *ec);
-static Eina_Bool _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec);
+static Eina_Bool _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec, E_Client *exclude_ec);
 static void      _e_client_rotation_change_done(void);
 static Eina_Bool _e_client_rotation_change_done_timeout(void *data);
 static void      _e_client_rotation_change_message_send(E_Client *ec);
@@ -331,7 +331,7 @@ _e_tizen_rotation_ack_angle_change_cb(struct wl_client *client,
      {
         WRN("Rotation Zone Set: Rotation Done(fail case): %s(%p)",
             ec->icccm.name?:"", ec);
-        _e_client_rotation_zone_set(ec->zone, ec);
+        _e_client_rotation_zone_set(ec->zone, ec, NULL);
      }
 
    // check angle change serial
@@ -517,7 +517,7 @@ _e_client_rotation_list_remove(E_Client *ec)
 
 /* TODO need to optimize */
 static Eina_Bool
-_e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec)
+_e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec, E_Client *exclude_ec)
 {
    E_Client *ec;
    Eina_List *target_list = NULL, *l;
@@ -530,6 +530,7 @@ _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec)
    E_CLIENT_REVERSE_FOREACH(ec)
      {
         if (ec->zone != zone) continue;
+		if (ec == exclude_ec) continue;
         if ((ec != include_ec) && (!evas_object_visible_get(ec->frame))) continue;
         if (e_object_is_del(E_OBJECT(ec))) continue;
         if ((ec->comp_data) && (ec->comp_data->sub.data)) continue;
@@ -1234,7 +1235,7 @@ _rot_cb_zone_rotation_change_begin(void *data EINA_UNUSED, int ev_type EINA_UNUS
    if ((!ev) || (!ev->zone)) return ECORE_CALLBACK_PASS_ON;
 
    DBG("Rotation Zone Set: Rotation Change Begin");
-   if (!_e_client_rotation_zone_set(ev->zone, NULL))
+   if (!_e_client_rotation_zone_set(ev->zone, NULL, NULL))
      {
         /* The WM will decide to cancel zone rotation at idle time.
          * Because, the policy module can make list of rotation windows
@@ -1542,7 +1543,7 @@ end_fetch_rot:
    else if ((evas_object_visible_get(ec->frame) && (ec->e.fetch.rot.need_rotation)))
      {
         DBG("Rotation Zone Set: Fetch Hint");
-        _e_client_rotation_zone_set(ec->zone, NULL);
+        _e_client_rotation_zone_set(ec->zone, NULL, NULL);
      }
 
    if (ec->e.fetch.rot.need_rotation)
@@ -1572,7 +1573,7 @@ _rot_intercept_hook_show_helper(void *d EINA_UNUSED, E_Client *ec)
    if (ec->e.state.rot.pending_show)
      return EINA_FALSE;
 
-   _e_client_rotation_zone_set(ec->zone, ec);
+   _e_client_rotation_zone_set(ec->zone, ec, NULL);
    if (ec->changes.rotation)
      {
         EDBG(ec, "Postpone show: ang %d", ec->e.state.rot.ang.next);
@@ -1592,6 +1593,9 @@ _rot_intercept_hook_hide(void *d EINA_UNUSED, E_Client *ec)
    // TODO: Add VKBD Hide, VKBD Parent Hide routine.
    // clear pending_show, because this window is hidden now.
    ec->e.state.rot.pending_show = 0;
+
+   // for rotating ec in the force_update_list
+   _e_client_rotation_zone_set(ec->zone, NULL, ec);
 
    return EINA_TRUE;
 }
