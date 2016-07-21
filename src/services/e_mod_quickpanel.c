@@ -771,7 +771,7 @@ _quickpanel_hook_client_del(void *d, E_Client *ec)
 
    _quickpanel_free(qp);
 
-   e_mod_pol_rotation_force_update_del(ec);
+   e_mod_pol_rotation_force_update_del(ec->zone, ec);
 }
 
 static void
@@ -1318,7 +1318,7 @@ e_mod_quickpanel_client_set(E_Client *ec)
    ec->e.state.rot.type = E_CLIENT_ROTATION_TYPE_DEPENDENT;
 
    /* force update rotation for quickpanel */
-   e_mod_pol_rotation_force_update_add(ec);
+   e_mod_pol_rotation_force_update_add(ec->zone, ec);
 
    QP_HIDE(ec);
 

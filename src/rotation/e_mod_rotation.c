@@ -114,6 +114,9 @@ _e_mod_pol_rotation_cb_idle_exiter(void *data EINA_UNUSED)
 EINTERN void
 e_mod_pol_rotation_init(void)
 {
+   E_Zone *zone;
+   Eina_List *l;
+
    if (!eina_init())
      return;
 
@@ -128,6 +131,14 @@ e_mod_pol_rotation_init(void)
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_rot_wl_init();
 #endif
+
+   EINA_LIST_FOREACH(e_comp->zones, l, zone)
+     {
+        e_zone_orientation_callback_set(zone,
+                                        e_zone_rotation_block_set,
+                                        e_mod_pol_rotation_force_update_add,
+                                        e_mod_pol_rotation_force_update_del);
+     }
 
    if (E_EVENT_INFO_ROTATION_MESSAGE != -1)
      {
