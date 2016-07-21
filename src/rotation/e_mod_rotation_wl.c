@@ -1272,6 +1272,7 @@ _rot_cb_buffer_change(void *data EINA_UNUSED, int ev_type EINA_UNUSED, E_Event_C
             ev->ec->icccm.name ? ev->ec->icccm.name : "", ev->ec);
 
         e_pixmap_image_clear(ev->ec->pixmap, EINA_TRUE);
+        e_pixmap_resource_set(ev->ec->pixmap, NULL);
      }
    else if (rot->wait_update)
      {
