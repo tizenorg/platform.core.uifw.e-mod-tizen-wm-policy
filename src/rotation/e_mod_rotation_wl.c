@@ -1739,13 +1739,13 @@ e_mod_rot_wl_shutdown(void)
 }
 
 EINTERN void
-e_mod_pol_rotation_force_update_add(E_Client *ec)
+e_mod_pol_rotation_force_update_add(E_Zone *zone EINA_UNUSED, E_Client *ec)
 {
    rot.force_update_list = eina_list_append(rot.force_update_list, ec);
 }
 
 EINTERN void
-e_mod_pol_rotation_force_update_del(E_Client *ec)
+e_mod_pol_rotation_force_update_del(E_Zone *zone EINA_UNUSED, E_Client *ec)
 {
    rot.force_update_list = eina_list_remove(rot.force_update_list, ec);
 }
