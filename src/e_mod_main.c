@@ -1339,6 +1339,13 @@ e_modapi_init(E_Module *m)
    mod->module = m;
    _pol_mod = mod;
 
+   if (e_config->use_e_policy)
+     {
+        e_mod_pol_conf_init(mod);
+        e_mod_pol_rotation_init();
+        return mod;
+     }
+
    hash_pol_clients = eina_hash_pointer_new(_pol_cb_client_data_free);
    hash_pol_desks = eina_hash_pointer_new(_pol_cb_desk_data_free);
 
@@ -1416,6 +1423,15 @@ e_modapi_shutdown(E_Module *m)
    Mod *mod = m->data;
    Eina_Inlist *l;
    Pol_Softkey *softkey;
+
+   if (e_config->use_e_policy)
+     {
+        e_mod_pol_rotation_shutdown();
+        e_mod_pol_conf_shutdown(mod);
+        E_FREE(mod);
+        _pol_mod = NULL;
+        return 1;
+     }
 
    eina_list_free(mod->launchers);
    EINA_INLIST_FOREACH_SAFE(mod->softkeys, l, softkey)
