@@ -1135,7 +1135,8 @@ e_zone_rotation_block_set(E_Zone *zone, const char *name_hint, Eina_Bool set)
      {
         zone->rot.block_count = 0;
 
-        if (zone->rot.pending)
+        if ((zone->rot.pending) &&
+            (zone->rot.curr != zone->rot.next))
           {
              zone->rot.prev = zone->rot.curr;
              zone->rot.curr = zone->rot.next;
@@ -1181,7 +1182,8 @@ e_zone_rotation_update_done(E_Zone *zone)
 
    zone->rot.wait_for_done = EINA_FALSE;
    if ((zone->rot.pending) &&
-       (zone->rot.block_count == 0))
+       (zone->rot.block_count == 0) &&
+       (zone->rot.curr != zone->rot.next))
      {
         zone->rot.prev = zone->rot.curr;
         zone->rot.curr = zone->rot.next;
