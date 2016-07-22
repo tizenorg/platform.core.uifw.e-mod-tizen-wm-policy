@@ -27,6 +27,7 @@
 typedef struct
 {
    E_Client *vkbd;
+   E_Client *owner;
    Eina_Hash *client_hash;
    Eina_List *handlers;
    E_Client_Hook *client_del_hook;
@@ -64,6 +65,47 @@ _conf_data_get()
 }
 
 static void
+_conf_state_update(Conformant *conf, Eina_Bool visible, int x, int y, int w, int h)
+{
+   Conformant_Client *cfc;
+   Conformant_Wl_Res *cres;
+   Eina_List *l;
+
+   if ((conf->state.visible == visible) &&
+       (conf->state.x == x) && (conf->state.x == y) &&
+       (conf->state.x == w) && (conf->state.x == h))
+     return;
+
+   CFDBG("Update Conformant State\n");
+   CFDBG("\tprev: v %d geom %d %d %d %d\n",
+       conf->state.visible, conf->state.x, conf->state.y, conf->state.w, conf->state.h);
+   CFDBG("\tnew : v %d geom %d %d %d %d\n", visible, x, y, w, h);
+
+   conf->state.visible = visible;
+   conf->state.x = x;
+   conf->state.y = y;
+   conf->state.w = w;
+   conf->state.h = h;
+
+   if (!conf->owner)
+     return;
+
+   cfc = eina_hash_find(conf->client_hash, &conf->owner);
+   if (!cfc)
+     return;
+
+   CFDBG("\t=> '%s'(%p)", cfc->ec ? (cfc->ec->icccm.name ?:"") : "", cfc->ec);
+   EINA_LIST_FOREACH(cfc->res_list, l, cres)
+     {
+        tizen_policy_send_conformant_area
+           (cres->res,
+            cfc->ec->comp_data->surface,
+            TIZEN_POLICY_CONFORMANT_PART_KEYBOARD,
+            (unsigned int)visible, x, y, w, h);
+     }
+}
+
+static void
 _conf_cb_vkbd_obj_del(void *data EINA_UNUSED, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event_info EINA_UNUSED)
 {
    Conformant *conf;
@@ -80,6 +122,9 @@ _conf_cb_vkbd_obj_show(void *data EINA_UNUSED, Evas *e EINA_UNUSED, Evas_Object 
 
    CFDBG("VKBD Show");
    conf = data;
+   conf->owner = conf->vkbd->parent;
+   if (!conf->owner)
+     WRN("Not exist vkbd's parent even if it becomes visible");
    conf->changed = 1;
 }
 
@@ -90,7 +135,8 @@ _conf_cb_vkbd_obj_hide(void *data EINA_UNUSED, Evas *e EINA_UNUSED, Evas_Object 
 
    CFDBG("VKBD Hide");
    conf = data;
-   conf->changed = 1;
+   _conf_state_update(conf, EINA_FALSE, conf->state.x, conf->state.y, conf->state.w, conf->state.h);
+   conf->owner = NULL;
 }
 
 static void
@@ -188,49 +234,6 @@ _conf_client_add(Conformant *conf, E_Client *ec, struct wl_resource *res)
    _conf_client_resource_add(cfc, res);
 
    return cfc;
-}
-
-static void
-_conf_state_update(Conformant *conf, Eina_Bool visible, int x, int y, int w, int h)
-{
-   Conformant_Client *cfc;
-   Conformant_Wl_Res *cres;
-   Eina_Iterator *itr;
-   Eina_List *l;
-
-   if ((conf->state.visible == visible) &&
-       (conf->state.x == x) && (conf->state.x == y) &&
-       (conf->state.x == w) && (conf->state.x == h))
-     return;
-
-   CFDBG("Update Conformant State\n");
-   CFDBG("\tprev: v %d geom %d %d %d %d\n",
-       conf->state.visible, conf->state.x, conf->state.y, conf->state.w, conf->state.h);
-   CFDBG("\tnew : v %d geom %d %d %d %d\n", visible, x, y, w, h);
-
-   itr = eina_hash_iterator_data_new(conf->client_hash);
-   EINA_ITERATOR_FOREACH(itr, cfc)
-     {
-        if (!cfc->ec) continue;
-        if (!cfc->ec->comp_data) continue;
-
-        CFDBG("\t=> '%s'(%p)", cfc->ec ? (cfc->ec->icccm.name ?:"") : "", cfc->ec);
-        EINA_LIST_FOREACH(cfc->res_list, l, cres)
-          {
-             tizen_policy_send_conformant_area
-                (cres->res,
-                 cfc->ec->comp_data->surface,
-                 TIZEN_POLICY_CONFORMANT_PART_KEYBOARD,
-                 (unsigned int)visible, x, y, w, h);
-          }
-     }
-   eina_iterator_free(itr);
-
-   conf->state.visible = visible;
-   conf->state.x = x;
-   conf->state.y = y;
-   conf->state.w = w;
-   conf->state.h = h;
 }
 
 static void
