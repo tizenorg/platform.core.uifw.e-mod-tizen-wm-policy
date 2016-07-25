@@ -1079,6 +1079,7 @@ _quickpanel_below_visible_client_get(Pol_Quickpanel *qp)
      {
         if (!ec->visible) continue;
         if (!ec->icccm.accepts_focus) continue;
+        if (e_object_is_del(E_OBJECT(ec))) continue;
 
         return ec;
      }
@@ -1213,7 +1214,6 @@ _quickpanel_idle_enter(void *data)
              _e_qp_client_scrollable_update();
           }
 
-        qp->stacking = NULL;
         qp->changes.below = EINA_FALSE;
      }
 
