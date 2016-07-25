@@ -540,7 +540,7 @@ _e_client_rotation_zone_set(E_Zone *zone, E_Client *include_ec, E_Client *exclud
              continue;
           }
 
-        if (!found_bg_ec)
+        if ((!found_bg_ec) || (include_ec == ec))
           {
              EDBG(ec, "Append to rotation target list");
              target_list = eina_list_append(target_list, ec);
