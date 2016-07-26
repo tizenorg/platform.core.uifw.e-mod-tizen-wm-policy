@@ -970,59 +970,7 @@ _e_qp_vis_change(Pol_Quickpanel *qp, Eina_Bool vis, Eina_Bool with_effect)
      }
 }
 
-static Eina_Bool
-_quickpanel_cb_rotation_begin(void *data, int type, void *event)
-{
-   Pol_Quickpanel *qp;
-   E_Event_Client *ev = event;
-   E_Client *ec;
-
-   qp = data;
-   if (EINA_UNLIKELY(!qp))
-     goto end;
-
-   ec = ev->ec;
-   if (EINA_UNLIKELY(!ec))
-     goto end;
-
-   if (qp->ec != ec)
-     goto end;
-
-   E_FREE_FUNC(qp->mover, evas_object_del);
-
-   evas_object_hide(qp->indi_obj);
-   evas_object_hide(qp->handler_obj);
-
-end:
-   return ECORE_CALLBACK_PASS_ON;
-}
-
-static Eina_Bool
-_quickpanel_cb_rotation_cancel(void *data, int type, void *event)
-{
-   Pol_Quickpanel *qp;
-   E_Event_Client *ev = event;
-   E_Client *ec;
-
-   qp = data;
-   if (EINA_UNLIKELY(!qp))
-     goto end;
-
-   ec = ev->ec;
-   if (EINA_UNLIKELY(!ec))
-     goto end;
-
-   if (qp->ec != ec)
-     goto end;
-
-   if (evas_object_visible_get(ec->frame))
-     evas_object_show(qp->handler_obj);
-   else
-     evas_object_show(qp->indi_obj);
-
-end:
-   return ECORE_CALLBACK_PASS_ON;
-}
+/* NOTE do we need to control the handler objects during rotation is changed? */
 
 static Eina_Bool
 _quickpanel_cb_rotation_done(void *data, int type, void *event)
@@ -1379,8 +1327,6 @@ e_mod_quickpanel_client_set(E_Client *ec)
    evas_object_event_callback_add(ec->frame, EVAS_CALLBACK_MOVE, _quickpanel_client_evas_cb_move, qp);
 
    E_CLIENT_HOOK_APPEND(qp->hooks,   E_CLIENT_HOOK_DEL,                       _quickpanel_hook_client_del,     qp);
-   E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_ROTATION_CHANGE_BEGIN,    _quickpanel_cb_rotation_begin,   qp);
-   E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_ROTATION_CHANGE_CANCEL,   _quickpanel_cb_rotation_cancel,  qp);
    E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_ROTATION_CHANGE_END,      _quickpanel_cb_rotation_done,    qp);
    E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_SHOW,                     _quickpanel_cb_client_show,      qp);
    E_LIST_HANDLER_APPEND(qp->events, E_EVENT_CLIENT_HIDE,                     _quickpanel_cb_client_hide,      qp);

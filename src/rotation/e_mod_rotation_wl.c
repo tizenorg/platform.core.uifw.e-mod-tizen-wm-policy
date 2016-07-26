@@ -924,6 +924,7 @@ e_client_rotation_set(E_Client *ec, int rotation)
              if ((!ec->e.state.rot.pending_change_request) &&
                  (!ec->e.state.rot.wait_for_done))
                {
+                  EDBG(ec, "Client Rotation Canceled (curr_rot == rot %d)", rotation);
                   _e_client_rotation_list_remove(ec);
                   if (ec->e.state.rot.pending_show)
                     {
