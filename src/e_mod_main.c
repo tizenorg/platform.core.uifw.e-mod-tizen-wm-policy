@@ -1292,6 +1292,15 @@ e_mod_pol_client_is_cursor(E_Client *ec)
    return EINA_FALSE;
 }
 
+void
+e_mod_pol_client_aux_message_send(E_Client *ec, const char *key, const char *val, Eina_List *options)
+{
+   E_OBJECT_CHECK(ec);
+   E_OBJECT_TYPE_CHECK(ec, E_CLIENT_TYPE);
+
+   e_mod_pol_wl_aux_message_send(ec, key, val, options);
+}
+
 static Eina_Bool
 _pol_cb_module_defer_job(void *data EINA_UNUSED)
 {

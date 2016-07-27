@@ -210,4 +210,6 @@ EINTERN void             e_mod_pol_stack_clients_restack_above_lockscreen(E_Clie
 EINTERN Eina_Bool        e_mod_pol_stack_check_above_lockscreen(E_Client *ec, E_Layer layer, E_Layer *new_layer, Eina_Bool set_layer);
 
 EINTERN Eina_Bool        e_mod_pol_conf_rot_enable_get(int angle);
+
+EINTERN void             e_mod_pol_client_aux_message_send(E_Client *ec, const char *key, const char *val, Eina_List *options);
 #endif
