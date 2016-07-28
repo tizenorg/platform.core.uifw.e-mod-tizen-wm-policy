@@ -38,6 +38,7 @@ _region_rotation_set(Pol_Region *region, int angle)
      return;
 
    region->rotation = e_mod_rotation_angle_to_idx(angle);
+   e_mod_gesture_angle_set(region->gesture, angle);
 }
 
 static void
