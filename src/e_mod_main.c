@@ -21,6 +21,9 @@ Pol_System_Info g_system_info =
 static Eina_List *handlers = NULL;
 static Eina_List *hooks_ec = NULL;
 static Eina_List *hooks_cp = NULL;
+static Ecore_Idle_Enterer *_idle_enterer = NULL;
+static Eina_Bool _changed_vis = EINA_FALSE;
+static Eina_List *_changed_zone = NULL;
 
 static Pol_Client *_pol_client_add(E_Client *ec);
 static void        _pol_client_del(Pol_Client *pc);
@@ -56,6 +59,7 @@ static Eina_Bool   _pol_cb_client_resize(void *data EINA_UNUSED, int type, void 
 static Eina_Bool   _pol_cb_client_stack(void *data EINA_UNUSED, int type, void *event);
 static Eina_Bool   _pol_cb_client_property(void *data EINA_UNUSED, int type EINA_UNUSED, void *event);
 static Eina_Bool   _pol_cb_client_vis_change(void *data EINA_UNUSED, int type EINA_UNUSED, void *event EINA_UNUSED);
+static Eina_Bool   _pol_cb_client_hide(void *data EINA_UNUSED, int type EINA_UNUSED, void *event);
 static Eina_Bool   _pol_cb_module_defer_job(void *data EINA_UNUSED);
 
 
@@ -432,6 +436,7 @@ _pol_cb_hook_client_del(void *d EINA_UNUSED, E_Client *ec)
      return;
 
    e_mod_pol_wl_win_brightness_apply(ec);
+   e_tzsh_indicator_srv_ower_win_update(ec->zone);
 
 #ifdef HAVE_WAYLAND_ONLY
    e_mod_pol_wl_client_del(ec);
@@ -622,6 +627,10 @@ _pol_cb_hook_client_visibility(void *d EINA_UNUSED, E_Client *ec)
           }
 
         e_mod_pol_wl_win_brightness_apply(ec);
+
+        _changed_vis = EINA_TRUE;
+        if (!eina_list_data_find(_changed_zone, ec->zone))
+          _changed_zone = eina_list_append(_changed_zone, ec->zone);
      }
    else
      {
@@ -962,6 +971,39 @@ _pol_cb_client_vis_change(void *data EINA_UNUSED, int type EINA_UNUSED, void *ev
    e_mod_pol_wl_win_scrmode_apply();
 #endif
    return ECORE_CALLBACK_PASS_ON;
+}
+
+static Eina_Bool
+_pol_cb_client_hide(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
+{
+   E_Event_Client *ev;
+   E_Client *ec;
+
+   ev = event;
+   if (!ev) return ECORE_CALLBACK_PASS_ON;
+
+   ec = ev->ec;
+   e_tzsh_indicator_srv_ower_win_update(ec->zone);
+
+   return ECORE_CALLBACK_PASS_ON;
+}
+
+static Eina_Bool
+_pol_cb_idle_enterer(void *data __UNUSED__)
+{
+   E_Zone *zone;
+
+   if (_changed_vis)
+     {
+        EINA_LIST_FREE(_changed_zone, zone)
+          {
+             e_tzsh_indicator_srv_ower_win_update(zone);
+          }
+        _changed_zone = NULL;
+     }
+   _changed_vis = EINA_FALSE;
+
+   return ECORE_CALLBACK_RENEW;
 }
 
 void
@@ -1394,6 +1436,7 @@ e_modapi_init(E_Module *m)
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_STACK,              _pol_cb_client_stack,                    NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_PROPERTY,           _pol_cb_client_property,                 NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_VISIBILITY_CHANGE,  _pol_cb_client_vis_change,               NULL);
+   E_LIST_HANDLER_APPEND(handlers, E_EVENT_CLIENT_HIDE,               _pol_cb_client_hide,                 NULL);
    E_LIST_HANDLER_APPEND(handlers, E_EVENT_MODULE_DEFER_JOB,          _pol_cb_module_defer_job,                NULL);
 
    E_CLIENT_HOOK_APPEND(hooks_ec,  E_CLIENT_HOOK_NEW_CLIENT,          _pol_cb_hook_client_new,                 NULL);
@@ -1409,6 +1452,8 @@ e_modapi_init(E_Module *m)
 
    E_PIXMAP_HOOK_APPEND(hooks_cp,  E_PIXMAP_HOOK_DEL,                 _pol_cb_hook_pixmap_del,                 NULL);
    E_PIXMAP_HOOK_APPEND(hooks_cp,  E_PIXMAP_HOOK_UNUSABLE,            _pol_cb_hook_pixmap_unusable,            NULL);
+
+   _idle_enterer = ecore_idle_enterer_add(_pol_cb_idle_enterer, NULL);
 
    e_mod_pol_rotation_init();
    e_mod_transform_mode_init();
@@ -1433,6 +1478,7 @@ e_modapi_shutdown(E_Module *m)
         return 1;
      }
 
+   eina_list_free(_changed_zone);
    eina_list_free(mod->launchers);
    EINA_INLIST_FOREACH_SAFE(mod->softkeys, l, softkey)
      e_mod_pol_softkey_del(softkey);
