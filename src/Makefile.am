@@ -22,6 +22,8 @@ SRVS_SRC = services/e_mod_quickpanel.c \
            services/e_mod_quickpanel.h \
            services/e_mod_lockscreen.h \
            services/e_mod_lockscreen.c \
+           services/e_mod_indicator.h \
+           services/e_mod_indicator.c \
            services/e_mod_gesture.c    \
            services/e_mod_gesture.h    \
            services/e_mod_region.h     \
