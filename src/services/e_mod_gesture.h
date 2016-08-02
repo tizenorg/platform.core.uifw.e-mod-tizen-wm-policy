@@ -17,5 +17,7 @@ typedef void (*Pol_Gesture_End_Cb)(void *data, Evas_Object *obj, int x, int y, u
 EINTERN Pol_Gesture  *e_mod_gesture_add(Evas_Object *obj, Pol_Gesture_Type type);
 EINTERN void          e_mod_gesture_del(Pol_Gesture *gesture);
 EINTERN void          e_mod_gesture_cb_set(Pol_Gesture *gesture, Pol_Gesture_Start_Cb cb_start, Pol_Gesture_Move_Cb cb_move, Pol_Gesture_End_Cb cb_end, void *data);
+EINTERN void          e_mod_gesture_angle_set(Pol_Gesture *gesture, int angle);
+
 
 #endif /* E_MOD_GESTURE */
