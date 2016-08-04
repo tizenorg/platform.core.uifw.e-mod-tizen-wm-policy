@@ -18,7 +18,6 @@
  * license.
  */
 #include "e_mod_rotation.h"
-#include "e_mod_utils.h"
 #include "e_mod_rotation_private.h"
 
 #ifdef HAVE_AUTO_ROTATION

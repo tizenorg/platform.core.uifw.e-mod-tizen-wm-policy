@@ -39,26 +39,9 @@ if test "x${have_wayland_only}" != "xno"; then
 fi
 AM_CONDITIONAL(HAVE_WAYLAND_ONLY, [test "x${have_wayland_only}" = xyes])
 
-PKG_CHECK_MODULES(ENLIGHTENMENT, [enlightenment, capi-system-device])
-if test "x${have_wayland_only}" = "xyes"; then
-  PKG_CHECK_MODULES(EXTRA, [tizen-extension-server])
-  ENLIGHTENMENT_CFLAGS="${ENLIGHTENMENT_CFLAGS} ${EXTRA_CFLAGS}"
-  ENLIGHTENMENT_LIBS="${ENLIGHTENMENT_LIBS} ${EXTRA_LIBS}"
-fi
+PKG_CHECK_MODULES(ENLIGHTENMENT, [enlightenment])
 AC_SUBST(ENLIGHTENMENT_CFLAGS)
 AC_SUBST(ENLIGHTENMENT_LIBS)
-
-# Checks for cynara
-have_cynara=no
-AC_ARG_ENABLE(cynara,
-	AS_HELP_STRING([--enable-cynara], [enable cynara]),
-	[have_cynara=$enableval],
-	[have_cynara=no]
-)
-if test "x${have_cynara}" = "xyes"; then
-	PKG_CHECK_MODULES(CYNARA, [cynara-client, cynara-creds-socket, cynara-session])
-	AC_DEFINE([ENABLE_CYNARA],[1],[enable cynara])
-fi
 
 # Checks for ttrace header files
 PKG_CHECK_MODULES(TTRACE,
@@ -78,11 +61,6 @@ AC_SUBST(MODULE_ARCH)
 AC_DEFINE_UNQUOTED(MODULE_ARCH, "$MODULE_ARCH", "Module architecture")
 
 datadir=$(pkg-config --variable=modules enlightenment)/${PACKAGE}
-
-# for Tzsh
-if test "x${have_wayland_only}" = "xyes"; then
-  PKG_CHECK_MODULES([TZSH_SERVER], [tzsh-server])
-fi
 
 # for include e_comp_wl.h
 if test "x${have_wayland_only}" != "xno"; then
